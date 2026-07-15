@@ -1,0 +1,451 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  GURU
+  SISWA
+}
+
+enum TingkatKesulitan {
+  MUDAH
+  SEDANG
+  SULIT
+}
+
+enum JenisSoal {
+  PILIHAN_GANDA
+  ESSAY
+  TRUE_FALSE
+  MATCHING
+  ISIAN_SINGKAT
+}
+
+enum StatusUjian {
+  DRAFT
+  AKTIF
+  SELESAI
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique
+  name          String?
+  image         String?
+  password      String?
+  emailVerified DateTime?
+  role          Role      @default(SISWA)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  guru          Guru?
+  siswa         Siswa?
+  accounts      Account[]
+  sessions      Session[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  pengumuman    Pengumuman[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(uuid()) @db.Uuid
+  userId            String  @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Guru {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid
+  nip       String?  @unique
+  nuptk     String?
+  nama      String
+  alamat    String?
+  noTelp    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mataPelajarans    MataPelajaran[]
+  kelas             Kelas[]
+  soal              Soal[]
+  ujian             Ujian[]
+  penilaianEssay    PenilaianEssay[]
+
+  @@map("guru")
+}
+
+model Siswa {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid
+  nis       String?  @unique
+  nisn      String?
+  nama      String
+  alamat    String?
+  noTelp    String?
+  kelasId   String?  @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kelas          Kelas?          @relation(fields: [kelasId], references: [id])
+  jawabanUjian   JawabanUjian[]
+  jawabanLatihan JawabanLatihan[]
+  nilai          Nilai[]
+
+  @@map("siswa")
+}
+
+model Kelas {
+  id        String   @id @default(uuid()) @db.Uuid
+  nama      String
+  tingkat   Int
+  guruId    String?  @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  guru          Guru?         @relation(fields: [guruId], references: [id])
+  siswas        Siswa[]
+  mataPelajarans MataPelajaran[]
+  ujians        Ujian[]
+  jadwalPelajaran JadwalPelajaran[]
+  pengumuman    Pengumuman[]
+
+  @@map("kelas")
+}
+
+model MataPelajaran {
+  id        String   @id @default(uuid()) @db.Uuid
+  kode      String   @unique
+  nama      String
+  deskripsi String?
+  guruId    String   @db.Uuid
+  kelasId   String   @db.Uuid
+  semesterId String  @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  guru              Guru               @relation(fields: [guruId], references: [id])
+  kelas             Kelas              @relation(fields: [kelasId], references: [id])
+  semester          Semester           @relation(fields: [semesterId], references: [id])
+  soals             Soal[]
+  ujians            Ujian[]
+  jadwalPelajaran   JadwalPelajaran[]
+  nilai             Nilai[]
+
+  @@map("mata_pelajaran")
+}
+
+model TahunAjaran {
+  id        String   @id @default(uuid()) @db.Uuid
+  nama      String   @unique
+  tahunMulai Int
+  tahunSelesai Int
+  isAktif   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  semesters Semester[]
+  ujians    Ujian[]
+
+  @@map("tahun_ajaran")
+}
+
+model Semester {
+  id           String   @id @default(uuid()) @db.Uuid
+  nama         String
+  tahunAjaranId String  @db.Uuid
+  isAktif      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  tahunAjaran    TahunAjaran    @relation(fields: [tahunAjaranId], references: [id])
+  mataPelajarans MataPelajaran[]
+  ujians         Ujian[]
+  nilai          Nilai[]
+
+  @@map("semester")
+}
+
+model Soal {
+  id              String          @id @default(uuid()) @db.Uuid
+  pertanyaan      String          @db.Text
+  gambar          String?
+  jenisSoal       JenisSoal
+  tingkatKesulitan TingkatKesulitan @default(SEDANG)
+  pilihanGanda    Json?
+  trueFalse       Boolean?
+  matching        Json?
+  jawaban         String          @db.Text
+  poin            Int             @default(1)
+  bab             String?
+  tags            String?
+  kategoriId      String?         @db.Uuid
+  mataPelajaranId String          @db.Uuid
+  guruId          String          @db.Uuid
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  kategori      KategoriSoal? @relation(fields: [kategoriId], references: [id])
+  mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id])
+  guru          Guru          @relation(fields: [guruId], references: [id])
+  ujianSoal     UjianSoal[]
+  jawabanUjian  JawabanUjian[]
+  jawabanLatihan JawabanLatihan[]
+
+  @@map("soal")
+}
+
+model KategoriSoal {
+  id        String   @id @default(uuid()) @db.Uuid
+  nama      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  soals Soal[]
+
+  @@map("kategori_soal")
+}
+
+model Ujian {
+  id              String     @id @default(uuid()) @db.Uuid
+  nama            String
+  deskripsi       String?    @db.Text
+  mataPelajaranId String     @db.Uuid
+  kelasId         String     @db.Uuid
+  guruId          String     @db.Uuid
+  tahunAjaranId   String     @db.Uuid
+  semesterId      String     @db.Uuid
+  jumlahSoal      Int
+  nilaiMinimum    Int        @default(0)
+  durasi          Int
+  tanggal         DateTime
+  jamMulai        DateTime
+  jamSelesai      DateTime
+  mode            String     @default("manual")
+  status          StatusUjian @default(DRAFT)
+  isLatihan       Boolean    @default(false)
+  randomSoal      Boolean    @default(true)
+  randomJawaban   Boolean    @default(true)
+  fullscreen      Boolean    @default(true)
+  disableCopy     Boolean    @default(true)
+  disablePaste    Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id])
+  kelas         Kelas         @relation(fields: [kelasId], references: [id])
+  guru          Guru          @relation(fields: [guruId], references: [id])
+  tahunAjaran   TahunAjaran   @relation(fields: [tahunAjaranId], references: [id])
+  semester      Semester      @relation(fields: [semesterId], references: [id])
+  ujianSoal     UjianSoal[]
+  jawabanUjian  JawabanUjian[]
+  nilai         Nilai[]
+
+  @@map("ujian")
+}
+
+model UjianSoal {
+  id      String @id @default(uuid()) @db.Uuid
+  ujianId String @db.Uuid
+  soalId  String @db.Uuid
+  nomor   Int
+
+  ujian Ujian @relation(fields: [ujianId], references: [id], onDelete: Cascade)
+  soal  Soal  @relation(fields: [soalId], references: [id], onDelete: Cascade)
+
+  @@unique([ujianId, soalId])
+  @@map("ujian_soal")
+}
+
+model JawabanUjian {
+  id        String    @id @default(uuid()) @db.Uuid
+  ujianId   String    @db.Uuid
+  siswaId   String    @db.Uuid
+  soalId    String    @db.Uuid
+  jawaban   String?   @db.Text
+  esaiJawaban String? @db.Text
+  isCorrect Boolean?
+  poin      Int?
+  raguRagu  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  ujian Ujian @relation(fields: [ujianId], references: [id], onDelete: Cascade)
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  soal  Soal  @relation(fields: [soalId], references: [id], onDelete: Cascade)
+  penilaianEssay PenilaianEssay?
+
+  @@unique([ujianId, siswaId, soalId])
+  @@map("jawaban_ujian")
+}
+
+model JawabanLatihan {
+  id        String   @id @default(uuid()) @db.Uuid
+  siswaId   String   @db.Uuid
+  soalId    String   @db.Uuid
+  jawaban   String?  @db.Text
+  isCorrect Boolean?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  soal  Soal  @relation(fields: [soalId], references: [id], onDelete: Cascade)
+
+  @@map("jawaban_latihan")
+}
+
+model Nilai {
+  id          String   @id @default(uuid()) @db.Uuid
+  siswaId     String   @db.Uuid
+  ujianId     String?  @db.Uuid
+  mataPelajaranId String @db.Uuid
+  semesterId  String   @db.Uuid
+  nilai       Float
+  jenis       String   @default("UJIAN")
+  keterangan  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  siswa         Siswa         @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  ujian         Ujian?        @relation(fields: [ujianId], references: [id])
+  mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id])
+  semester      Semester      @relation(fields: [semesterId], references: [id])
+
+  @@map("nilai")
+}
+
+model PenilaianEssay {
+  id        String   @id @default(uuid()) @db.Uuid
+  jawabanUjianId String @unique @db.Uuid
+  guruId    String   @db.Uuid
+  nilai     Int
+  komentar  String?  @db.Text
+  catatan   String?  @db.Text
+  rubrik    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jawabanUjian JawabanUjian @relation(fields: [jawabanUjianId], references: [id], onDelete: Cascade)
+  guru         Guru         @relation(fields: [guruId], references: [id])
+
+  @@map("penilaian_essay")
+}
+
+model JadwalPelajaran {
+  id              String   @id @default(uuid()) @db.Uuid
+  kelasId         String   @db.Uuid
+  mataPelajaranId String   @db.Uuid
+  hari            String
+  jamMulai        String
+  jamSelesai      String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  kelas         Kelas         @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+  mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id], onDelete: Cascade)
+
+  @@map("jadwal_pelajaran")
+}
+
+model Pengumuman {
+  id        String   @id @default(uuid()) @db.Uuid
+  judul     String
+  isi       String   @db.Text
+  gambar    String?
+  lampiran  String?
+  tipe      String   @default("UMUM")
+  userId    String   @db.Uuid
+  kelasId   String?  @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  user  User   @relation(fields: [userId], references: [id])
+  kelas Kelas? @relation(fields: [kelasId], references: [id])
+
+  @@map("pengumuman")
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  judul     String
+  pesan     String   @db.Text
+  tipe      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  action    String
+  entity    String
+  entityId  String?
+  detail    Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}

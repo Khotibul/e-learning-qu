@@ -1,0 +1,79 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { cn } from "@/lib/utils"
+import { NAV_ITEMS } from "@/constants"
+import {
+  LayoutDashboard, UserCheck, Users, DoorOpen, BookOpen,
+  Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3,
+  Database, FileQuestion, ClipboardList, FileText, Trophy,
+  GraduationCap, X
+} from "lucide-react"
+import type { Role } from "@/types"
+import { Button } from "@/components/ui/button"
+
+const iconMap: Record<string, React.ElementType> = {
+  LayoutDashboard, UserCheck, Users, DoorOpen, BookOpen,
+  Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3,
+  Database, FileQuestion, ClipboardList, FileText, Trophy, GraduationCap,
+}
+
+interface SidebarProps {
+  role: Role
+  isOpen: boolean
+  onClose: () => void
+}
+
+export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
+  const pathname = usePathname()
+  const items = NAV_ITEMS[role as keyof typeof NAV_ITEMS] || []
+
+  return (
+    <>
+      {isOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onClose} />
+      )}
+      <aside
+        className={cn(
+          "fixed top-0 left-0 z-50 h-full w-64 bg-card border-r border-border/50 backdrop-blur-xl transition-transform duration-300 lg:translate-x-0 lg:static lg:z-auto",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="flex items-center justify-between p-4 border-b">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
+              <GraduationCap className="h-5 w-5 text-white" />
+            </div>
+            <span className="font-bold text-lg">E-Learning QU</span>
+          </Link>
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={onClose}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <nav className="p-3 space-y-1 overflow-y-auto h-[calc(100%-64px)]">
+          {items.map((item) => {
+            const Icon = iconMap[item.icon]
+            const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                  isActive
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                {Icon && <Icon className="h-4 w-4" />}
+                {item.label}
+              </Link>
+            )
+          })}
+        </nav>
+      </aside>
+    </>
+  )
+}
