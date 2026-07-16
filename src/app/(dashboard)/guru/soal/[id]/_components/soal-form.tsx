@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Save, ArrowLeft, Plus, Trash2, ListTree } from "lucide-react"
+import { Save, ArrowLeft, Plus, Trash2, ListTree, FileText, Layers } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -80,6 +80,9 @@ export function SoalFormClient({
   }
 
   const initialSub = parseSubSoal(soal?.subSoal)
+  const hasExistingSub = initialSub.length > 0
+
+  const [soalMode, setSoalMode] = useState<"single" | "sub">(hasExistingSub ? "sub" : "single")
 
   const [pertanyaan, setPertanyaan] = useState(soal?.pertanyaan ?? "")
   const [jenisSoal, setJenisSoal] = useState(soal?.jenisSoal ?? "PILIHAN_GANDA")
@@ -103,7 +106,8 @@ export function SoalFormClient({
   )
   const [saving, setSaving] = useState(false)
 
-  const hasSubSoal = subSoal.length > 0 && subSoal.some((s) => s.pertanyaan.trim())
+  const isSubMode = soalMode === "sub"
+  const hasSubSoal = isSubMode && subSoal.length > 0 && subSoal.some((s) => s.pertanyaan.trim())
 
   const computedPoin = hasSubSoal
     ? subSoal.reduce((sum, s) => sum + (s.poin || 0), 0)
@@ -149,10 +153,11 @@ export function SoalFormClient({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!pertanyaan.trim()) { toast.error("Judul/instruksi soal harus diisi"); return }
+    if (!pertanyaan.trim()) { toast.error(isSubMode ? "Judul/instruksi soal harus diisi" : "Pertanyaan harus diisi"); return }
     if (!mataPelajaranId) { toast.error("Mata pelajaran harus dipilih"); return }
 
-    if (hasSubSoal) {
+    if (isSubMode) {
+      if (subSoal.length === 0) { toast.error("Tambahkan minimal satu sub pertanyaan"); return }
       const emptySub = subSoal.find((s) => !s.pertanyaan.trim())
       if (emptySub) { toast.error("Semua sub pertanyaan harus diisi"); return }
     } else {
@@ -167,18 +172,28 @@ export function SoalFormClient({
 
     setSaving(true)
     try {
-      const payload = {
+      const payload = isSubMode ? {
+        pertanyaan,
+        jenisSoal: "ESSAY",
+        tingkatKesulitan,
+        jawaban: "",
+        poin: computedPoin,
+        bab: bab || undefined,
+        tags: tags || undefined,
+        mataPelajaranId,
+        subSoal,
+      } : {
         pertanyaan,
         jenisSoal,
         tingkatKesulitan,
         pilihanGanda: isPG ? pilihanGanda : undefined,
         trueFalse: isTF && trueFalse !== null ? trueFalse : undefined,
         jawaban: isTF ? String(trueFalse) : jawaban,
-        poin: hasSubSoal ? computedPoin : poin,
+        poin,
         bab: bab || undefined,
         tags: tags || undefined,
         mataPelajaranId,
-        subSoal: hasSubSoal ? subSoal : undefined,
+        subSoal: undefined,
       }
 
       if (isNew) {
@@ -222,6 +237,25 @@ export function SoalFormClient({
         <Card>
           <CardHeader><CardTitle>Informasi Soal</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex gap-4 mb-2">
+              <Button
+                type="button"
+                variant={soalMode === "single" ? "default" : "outline"}
+                onClick={() => { setSoalMode("single"); setSubSoal([]) }}
+                className="flex-1 sm:flex-none"
+              >
+                <FileText className="h-4 w-4 mr-2" /> Soal Tunggal
+              </Button>
+              <Button
+                type="button"
+                variant={soalMode === "sub" ? "default" : "outline"}
+                onClick={() => { setSoalMode("sub"); if (subSoal.length === 0) addSubSoal() }}
+                className="flex-1 sm:flex-none"
+              >
+                <Layers className="h-4 w-4 mr-2" /> Sub Pertanyaan
+              </Button>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="mapel">Mata Pelajaran</Label>
               <Select value={mataPelajaranId} onValueChange={setMataPelajaranId}>
@@ -236,18 +270,20 @@ export function SoalFormClient({
               </Select>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="jenis">Jenis Soal</Label>
-                <Select value={jenisSoal} onValueChange={setJenisSoal}>
-                  <SelectTrigger id="jenis"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {jenisSoalOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {!isSubMode && (
+                <div className="space-y-2">
+                  <Label htmlFor="jenis">Jenis Soal</Label>
+                  <Select value={jenisSoal} onValueChange={setJenisSoal}>
+                    <SelectTrigger id="jenis"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {jenisSoalOptions.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="tingkat">Tingkat Kesulitan</Label>
                 <Select value={tingkatKesulitan} onValueChange={setTingkatKesulitan}>
@@ -260,8 +296,8 @@ export function SoalFormClient({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="poin">Poin {hasSubSoal && <span className="text-xs text-muted-foreground">(otomatis dari sub)</span>}</Label>
-                <Input id="poin" type="number" min={1} value={hasSubSoal ? computedPoin : poin} onChange={(e) => setPoin(Number(e.target.value))} disabled={hasSubSoal} />
+                <Label htmlFor="poin">Poin {isSubMode && <span className="text-xs text-muted-foreground">(otomatis)</span>}</Label>
+                <Input id="poin" type="number" min={1} value={isSubMode ? computedPoin : poin} onChange={(e) => setPoin(Number(e.target.value))} disabled={isSubMode} />
               </div>
             </div>
 
@@ -278,233 +314,266 @@ export function SoalFormClient({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ListTree className="h-5 w-5" />
-              {hasSubSoal ? "Judul / Instruksi Soal" : "Pertanyaan"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="pertanyaan">
-                {hasSubSoal ? "Judul / Instruksi" : "Teks Pertanyaan"}
-              </Label>
-              <Textarea
-                id="pertanyaan"
-                placeholder={hasSubSoal ? "Contoh: Jawablah pertanyaan-pertanyaan berikut dengan benar" : "Masukkan teks pertanyaan..."}
-                value={pertanyaan}
-                onChange={(e) => setPertanyaan(e.target.value)}
-                className="min-h-[80px]"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <ListTree className="h-5 w-5" />
-              Sub Pertanyaan
-              {hasSubSoal && (
-                <Badge variant="secondary" className="ml-2">{subSoal.length} pertanyaan</Badge>
-              )}
-            </CardTitle>
-            <Button type="button" variant="outline" size="sm" onClick={addSubSoal}>
-              <Plus className="h-4 w-4 mr-1" /> Tambah
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {subSoal.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground">
-                <p className="text-sm">Belum ada sub pertanyaan</p>
-                <p className="text-xs mt-1">Klik "Tambah" untuk menambahkan pertanyaan dalam soal ini</p>
-              </div>
-            ) : (
-              subSoal.map((item, idx) => (
-                <div key={idx} className="rounded-xl border p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="secondary">Pertanyaan {idx + 1}</Badge>
-                    {subSoal.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeSubSoal(idx)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Teks Pertanyaan</Label>
-                    <Textarea
-                      value={item.pertanyaan}
-                      onChange={(e) => updateSubSoal(idx, "pertanyaan", e.target.value)}
-                      placeholder="Masukkan teks sub pertanyaan..."
-                      className="min-h-[60px]"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Kunci Jawaban</Label>
-                      <Input
-                        value={item.jawaban}
-                        onChange={(e) => updateSubSoal(idx, "jawaban", e.target.value)}
-                        placeholder="Jawaban benar"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Poin</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={item.poin}
-                        onChange={(e) => updateSubSoal(idx, "poin", Number(e.target.value) || 1)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-            {hasSubSoal && (
-              <div className="text-sm text-muted-foreground text-right">
-                Total Poin: <span className="font-semibold text-foreground">{computedPoin}</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {isPG && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Pilihan Ganda</CardTitle>
-              <Button type="button" variant="outline" size="sm" onClick={addOption}>
-                <Plus className="h-4 w-4 mr-1" /> Tambah Opsi
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {pilihanGanda.map((opt, idx) => (
-                <div key={idx} className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="jawaban"
-                      value={opt.label}
-                      checked={jawaban === opt.label}
-                      onChange={(e) => setJawaban(e.target.value)}
-                      className="h-4 w-4"
-                    />
-                    <span className="font-medium w-6 text-sm">{opt.label}.</span>
-                  </div>
-                  <Input
-                    value={opt.text}
-                    onChange={(e) => updateOption(idx, e.target.value)}
-                    placeholder={`Teks opsi ${opt.label}`}
-                    className="flex-1"
+        {isSubMode ? (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ListTree className="h-5 w-5" />
+                  Judul / Instruksi
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Label htmlFor="pertanyaan">Judul / Instruksi</Label>
+                  <Textarea
+                    id="pertanyaan"
+                    placeholder="Contoh: Jawablah pertanyaan-pertanyaan berikut dengan benar"
+                    value={pertanyaan}
+                    onChange={(e) => setPertanyaan(e.target.value)}
+                    className="min-h-[80px]"
                   />
-                  {pilihanGanda.length > 2 && (
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(idx)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  )}
                 </div>
-              ))}
-              <p className="text-xs text-muted-foreground">Pilih radio button untuk jawaban yang benar</p>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
 
-        {isTF && (
-          <Card>
-            <CardHeader><CardTitle>Jawaban Benar/Salah</CardTitle></CardHeader>
-            <CardContent>
-              <div className="flex gap-4">
-                <Button
-                  type="button"
-                  variant={trueFalse === true ? "default" : "outline"}
-                  onClick={() => setTrueFalse(true)}
-                  className="flex-1"
-                >
-                  Benar
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Layers className="h-5 w-5" />
+                  Sub Pertanyaan
+                  {hasSubSoal && (
+                    <Badge variant="secondary" className="ml-2">{subSoal.length} pertanyaan</Badge>
+                  )}
+                </CardTitle>
+                <Button type="button" variant="outline" size="sm" onClick={addSubSoal}>
+                  <Plus className="h-4 w-4 mr-1" /> Tambah
                 </Button>
-                <Button
-                  type="button"
-                  variant={trueFalse === false ? "default" : "outline"}
-                  onClick={() => setTrueFalse(false)}
-                  className="flex-1"
-                >
-                  Salah
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {subSoal.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <p className="text-sm">Belum ada sub pertanyaan</p>
+                    <p className="text-xs mt-1">Klik "Tambah" untuk menambahkan pertanyaan</p>
+                  </div>
+                ) : (
+                  subSoal.map((item, idx) => (
+                    <div key={idx} className="rounded-xl border p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="secondary">Pertanyaan {idx + 1}</Badge>
+                        {subSoal.length > 1 && (
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeSubSoal(idx)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Teks Pertanyaan</Label>
+                        <Textarea
+                          value={item.pertanyaan}
+                          onChange={(e) => updateSubSoal(idx, "pertanyaan", e.target.value)}
+                          placeholder="Masukkan teks sub pertanyaan..."
+                          className="min-h-[60px]"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Kunci Jawaban</Label>
+                          <Input
+                            value={item.jawaban}
+                            onChange={(e) => updateSubSoal(idx, "jawaban", e.target.value)}
+                            placeholder="Jawaban benar"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Poin</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={item.poin}
+                            onChange={(e) => updateSubSoal(idx, "poin", Number(e.target.value) || 1)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+                {hasSubSoal && (
+                  <div className="text-sm text-muted-foreground text-right">
+                    Total Poin: <span className="font-semibold text-foreground">{computedPoin}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Pertanyaan
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Label htmlFor="pertanyaan">Teks Pertanyaan</Label>
+                  <Textarea
+                    id="pertanyaan"
+                    placeholder="Masukkan teks pertanyaan..."
+                    value={pertanyaan}
+                    onChange={(e) => setPertanyaan(e.target.value)}
+                    className="min-h-[80px]"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-        {!isPG && !isTF && (
-          <Card>
-            <CardHeader><CardTitle>Jawaban</CardTitle></CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Label htmlFor="jawaban">Kunci Jawaban</Label>
-                <textarea
-                  id="jawaban"
-                  className="flex min-h-[80px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  placeholder="Masukkan kunci jawaban..."
-                  value={jawaban}
-                  onChange={(e) => setJawaban(e.target.value)}
-                />
-              </div>
-            </CardContent>
-          </Card>
+            {isPG && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Pilihan Ganda</CardTitle>
+                  <Button type="button" variant="outline" size="sm" onClick={addOption}>
+                    <Plus className="h-4 w-4 mr-1" /> Tambah Opsi
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {pilihanGanda.map((opt, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="jawaban"
+                          value={opt.label}
+                          checked={jawaban === opt.label}
+                          onChange={(e) => setJawaban(e.target.value)}
+                          className="h-4 w-4"
+                        />
+                        <span className="font-medium w-6 text-sm">{opt.label}.</span>
+                      </div>
+                      <Input
+                        value={opt.text}
+                        onChange={(e) => updateOption(idx, e.target.value)}
+                        placeholder={`Teks opsi ${opt.label}`}
+                        className="flex-1"
+                      />
+                      {pilihanGanda.length > 2 && (
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(idx)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <p className="text-xs text-muted-foreground">Pilih radio button untuk jawaban yang benar</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {isTF && (
+              <Card>
+                <CardHeader><CardTitle>Jawaban Benar/Salah</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="flex gap-4">
+                    <Button
+                      type="button"
+                      variant={trueFalse === true ? "default" : "outline"}
+                      onClick={() => setTrueFalse(true)}
+                      className="flex-1"
+                    >
+                      Benar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={trueFalse === false ? "default" : "outline"}
+                      onClick={() => setTrueFalse(false)}
+                      className="flex-1"
+                    >
+                      Salah
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {!isPG && !isTF && (
+              <Card>
+                <CardHeader><CardTitle>Jawaban</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Label htmlFor="jawaban">Kunci Jawaban</Label>
+                    <textarea
+                      id="jawaban"
+                      className="flex min-h-[80px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      placeholder="Masukkan kunci jawaban..."
+                      value={jawaban}
+                      onChange={(e) => setJawaban(e.target.value)}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
 
         <Card>
           <CardHeader><CardTitle>Preview Soal</CardTitle></CardHeader>
           <CardContent>
             <div className="rounded-xl border p-4 space-y-3 bg-muted/30">
-              <p className="font-medium">{hasSubSoal ? "Judul:" : "Soal:"}</p>
-              <p className="whitespace-pre-wrap">{pertanyaan || <span className="text-muted-foreground italic">Belum ada judul</span>}</p>
-              {hasSubSoal && (
-                <div className="space-y-3 mt-3">
-                  {subSoal.map((item, idx) => (
-                    <div key={idx} className="p-3 rounded-lg border bg-background">
-                      <p className="text-sm font-medium">{idx + 1}. {item.pertanyaan || <span className="text-muted-foreground italic">Kosong</span>}</p>
-                      <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                        <span>Kunci: {item.jawaban || "-"}</span>
-                        <span>{item.poin} poin</span>
+              {isSubMode && hasSubSoal ? (
+                <>
+                  <p className="font-medium">Judul:</p>
+                  <p className="whitespace-pre-wrap">{pertanyaan || <span className="text-muted-foreground italic">Belum ada judul</span>}</p>
+                  <div className="space-y-3 mt-3">
+                    {subSoal.map((item, idx) => (
+                      <div key={idx} className="p-3 rounded-lg border bg-background">
+                        <p className="text-sm font-medium">{idx + 1}. {item.pertanyaan || <span className="text-muted-foreground italic">Kosong</span>}</p>
+                        <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                          <span>Kunci: {item.jawaban || "-"}</span>
+                          <span>{item.poin} poin</span>
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">Sub Soal</span>
+                    <span className="text-xs bg-muted px-2 py-1 rounded-full">
+                      {tingkatOptions.find((o) => o.value === tingkatKesulitan)?.label}
+                    </span>
+                    <span className="text-xs bg-muted px-2 py-1 rounded-full">{computedPoin} poin</span>
+                    <span className="text-xs bg-muted px-2 py-1 rounded-full">{subSoal.length} sub soal</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium">Soal:</p>
+                  <p className="whitespace-pre-wrap">{pertanyaan || <span className="text-muted-foreground italic">Belum ada pertanyaan</span>}</p>
+                  {isPG && (
+                    <div className="space-y-2 mt-3">
+                      {pilihanGanda.map((opt, idx) => (
+                        <div key={idx} className={`p-2 rounded-lg border ${jawaban === opt.label ? "border-primary bg-primary/5" : ""}`}>
+                          <span className="font-medium">{opt.label}.</span> {opt.text || <span className="text-muted-foreground italic">Kosong</span>}
+                          {jawaban === opt.label && <span className="text-xs text-primary ml-2">(Jawaban Benar)</span>}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                  {isTF && trueFalse !== null && (
+                    <p className="mt-2 text-sm">Jawaban: <span className="font-semibold">{trueFalse ? "Benar" : "Salah"}</span></p>
+                  )}
+                  {!isPG && !isTF && jawaban && (
+                    <p className="mt-2 text-sm">Jawaban: <span className="font-semibold">{jawaban}</span></p>
+                  )}
+                  <div className="flex gap-2 mt-3">
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                      {jenisSoalOptions.find((o) => o.value === jenisSoal)?.label}
+                    </span>
+                    <span className="text-xs bg-muted px-2 py-1 rounded-full">
+                      {tingkatOptions.find((o) => o.value === tingkatKesulitan)?.label}
+                    </span>
+                    <span className="text-xs bg-muted px-2 py-1 rounded-full">{poin} poin</span>
+                  </div>
+                </>
               )}
-              {!hasSubSoal && isPG && (
-                <div className="space-y-2 mt-3">
-                  {pilihanGanda.map((opt, idx) => (
-                    <div key={idx} className={`p-2 rounded-lg border ${jawaban === opt.label ? "border-primary bg-primary/5" : ""}`}>
-                      <span className="font-medium">{opt.label}.</span> {opt.text || <span className="text-muted-foreground italic">Kosong</span>}
-                      {jawaban === opt.label && <span className="text-xs text-primary ml-2">(Jawaban Benar)</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {!hasSubSoal && isTF && trueFalse !== null && (
-                <p className="mt-2 text-sm">Jawaban: <span className="font-semibold">{trueFalse ? "Benar" : "Salah"}</span></p>
-              )}
-              {!hasSubSoal && !isPG && !isTF && jawaban && (
-                <p className="mt-2 text-sm">Jawaban: <span className="font-semibold">{jawaban}</span></p>
-              )}
-              <div className="flex gap-2 mt-3">
-                <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                  {jenisSoalOptions.find((o) => o.value === jenisSoal)?.label}
-                </span>
-                <span className="text-xs bg-muted px-2 py-1 rounded-full">
-                  {tingkatOptions.find((o) => o.value === tingkatKesulitan)?.label}
-                </span>
-                <span className="text-xs bg-muted px-2 py-1 rounded-full">
-                  {hasSubSoal ? computedPoin : poin} poin
-                </span>
-                {hasSubSoal && (
-                  <span className="text-xs bg-muted px-2 py-1 rounded-full">
-                    {subSoal.length} sub soal
-                  </span>
-                )}
-              </div>
             </div>
           </CardContent>
         </Card>
