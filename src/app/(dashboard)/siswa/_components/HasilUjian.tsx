@@ -100,9 +100,7 @@ export function HasilUjian({ nilai, totalPoin, perolehPoin, jumlahSoal, jumlahBe
                   <div>
                     <p className="text-sm font-medium">Soal {soal.nomor}</p>
                     <p className="text-xs text-muted-foreground">
-                      {soal.isCorrect
-                        ? "Jawaban benar"
-                        : `Jawaban: ${soal.jawaban || "-"} | Benar: ${soal.jawabanBenar}`}
+                      {soal.isCorrect ? "Jawaban benar" : `Jawaban: ${soal.jawaban || "-"} | Benar: ${soal.jawabanBenar}`}
                     </p>
                   </div>
                 </div>

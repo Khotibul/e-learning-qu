@@ -29,11 +29,20 @@ import { KonfirmasiStartDialog } from "../../_components/KonfirmasiStartDialog"
 import { HasilUjian } from "../../_components/HasilUjian"
 import { cn } from "@/lib/utils"
 
+interface SubSoalItem {
+  pertanyaan: string
+  jenis: string
+  pilihanGanda?: { label: string; text: string }[] | null
+  trueFalse?: boolean | null
+  jawaban: string
+  poin: number
+}
+
 interface SoalData {
   id: string
   nomor: number
   pertanyaan: string
-  subSoal?: { pertanyaan: string; jawaban: string; poin: number }[] | null
+  subSoal?: SubSoalItem[] | null
   gambar?: string | null
   jenisSoal: string
   tingkatKesulitan: string

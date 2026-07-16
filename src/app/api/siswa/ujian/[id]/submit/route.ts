@@ -84,11 +84,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         let subPoin = 0
         let subTotal = 0
         for (let i = 0; i < subSoal.length; i++) {
-          const s = subSoal[i]
-          const userAns = subUser[i]?.trim() ?? ""
-          const correct = userAns.toLowerCase() === s.jawaban.toLowerCase().trim()
-          subTotal += s.poin
-          if (correct) subPoin += s.poin
+          const s = subSoal as any
+          const item = Array.isArray(s) ? s[i] : s
+          const userAns = (subUser[i]?.trim() ?? "").toLowerCase()
+          const jenis = item.jenis || "ISIAN_SINGKAT"
+          let correct = false
+          if (jenis === "PILIHAN_GANDA" || jenis === "TRUE_FALSE") {
+            correct = userAns === (item.jawaban || "").toLowerCase().trim()
+          } else if (jenis === "ISIAN_SINGKAT") {
+            correct = userAns === (item.jawaban || "").toLowerCase().trim()
+          } else {
+            correct = userAns === (item.jawaban || "").toLowerCase().trim()
+          }
+          subTotal += item.poin || 0
+          if (correct) subPoin += item.poin || 0
         }
         totalPoin += subTotal
         perolehPoin += subPoin

@@ -36,9 +36,21 @@ interface PilihanGanda {
 
 interface SubSoalItem {
   pertanyaan: string
+  jenis: string
+  pilihanGanda?: PilihanGanda[]
+  trueFalse?: boolean
   jawaban: string
   poin: number
 }
+
+const subJenisOptions = [
+  { value: "ISIAN_SINGKAT", label: "Isian Singkat" },
+  { value: "ESSAY", label: "Essay" },
+  { value: "PILIHAN_GANDA", label: "Pilihan Ganda" },
+  { value: "TRUE_FALSE", label: "Benar/Salah" },
+]
+
+const nextLabel = (arr: PilihanGanda[]) => String.fromCharCode(65 + arr.length)
 
 interface MapelRef {
   id: string
@@ -137,12 +149,54 @@ export function SoalFormClient({
   }
 
   const addSubSoal = () => {
-    setSubSoal([...subSoal, { pertanyaan: "", jawaban: "", poin: 1 }])
+    setSubSoal([...subSoal, { pertanyaan: "", jenis: "ISIAN_SINGKAT", jawaban: "", poin: 1 }])
   }
 
-  const updateSubSoal = (idx: number, field: keyof SubSoalItem, value: string | number) => {
+  const updateSubSoal = (idx: number, field: keyof SubSoalItem, value: any) => {
     const updated = [...subSoal]
     updated[idx] = { ...updated[idx], [field]: value }
+    if (field === "jenis") {
+      if (value === "PILIHAN_GANDA" && !updated[idx].pilihanGanda) {
+        updated[idx].pilihanGanda = [
+          { label: "A", text: "" },
+          { label: "B", text: "" },
+          { label: "C", text: "" },
+          { label: "D", text: "" },
+        ]
+        updated[idx].jawaban = ""
+      } else if (value === "TRUE_FALSE") {
+        updated[idx].trueFalse = null as any
+        updated[idx].jawaban = ""
+      } else {
+        updated[idx].pilihanGanda = undefined
+        updated[idx].trueFalse = undefined
+        updated[idx].jawaban = updated[idx].jawaban || ""
+      }
+    }
+    setSubSoal(updated)
+  }
+
+  const addSubOption = (idx: number) => {
+    const updated = [...subSoal]
+    const opts = updated[idx].pilihanGanda || []
+    updated[idx] = { ...updated[idx], pilihanGanda: [...opts, { label: nextLabel(opts), text: "" }] }
+    setSubSoal(updated)
+  }
+
+  const removeSubOption = (sIdx: number, oIdx: number) => {
+    const updated = [...subSoal]
+    let opts = updated[sIdx].pilihanGanda || []
+    if (opts.length <= 2) return
+    opts = opts.filter((_, i) => i !== oIdx).map((opt, i) => ({ ...opt, label: String.fromCharCode(65 + i) }))
+    updated[sIdx] = { ...updated[sIdx], pilihanGanda: opts }
+    setSubSoal(updated)
+  }
+
+  const updateSubOption = (sIdx: number, oIdx: number, text: string) => {
+    const updated = [...subSoal]
+    const opts = [...(updated[sIdx].pilihanGanda || [])]
+    opts[oIdx] = { ...opts[oIdx], text }
+    updated[sIdx] = { ...updated[sIdx], pilihanGanda: opts }
     setSubSoal(updated)
   }
 
@@ -160,6 +214,13 @@ export function SoalFormClient({
       if (subSoal.length === 0) { toast.error("Tambahkan minimal satu sub pertanyaan"); return }
       const emptySub = subSoal.find((s) => !s.pertanyaan.trim())
       if (emptySub) { toast.error("Semua sub pertanyaan harus diisi"); return }
+      for (const s of subSoal) {
+        if (s.jenis === "PILIHAN_GANDA") {
+          const emptyOpt = (s.pilihanGanda || []).find((o) => !o.text.trim())
+          if (emptyOpt) { toast.error(`Opsi ${emptyOpt.label} pada sub pertanyaan belum diisi`); return }
+          if (!s.jawaban.trim()) { toast.error("Jawaban benar harus dipilih pada setiap sub pertanyaan PG"); return }
+        }
+      }
     } else {
       if (isPG) {
         const emptyOption = pilihanGanda.find((o) => !o.text.trim())
@@ -357,46 +418,132 @@ export function SoalFormClient({
                     <p className="text-xs mt-1">Klik "Tambah" untuk menambahkan pertanyaan</p>
                   </div>
                 ) : (
-                  subSoal.map((item, idx) => (
-                    <div key={idx} className="rounded-xl border p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="secondary">Pertanyaan {idx + 1}</Badge>
-                        {subSoal.length > 1 && (
-                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeSubSoal(idx)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                  subSoal.map((item, idx) => {
+                    const isSubPG = item.jenis === "PILIHAN_GANDA"
+                    const isSubTF = item.jenis === "TRUE_FALSE"
+                    return (
+                      <div key={idx} className="rounded-xl border p-4 space-y-3">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">Soal {idx + 1}</Badge>
+                            <Select
+                              value={item.jenis}
+                              onValueChange={(v) => updateSubSoal(idx, "jenis", v)}
+                            >
+                              <SelectTrigger className="h-7 w-auto text-xs gap-1 border-0 bg-muted/50 shadow-none">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {subJenisOptions.map((o) => (
+                                  <SelectItem key={o.value} value={o.value} className="text-xs">
+                                    {o.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {subSoal.length > 1 && (
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeSubSoal(idx)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-xs">Teks Pertanyaan</Label>
+                          <Textarea
+                            value={item.pertanyaan}
+                            onChange={(e) => updateSubSoal(idx, "pertanyaan", e.target.value)}
+                            placeholder="Masukkan teks sub pertanyaan..."
+                            className="min-h-[60px]"
+                          />
+                        </div>
+
+                        {isSubPG && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs">Opsi Jawaban</Label>
+                              <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={() => addSubOption(idx)}>
+                                <Plus className="h-3 w-3 mr-1" /> Tambah
+                              </Button>
+                            </div>
+                            {(item.pilihanGanda || []).map((opt, oi) => (
+                              <div key={oi} className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name={`sub-pg-${idx}`}
+                                  value={opt.label}
+                                  checked={item.jawaban === opt.label}
+                                  onChange={(e) => updateSubSoal(idx, "jawaban", e.target.value)}
+                                  className="h-4 w-4 shrink-0"
+                                />
+                                <span className="font-medium text-xs w-5 shrink-0">{opt.label}.</span>
+                                <Input
+                                  value={opt.text}
+                                  onChange={(e) => updateSubOption(idx, oi, e.target.value)}
+                                  placeholder={`Teks ${opt.label}`}
+                                  className="h-8 text-sm flex-1 min-w-0"
+                                />
+                                {(item.pilihanGanda || []).length > 2 && (
+                                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeSubOption(idx, oi)}>
+                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Teks Pertanyaan</Label>
-                        <Textarea
-                          value={item.pertanyaan}
-                          onChange={(e) => updateSubSoal(idx, "pertanyaan", e.target.value)}
-                          placeholder="Masukkan teks sub pertanyaan..."
-                          className="min-h-[60px]"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Kunci Jawaban</Label>
-                          <Input
-                            value={item.jawaban}
-                            onChange={(e) => updateSubSoal(idx, "jawaban", e.target.value)}
-                            placeholder="Jawaban benar"
-                          />
+
+                        {isSubTF && (
+                          <div className="flex gap-3">
+                            <Button
+                              type="button"
+                              variant={item.trueFalse === true ? "default" : "outline"}
+                              onClick={() => { const u = [...subSoal]; u[idx] = { ...u[idx], trueFalse: true, jawaban: "true" }; setSubSoal(u) }}
+                              size="sm"
+                              className="flex-1 h-8 text-xs"
+                            >
+                              Benar
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={item.trueFalse === false ? "default" : "outline"}
+                              onClick={() => { const u = [...subSoal]; u[idx] = { ...u[idx], trueFalse: false, jawaban: "false" }; setSubSoal(u) }}
+                              size="sm"
+                              className="flex-1 h-8 text-xs"
+                            >
+                              Salah
+                            </Button>
+                          </div>
+                        )}
+
+                        {!isSubPG && !isSubTF && (
+                          <div className="space-y-1">
+                            <Label className="text-xs">Kunci Jawaban</Label>
+                            <Input
+                              value={item.jawaban}
+                              onChange={(e) => updateSubSoal(idx, "jawaban", e.target.value)}
+                              placeholder="Jawaban benar"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex justify-end">
+                          <div className="w-24">
+                            <Label className="text-xs">Poin</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              value={item.poin}
+                              onChange={(e) => updateSubSoal(idx, "poin", Number(e.target.value) || 1)}
+                              className="h-8 text-sm"
+                            />
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Poin</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={item.poin}
-                            onChange={(e) => updateSubSoal(idx, "poin", Number(e.target.value) || 1)}
-                          />
-                        </div>
                       </div>
-                    </div>
-                  ))
+                    )
+                  })
                 )}
                 {hasSubSoal && (
                   <div className="text-sm text-muted-foreground text-right">
@@ -527,10 +674,20 @@ export function SoalFormClient({
                     {subSoal.map((item, idx) => (
                       <div key={idx} className="p-3 rounded-lg border bg-background">
                         <p className="text-sm font-medium">{idx + 1}. {item.pertanyaan || <span className="text-muted-foreground italic">Kosong</span>}</p>
-                        <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                          <span>Kunci: {item.jawaban || "-"}</span>
-                          <span>{item.poin} poin</span>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <Badge variant="secondary" className="text-[10px]">
+                            {subJenisOptions.find((o) => o.value === item.jenis)?.label || item.jenis}
+                          </Badge>
+                          {item.jenis === "PILIHAN_GANDA" && item.pilihanGanda && (
+                            <span className="text-xs text-muted-foreground">
+                              {item.pilihanGanda.filter((o) => o.text.trim()).length} opsi
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">{item.poin} poin</span>
                         </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Kunci: {item.jenis === "TRUE_FALSE" ? (item.trueFalse ? "Benar" : "Salah") : (item.jawaban || "-")}
+                        </p>
                       </div>
                     ))}
                   </div>

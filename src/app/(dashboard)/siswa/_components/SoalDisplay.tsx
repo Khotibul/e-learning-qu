@@ -9,6 +9,9 @@ import { AlertTriangle, ListTree } from "lucide-react"
 
 interface SubSoalItem {
   pertanyaan: string
+  jenis: string
+  pilihanGanda?: { label: string; text: string }[] | null
+  trueFalse?: boolean | null
   jawaban: string
   poin: number
 }
@@ -42,6 +45,13 @@ const tingkatLabel: Record<string, string> = {
   MUDAH: "Mudah",
   SEDANG: "Sedang",
   SULIT: "Sulit",
+}
+
+const subJenisLabels: Record<string, string> = {
+  PILIHAN_GANDA: "PG",
+  ESSAY: "Essay",
+  TRUE_FALSE: "B/S",
+  ISIAN_SINGKAT: "Isian",
 }
 
 function parseSubJawaban(jawaban: string, count: number): string[] {
@@ -91,17 +101,83 @@ export function SoalDisplay({ soal, jawaban, onJawab, isRaguRagu }: SoalDisplayP
             {soal.pertanyaan}
           </div>
 
-          {soal.subSoal.map((sub, idx) => (
-            <div key={idx} className="space-y-2 pl-4 border-l-2 border-muted">
-              <p className="text-sm font-medium">{idx + 1}. {sub.pertanyaan}</p>
-              <p className="text-xs text-muted-foreground">{sub.poin} poin</p>
-              <Input
-                value={subJawabans[idx]}
-                onChange={(e) => updateSub(idx, e.target.value)}
-                placeholder="Tulis jawaban..."
-              />
-            </div>
-          ))}
+          {soal.subSoal.map((sub, idx) => {
+            const isPG = sub.jenis === "PILIHAN_GANDA"
+            const isTF = sub.jenis === "TRUE_FALSE"
+            const isEssay = sub.jenis === "ESSAY"
+
+            return (
+              <div key={idx} className="space-y-2 pl-4 border-l-2 border-muted">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">{idx + 1}. {sub.pertanyaan}</p>
+                  <Badge variant="outline" className="text-[10px]">{subJenisLabels[sub.jenis] || sub.jenis}</Badge>
+                  <span className="text-xs text-muted-foreground">{sub.poin} poin</span>
+                </div>
+
+                {isPG && sub.pilihanGanda && (
+                  <RadioGroup
+                    value={subJawabans[idx]}
+                    onValueChange={(v) => updateSub(idx, v)}
+                    className="space-y-1.5"
+                  >
+                    {sub.pilihanGanda.map((opt) => (
+                      <div key={opt.label}>
+                        <Label
+                          htmlFor={`sub-${idx}-${opt.label}`}
+                          className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-all hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/5 ${
+                            subJawabans[idx] === opt.label ? "border-primary bg-primary/5" : ""
+                          }`}
+                        >
+                          <RadioGroupItem value={opt.label} id={`sub-${idx}-${opt.label}`} />
+                          <span className="text-sm font-medium">{opt.label}. {opt.text}</span>
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                )}
+
+                {isTF && (
+                  <RadioGroup
+                    value={subJawabans[idx]}
+                    onValueChange={(v) => updateSub(idx, v)}
+                    className="flex gap-3"
+                  >
+                    {["true", "false"].map((val) => (
+                      <div key={val}>
+                        <Label
+                          htmlFor={`sub-tf-${idx}-${val}`}
+                          className={`flex items-center gap-2 rounded-lg border px-4 py-2 cursor-pointer transition-all hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/5 ${
+                            subJawabans[idx] === val ? "border-primary bg-primary/5" : ""
+                          }`}
+                        >
+                          <RadioGroupItem value={val} id={`sub-tf-${idx}-${val}`} />
+                          <span className="text-sm">{val === "true" ? "Benar" : "Salah"}</span>
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                )}
+
+                {isEssay && (
+                  <Textarea
+                    value={subJawabans[idx]}
+                    onChange={(e) => updateSub(idx, e.target.value)}
+                    placeholder="Tulis jawaban..."
+                    className="min-h-[80px]"
+                  />
+                )}
+
+                {!isPG && !isTF && !isEssay && (
+                  <Input
+                    value={subJawabans[idx]}
+                    onChange={(e) => updateSub(idx, e.target.value)}
+                    placeholder="Tulis jawaban..."
+                    className="h-9"
+                  />
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     )
