@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
-import { getSoals, deleteSoal, duplicateSoal, getGuruMapelRefs } from "../../actions"
+import { getSoals, deleteSoal, duplicateSoal, getGuruMapelRefs, createSoal } from "../../actions"
 import Link from "next/link"
 import { formatDate } from "@/lib/utils"
 
@@ -88,6 +88,14 @@ export function SoalManagementClient() {
   const [importLoading, setImportLoading] = useState(false)
   const [importResults, setImportResults] = useState<{ pertanyaan: string; jawaban?: string }[] | null>(null)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [ocrSaveMapel, setOcrSaveMapel] = useState("")
+  const [importSaveMapel, setImportSaveMapel] = useState("")
+  const [ocrSaving, setOcrSaving] = useState(false)
+  const [importSaving, setImportSaving] = useState(false)
+  const [ocrSaveTingkat, setOcrSaveTingkat] = useState("MUDAH")
+  const [importSaveTingkat, setImportSaveTingkat] = useState("MUDAH")
+  const [ocrSavePoin, setOcrSavePoin] = useState(10)
+  const [importSavePoin, setImportSavePoin] = useState(10)
 
   const ocrInputRef = useRef<HTMLInputElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -212,6 +220,66 @@ export function SoalManagementClient() {
     } finally {
       setOcrLoading(false)
       if (e.target) e.target.value = ""
+    }
+  }
+
+  const handleOcrSave = async () => {
+    if (!ocrResults || ocrResults.length === 0) return
+    if (!ocrSaveMapel) { toast.error("Pilih mata pelajaran"); return }
+    setOcrSaving(true)
+    let success = 0
+    for (const soal of ocrResults) {
+      try {
+        await createSoal({
+          pertanyaan: soal.pertanyaan,
+          jenisSoal: soal.jenis === "ESSAY" ? "ESSAY" : "PILIHAN_GANDA",
+          tingkatKesulitan: ocrSaveTingkat,
+          jawaban: soal.jawaban || "",
+          poin: ocrSavePoin,
+          mataPelajaranId: ocrSaveMapel,
+        })
+        success++
+      } catch {
+        toast.error(`Gagal menyimpan soal ${soal.nomor}`)
+      }
+    }
+    setOcrSaving(false)
+    setOcrDialogOpen(false)
+    setOcrResults(null)
+    setOcrSaveMapel("")
+    if (success > 0) {
+      toast.success(`${success} soal berhasil disimpan`)
+      fetchData()
+    }
+  }
+
+  const handleImportSave = async () => {
+    if (!importResults || importResults.length === 0) return
+    if (!importSaveMapel) { toast.error("Pilih mata pelajaran"); return }
+    setImportSaving(true)
+    let success = 0
+    for (const item of importResults) {
+      try {
+        await createSoal({
+          pertanyaan: item.pertanyaan,
+          jenisSoal: "PILIHAN_GANDA",
+          tingkatKesulitan: importSaveTingkat,
+          jawaban: item.jawaban || "",
+          poin: importSavePoin,
+          mataPelajaranId: importSaveMapel,
+        })
+        success++
+      } catch {
+        toast.error(`Gagal menyimpan: ${item.pertanyaan.slice(0, 40)}...`)
+      }
+    }
+    setImportSaving(false)
+    setImportDialogOpen(false)
+    setImportResults(null)
+    setImportSaveMapel("")
+    if (success > 0) {
+      toast.success(`${success} soal berhasil disimpan`)
+      fetchData()
     }
   }
 
@@ -447,8 +515,38 @@ export function SoalManagementClient() {
           {ocrResults && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Soal berikut terdeteksi dari gambar. Silakan review dan buat soal secara manual.
+                Soal berikut terdeteksi dari gambar. Atur pengaturan di bawah lalu simpan.
               </p>
+
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Mata Pelajaran</Label>
+                  <Select value={ocrSaveMapel} onValueChange={setOcrSaveMapel}>
+                    <SelectTrigger><SelectValue placeholder="Pilih Mapel" /></SelectTrigger>
+                    <SelectContent>
+                      {mapels.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.nama}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Tingkat</Label>
+                  <Select value={ocrSaveTingkat} onValueChange={setOcrSaveTingkat}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(tingkatLabels).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Poin per Soal</Label>
+                  <Input type="number" min={1} value={ocrSavePoin} onChange={(e) => setOcrSavePoin(Number(e.target.value) || 10)} />
+                </div>
+              </div>
+
               {ocrResults.map((soal, i) => (
                 <div key={i} className="rounded-xl border p-4 space-y-2">
                   <div className="flex items-center gap-2">
@@ -472,8 +570,9 @@ export function SoalManagementClient() {
               ))}
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="outline" onClick={() => setOcrDialogOpen(false)}>Tutup</Button>
-                <Button onClick={() => { setOcrDialogOpen(false); router.push("/guru/soal/new") }}>
-                  <Plus className="h-4 w-4 mr-1" /> Buat Soal Baru
+                <Button onClick={handleOcrSave} disabled={!ocrSaveMapel || ocrSaving}>
+                  {ocrSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                  {ocrSaving ? "Menyimpan..." : `Simpan ${ocrResults.length} Soal`}
                 </Button>
               </div>
             </div>
@@ -489,8 +588,38 @@ export function SoalManagementClient() {
           {importResults && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Soal berikut berhasil dibaca dari file CSV. Silakan review dan buat soal secara manual.
+                Soal berikut berhasil dibaca dari file CSV. Atur pengaturan di bawah lalu simpan.
               </p>
+
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Mata Pelajaran</Label>
+                  <Select value={importSaveMapel} onValueChange={setImportSaveMapel}>
+                    <SelectTrigger><SelectValue placeholder="Pilih Mapel" /></SelectTrigger>
+                    <SelectContent>
+                      {mapels.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.nama}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Tingkat</Label>
+                  <Select value={importSaveTingkat} onValueChange={setImportSaveTingkat}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(tingkatLabels).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Poin per Soal</Label>
+                  <Input type="number" min={1} value={importSavePoin} onChange={(e) => setImportSavePoin(Number(e.target.value) || 10)} />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 {importResults.map((item, i) => (
                   <div key={i} className="rounded-xl border p-3">
@@ -504,8 +633,9 @@ export function SoalManagementClient() {
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="outline" onClick={() => setImportDialogOpen(false)}>Tutup</Button>
-                <Button onClick={() => { setImportDialogOpen(false); router.push("/guru/soal/new") }}>
-                  <Plus className="h-4 w-4 mr-1" /> Buat Soal Baru
+                <Button onClick={handleImportSave} disabled={!importSaveMapel || importSaving}>
+                  {importSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+                  {importSaving ? "Menyimpan..." : `Simpan ${importResults.length} Soal`}
                 </Button>
               </div>
             </div>
