@@ -116,7 +116,6 @@ export function UjianFormClient({
   const [kelasId, setKelasId] = useState(ujian?.kelasId ?? "")
   const [semesterId, setSemesterId] = useState(ujian?.semesterId ?? "")
   const [tahunAjaranId, setTahunAjaranId] = useState(ujian?.tahunAjaranId ?? "")
-  const [jumlahSoal, setJumlahSoal] = useState(ujian?.jumlahSoal ?? 10)
   const [nilaiMinimum, setNilaiMinimum] = useState(ujian?.nilaiMinimum ?? 70)
   const [durasi, setDurasi] = useState(ujian?.durasi ?? 60)
   const [tanggal, setTanggal] = useState(ujian ? formatDateInput(ujian.tanggal) : "")
@@ -149,6 +148,22 @@ export function UjianFormClient({
     )
   }
 
+  const subJenisList = (s: BankSoalRef) => {
+    if (!s.subSoal || !Array.isArray(s.subSoal)) return []
+    const jenisSet = new Set<string>()
+    s.subSoal.forEach((sub: any) => {
+      if (sub.jenis) jenisSet.add(sub.jenis)
+    })
+    return Array.from(jenisSet)
+  }
+
+  const subJenisLabels: Record<string, string> = {
+    PILIHAN_GANDA: "PG",
+    ESSAY: "Essay",
+    TRUE_FALSE: "B/S",
+    ISIAN_SINGKAT: "Isian",
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!nama.trim()) { toast.error("Nama ujian harus diisi"); return }
@@ -170,7 +185,7 @@ export function UjianFormClient({
         kelasId,
         semesterId,
         tahunAjaranId,
-        jumlahSoal,
+        jumlahSoal: selectedSoalIds.length,
         nilaiMinimum,
         durasi,
         tanggal,
@@ -326,7 +341,7 @@ export function UjianFormClient({
             <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
               <div className="space-y-2">
                 <Label htmlFor="jumlahSoal">Jumlah Soal</Label>
-                <Input id="jumlahSoal" type="number" min={1} value={jumlahSoal} onChange={(e) => setJumlahSoal(Number(e.target.value))} />
+                <Input id="jumlahSoal" type="number" min={1} value={selectedSoalIds.length} readOnly className="bg-muted" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="nilaiMin">Nilai Minimum</Label>
@@ -435,25 +450,33 @@ export function UjianFormClient({
               </div>
             ) : (
               <div className="space-y-2">
-                {selectedSoals.map((s, idx) => (
-                  <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl border">
-                    <span className="text-sm font-medium text-muted-foreground w-8">{idx + 1}.</span>
-                    <p className="flex-1 text-sm line-clamp-1">{s.pertanyaan}</p>
-                    <Badge variant="secondary" className="text-[10px] shrink-0">{s.jenisSoal}</Badge>
-                    {subCount(s) > 0 && (
-                      <Badge variant="outline" className="text-[10px] shrink-0">{subCount(s)} sub</Badge>
-                    )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 shrink-0"
-                      onClick={() => toggleSoal(s.id)}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
+                    {selectedSoals.map((s, idx) => (
+                      <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl border">
+                        <span className="text-sm font-medium text-muted-foreground w-8 shrink-0">{idx + 1}.</span>
+                        <p className="flex-1 text-sm line-clamp-1">{s.pertanyaan}</p>
+                        {subCount(s) > 0 ? (
+                          <div className="flex gap-1 shrink-0">
+                            {subJenisList(s).map((j) => (
+                              <Badge key={j} variant="outline" className="text-[10px]">
+                                {subJenisLabels[j] ?? j}
+                              </Badge>
+                            ))}
+                            <Badge variant="secondary" className="text-[10px]">{subCount(s)} sub</Badge>
+                          </div>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] shrink-0">{s.jenisSoal}</Badge>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
+                          onClick={() => toggleSoal(s.id)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
               </div>
             )}
           </CardContent>
