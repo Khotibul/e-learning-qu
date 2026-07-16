@@ -128,13 +128,22 @@ export function NilaiGradingClient() {
         </div>
         {selectedUjianId && (
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => handleExport("Excel")}>
+            <Button variant="outline" size="sm" onClick={() => handleExport("Excel")} className="sm:hidden p-2" title="Excel">
+              <FileSpreadsheet className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport("Excel")} className="hidden sm:inline-flex">
               <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
             </Button>
-            <Button variant="outline" size="sm" onClick={() => handleExport("PDF")}>
+            <Button variant="outline" size="sm" onClick={() => handleExport("PDF")} className="sm:hidden p-2" title="PDF">
+              <FileText className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport("PDF")} className="hidden sm:inline-flex">
               <FileText className="h-4 w-4 mr-2" /> PDF
             </Button>
-            <Button variant="outline" size="sm" onClick={() => handleExport("CSV")}>
+            <Button variant="outline" size="sm" onClick={() => handleExport("CSV")} className="sm:hidden p-2" title="CSV">
+              <Download className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport("CSV")} className="hidden sm:inline-flex">
               <Download className="h-4 w-4 mr-2" /> CSV
             </Button>
           </div>
@@ -151,7 +160,7 @@ export function NilaiGradingClient() {
           ) : ujians.length === 0 ? (
             <p className="text-muted-foreground">Belum ada ujian yang tersedia</p>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <Select value={selectedUjianId} onValueChange={setSelectedUjianId}>
                 <SelectTrigger><SelectValue placeholder="Pilih ujian untuk dinilai" /></SelectTrigger>
                 <SelectContent>

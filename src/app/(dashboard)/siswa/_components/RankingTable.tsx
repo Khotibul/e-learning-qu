@@ -43,10 +43,11 @@ export function RankingTable({ data }: RankingTableProps) {
 
   return (
     <div className="rounded-xl border overflow-hidden">
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-20 text-center">Peringkat</TableHead>
+            <TableHead className="w-14 text-center">Peringkat</TableHead>
             <TableHead>Nama Siswa</TableHead>
             <TableHead>Kelas</TableHead>
             <TableHead className="text-right">Nilai Rata-rata</TableHead>
@@ -93,6 +94,7 @@ export function RankingTable({ data }: RankingTableProps) {
           ))}
         </TableBody>
       </Table>
+      </div>
     </div>
   )
 }

@@ -140,19 +140,19 @@ export function KelasManagement(props: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-2xl font-bold">Data Kelas</h1>
         <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true) }}>
-          <Plus className="h-4 w-4 mr-1" /> Tambah Kelas
+          <Plus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Tambah Kelas</span>
         </Button>
       </div>
 
-      <div className="relative max-w-sm">
+      <div className="w-full sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Cari kelas..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9" />
       </div>
 
-      <div className="rounded-2xl border">
+      <div className="rounded-2xl border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -189,11 +189,11 @@ export function KelasManagement(props: Props) {
                         setEditing(item)
                         setFormData({ nama: item.nama, tingkat: String(item.tingkat), guruId: item.guruId || "" })
                         setDialogOpen(true)
-                      }}>
-                        <Edit className="h-4 w-4 mr-1" /> Edit
+                      }} className="p-2 sm:px-3 sm:py-1">
+                        <Edit className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span>
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => setDeleteId(item.id)}>
-                        <Trash2 className="h-4 w-4 mr-1" /> Hapus
+                      <Button variant="destructive" size="sm" onClick={() => setDeleteId(item.id)} className="p-2 sm:px-3 sm:py-1">
+                        <Trash2 className="h-4 w-4" /><span className="hidden sm:inline ml-1">Hapus</span>
                       </Button>
                     </div>
                   </TableCell>

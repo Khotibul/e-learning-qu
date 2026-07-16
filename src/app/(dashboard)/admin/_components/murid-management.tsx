@@ -161,8 +161,8 @@ export function MuridManagement(props: Props) {
         const m = row.original
         if (m.deletedAt) {
           return (
-            <Button variant="outline" size="sm" onClick={() => setDeleteDialog({ open: true, id: m.id, restore: true })}>
-              <RotateCcw className="h-4 w-4 mr-1" /> Restore
+            <Button variant="outline" size="sm" onClick={() => setDeleteDialog({ open: true, id: m.id, restore: true })} className="p-2 sm:px-3 sm:py-1">
+              <RotateCcw className="h-4 w-4" /><span className="hidden sm:inline ml-1">Restore</span>
             </Button>
           )
         }
@@ -176,11 +176,11 @@ export function MuridManagement(props: Props) {
                 kelasId: m.kelasId || "", password: "",
               })
               setDialogOpen(true)
-            }}>
-              <Edit className="h-4 w-4 mr-1" /> Edit
+            }} className="p-2 sm:px-3 sm:py-1">
+              <Edit className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span>
             </Button>
-            <Button variant="destructive" size="sm" onClick={() => setDeleteDialog({ open: true, id: m.id, restore: false })}>
-              <Trash2 className="h-4 w-4 mr-1" /> Hapus
+            <Button variant="destructive" size="sm" onClick={() => setDeleteDialog({ open: true, id: m.id, restore: false })} className="p-2 sm:px-3 sm:py-1">
+              <Trash2 className="h-4 w-4" /><span className="hidden sm:inline ml-1">Hapus</span>
             </Button>
           </div>
         )
@@ -236,20 +236,23 @@ export function MuridManagement(props: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-2xl font-bold">Data Murid</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm"><Upload className="h-4 w-4 mr-1" /> Import</Button>
-          <Button variant="outline" size="sm"><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
-          <Button variant="outline" size="sm"><FileText className="h-4 w-4 mr-1" /> PDF</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" className="sm:hidden p-2" title="Import"><Upload className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" className="hidden sm:inline-flex"><Upload className="h-4 w-4 mr-1" /> Import</Button>
+          <Button variant="outline" size="sm" className="sm:hidden p-2" title="Excel"><FileSpreadsheet className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" className="hidden sm:inline-flex"><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
+          <Button variant="outline" size="sm" className="sm:hidden p-2" title="PDF"><FileText className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" className="hidden sm:inline-flex"><FileText className="h-4 w-4 mr-1" /> PDF</Button>
           <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true) }}>
-            <Plus className="h-4 w-4 mr-1" /> Tambah Murid
+            <Plus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Tambah Murid</span>
           </Button>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Cari murid..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9" />
         </div>
@@ -269,7 +272,7 @@ export function MuridManagement(props: Props) {
         </Select>
       </div>
 
-      <div className="rounded-2xl border">
+      <div className="rounded-2xl border overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (

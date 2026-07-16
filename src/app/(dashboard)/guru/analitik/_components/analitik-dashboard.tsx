@@ -30,7 +30,7 @@ export function AnalitikDashboardClient({ data }: { data: AnalyticsData }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
           <BarChart3 className="h-7 w-7 text-primary" />
           Analitik Pembelajaran
         </h1>
@@ -39,7 +39,7 @@ export function AnalitikDashboardClient({ data }: { data: AnalyticsData }) {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Nilai Rata-rata</CardTitle>

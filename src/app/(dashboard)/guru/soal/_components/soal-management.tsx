@@ -140,16 +140,30 @@ export function SoalManagementClient() {
           <p className="text-muted-foreground mt-1">Total {total} soal</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={handleOCR}>
+          <Button variant="outline" onClick={handleOCR} size="sm" className="sm:hidden p-2" title="OCR">
+            <Upload className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={handleOCR} className="hidden sm:inline-flex">
             <Upload className="h-4 w-4 mr-2" /> OCR
           </Button>
-          <Button variant="outline" onClick={handleImport}>
+          <Button variant="outline" onClick={handleImport} size="sm" className="sm:hidden p-2" title="Import Excel">
+            <FileSpreadsheet className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={handleImport} className="hidden sm:inline-flex">
             <FileSpreadsheet className="h-4 w-4 mr-2" /> Import Excel
           </Button>
-          <Button variant="outline" onClick={handleExport}>
+          <Button variant="outline" onClick={handleExport} size="sm" className="sm:hidden p-2" title="Export">
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={handleExport} className="hidden sm:inline-flex">
             <Download className="h-4 w-4 mr-2" /> Export
           </Button>
-          <Button asChild>
+          <Button asChild size="sm" className="sm:hidden p-2" title="Tambah Soal">
+            <Link href="/guru/soal/new">
+              <Plus className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild className="hidden sm:inline-flex">
             <Link href="/guru/soal/new">
               <Plus className="h-4 w-4 mr-2" /> Tambah Soal
             </Link>
@@ -162,7 +176,7 @@ export function SoalManagementClient() {
           <CardTitle className="text-lg">Filter Pencarian</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -204,7 +218,7 @@ export function SoalManagementClient() {
       </Card>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           {loading ? (
             <div className="p-6 space-y-4">
               {Array.from({ length: 5 }).map((_, i) => (

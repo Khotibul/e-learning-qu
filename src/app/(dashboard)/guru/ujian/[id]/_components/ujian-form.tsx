@@ -218,7 +218,7 @@ export function UjianFormClient({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
           <Card>
             <CardHeader><CardTitle>Informasi Ujian</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -316,7 +316,7 @@ export function UjianFormClient({
         <Card>
           <CardHeader><CardTitle>Waktu & Nilai</CardTitle></CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+            <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
               <div className="space-y-2">
                 <Label htmlFor="jumlahSoal">Jumlah Soal</Label>
                 <Input id="jumlahSoal" type="number" min={1} value={jumlahSoal} onChange={(e) => setJumlahSoal(Number(e.target.value))} />
@@ -348,7 +348,7 @@ export function UjianFormClient({
         <Card>
           <CardHeader><CardTitle>Pengaturan Keamanan</CardTitle></CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 { label: "Acak Soal", value: randomSoal, set: setRandomSoal },
                 { label: "Acak Jawaban", value: randomJawaban, set: setRandomJawaban },

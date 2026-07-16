@@ -118,7 +118,7 @@ export function NilaiOverview(props: Props) {
         <h1 className="text-2xl font-bold">Data Nilai</h1>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Total Nilai</CardTitle></CardHeader>
           <CardContent><div className="text-2xl font-bold">{total}</div></CardContent>
@@ -133,7 +133,7 @@ export function NilaiOverview(props: Props) {
         </Card>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Select value={kelasId || "all"} onValueChange={(v) => { setKelasId(v === "all" ? "" : v); setPage(1); setMapelId("") }}>
           <SelectTrigger className="w-44"><SelectValue placeholder="Semua Kelas" /></SelectTrigger>
           <SelectContent>
@@ -159,7 +159,7 @@ export function NilaiOverview(props: Props) {
         </Select>
       </div>
 
-      <div className="rounded-2xl border">
+      <div className="rounded-2xl border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

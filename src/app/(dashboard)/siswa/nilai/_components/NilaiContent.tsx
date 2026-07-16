@@ -63,9 +63,9 @@ export function NilaiContent({ nilaiData, chartData, semesterOptions, selectedSe
           <h1 className="text-2xl font-bold tracking-tight">Nilai</h1>
           <p className="text-muted-foreground">Daftar nilai dan perkembangan akademik</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <Select value={selectedSemester} onValueChange={handleSemesterChange}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full sm:w-48">
               <SelectValue placeholder="Semua Semester" />
             </SelectTrigger>
             <SelectContent>
@@ -74,16 +74,16 @@ export function NilaiContent({ nilaiData, chartData, semesterOptions, selectedSe
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={handleDownload} disabled={nilaiData.length === 0}>
+          <Button variant="outline" size="sm" onClick={handleDownload} disabled={nilaiData.length === 0}>
             <Download className="h-4 w-4" />
-            Download CSV
+            <span className="hidden sm:inline">Download CSV</span>
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <NilaiChart data={chartData} />
-        <Card>
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex-1 min-w-0"><NilaiChart data={chartData} /></div>
+        <div className="flex-1 min-w-0"><Card>
           <CardHeader>
             <CardTitle className="text-lg">Ringkasan Nilai</CardTitle>
           </CardHeader>
@@ -122,6 +122,7 @@ export function NilaiContent({ nilaiData, chartData, semesterOptions, selectedSe
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
 
       <Card>
@@ -129,6 +130,7 @@ export function NilaiContent({ nilaiData, chartData, semesterOptions, selectedSe
           <CardTitle className="text-lg">Detail Nilai</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -165,6 +167,7 @@ export function NilaiContent({ nilaiData, chartData, semesterOptions, selectedSe
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

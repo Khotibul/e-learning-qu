@@ -153,19 +153,19 @@ export function TahunAjaranManagement(props: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-2xl font-bold">Tahun Ajaran</h1>
         <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true) }}>
-          <Plus className="h-4 w-4 mr-1" /> Tambah Tahun Ajaran
+          <Plus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Tambah Tahun Ajaran</span>
         </Button>
       </div>
 
-      <div className="relative max-w-sm">
+      <div className="w-full sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Cari tahun ajaran..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9" />
       </div>
 
-      <div className="rounded-2xl border">
+      <div className="rounded-2xl border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

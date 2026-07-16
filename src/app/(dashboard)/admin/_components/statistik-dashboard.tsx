@@ -28,22 +28,24 @@ function SimpleBarChart({ data, title, maxBarHeight = 200 }: BarChartProps) {
         {data.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Belum ada data</p>
         ) : (
-          <div className="flex items-end gap-3 h-[200px]">
-            {data.map((d, i) => {
-              const height = (d.nilai / maxVal) * 180
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
-                  <span className="text-xs font-medium">{d.nilai}</span>
-                  <div
-                    className={`w-full rounded-t-lg transition-all duration-300 ${colors[i % colors.length]}`}
-                    style={{ height: `${Math.max(height, 4)}px` }}
-                  />
-                  <span className="text-xs text-muted-foreground text-center truncate w-full" title={d.label}>
-                    {d.label}
-                  </span>
-                </div>
-              )
-            })}
+          <div className="overflow-x-auto">
+            <div className="flex items-end gap-3 h-[200px] min-w-[300px]">
+              {data.map((d, i) => {
+                const height = (d.nilai / maxVal) * 180
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end min-w-0">
+                    <span className="text-xs font-medium">{d.nilai}</span>
+                    <div
+                      className={`w-full rounded-t-lg transition-all duration-300 ${colors[i % colors.length]}`}
+                      style={{ height: `${Math.max(height, 4)}px` }}
+                    />
+                    <span className="text-xs text-muted-foreground text-center truncate w-full" title={d.label}>
+                      {d.label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
       </CardContent>
@@ -93,14 +95,14 @@ export function StatistikDashboard({ guruMurid, perKelas, perMapel }: Props) {
         <h1 className="text-2xl font-bold">Statistik</h1>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
         <StatCard label="Total Guru" value={guruMurid.guru} icon={<UserCheck className="h-5 w-5 text-blue-600" />} color="bg-blue-100" />
         <StatCard label="Total Murid" value={guruMurid.murid} icon={<Users className="h-5 w-5 text-green-600" />} color="bg-green-100" />
         <StatCard label="Total Kelas" value={perKelas.length} icon={<School className="h-5 w-5 text-purple-600" />} color="bg-purple-100" />
         <StatCard label="Total Mapel" value={perMapel.length} icon={<BookOpen className="h-5 w-5 text-orange-600" />} color="bg-orange-100" />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         <SimpleBarChart
           data={guruMuridData}
           title="Grafik Jumlah Guru & Murid"
@@ -151,7 +153,7 @@ export function StatistikDashboard({ guruMurid, perKelas, perMapel }: Props) {
         title="Grafik Jumlah Soal Per Mata Pelajaran"
       />
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Distribusi Nilai Per Mapel</CardTitle>
