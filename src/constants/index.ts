@@ -49,6 +49,7 @@ export const NAV_ITEMS = {
   ],
   GURU: [
     { label: "Dashboard", href: "/guru", icon: "LayoutDashboard" },
+    { label: "Murid", href: "/guru/murid", icon: "Users" },
     { label: "Bank Soal", href: "/guru/bank-soal", icon: "Database" },
     { label: "Soal", href: "/guru/soal", icon: "FileQuestion" },
     { label: "Ujian", href: "/guru/ujian", icon: "ClipboardList" },

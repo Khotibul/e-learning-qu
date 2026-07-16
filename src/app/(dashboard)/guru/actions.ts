@@ -607,6 +607,75 @@ export async function getGuruAnalytics() {
   }
 }
 
+// ─── MURID ───────────────────────────────────────────────────
+
+export async function getGuruMurids(params: {
+  search?: string
+  page?: number
+  limit?: number
+  kelasId?: string
+}) {
+  const guru = await getCurrentGuru()
+  const { search, page = 1, limit = 10, kelasId } = params
+
+  const mapels = await prisma.mataPelajaran.findMany({
+    where: { guruId: guru.id, deletedAt: null },
+    select: { kelasId: true },
+    distinct: ["kelasId"],
+  })
+  let allowedKelasIds = mapels.map((m) => m.kelasId)
+  if (kelasId) {
+    allowedKelasIds = allowedKelasIds.filter((id) => id === kelasId)
+  }
+  if (allowedKelasIds.length === 0) {
+    return { data: [], total: 0, page, limit, totalPages: 0 }
+  }
+
+  const where: Record<string, unknown> = {
+    kelasId: { in: allowedKelasIds },
+    deletedAt: null,
+  }
+  if (search) {
+    where.OR = [
+      { nama: { contains: search, mode: "insensitive" } },
+      { nis: { contains: search, mode: "insensitive" } },
+      { nisn: { contains: search, mode: "insensitive" } },
+      { noTelp: { contains: search, mode: "insensitive" } },
+    ]
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.siswa.findMany({
+      where: where as any,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { nama: "asc" },
+      include: {
+        user: { select: { email: true, isActive: true } },
+        kelas: { select: { nama: true, tingkat: true } },
+      },
+    }),
+    prisma.siswa.count({ where: where as any }),
+  ])
+  return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
+}
+
+export async function getGuruKelasForMurid() {
+  const guru = await getCurrentGuru()
+  const mapels = await prisma.mataPelajaran.findMany({
+    where: { guruId: guru.id, deletedAt: null },
+    select: { kelasId: true },
+    distinct: ["kelasId"],
+  })
+  const kelasIds = mapels.map((m) => m.kelasId)
+  if (kelasIds.length === 0) return []
+  return prisma.kelas.findMany({
+    where: { id: { in: kelasIds }, deletedAt: null },
+    select: { id: true, nama: true, tingkat: true },
+    orderBy: [{ tingkat: "asc" }, { nama: "asc" }],
+  })
+}
+
 // ─── REFS ────────────────────────────────────────────────────
 
 export async function getGuruMapelRefs() {
