@@ -19,15 +19,15 @@ function SkeletonPage() {
 
 async function Content({ searchParams }: PageProps) {
   const sp = await searchParams
-  const kelasId = sp.kelas || ""
-  const mapelId = sp.mapel || ""
-  const semesterId = sp.semester || ""
+  const kelasId = sp.kelas || undefined
+  const mapelId = sp.mapel || undefined
+  const semesterId = sp.semester || undefined
   const page = parseInt(sp.page || "1")
 
   const { data, total, totalPages } = await getNilais({
-    kelasId: kelasId || undefined,
-    mapelId: mapelId || undefined,
-    semesterId: semesterId || undefined,
+    kelasId,
+    mapelId,
+    semesterId,
     page,
     limit: 20,
   })
@@ -44,9 +44,9 @@ async function Content({ searchParams }: PageProps) {
       initialTotal={total}
       initialTotalPages={totalPages}
       initialPage={page}
-      initialKelasId={kelasId}
-      initialMapelId={mapelId}
-      initialSemesterId={semesterId}
+      initialKelasId={kelasId ?? ""}
+      initialMapelId={mapelId ?? ""}
+      initialSemesterId={semesterId ?? ""}
       kelasRefs={kelasRefs as any}
       mapelRefs={mapelRefs as any}
       semesterRefs={semesterRefs as any}

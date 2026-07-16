@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { auth } from "@/lib/auth"
+import { redirect } from "next/navigation"
 import { getPengumumen, getKelasRefs } from "../actions"
 import { PengumumanForm } from "../_components/pengumuman-form"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -15,7 +16,8 @@ function SkeletonPage() {
 
 async function Content() {
   const session = await auth()
-  const userId = session?.user?.id || ""
+  if (!session?.user?.id) redirect("/login")
+  const userId = session.user.id
 
   const { data: pengumumen } = await getPengumumen({ page: 1, limit: 50 })
   const kelasRefs = await getKelasRefs()

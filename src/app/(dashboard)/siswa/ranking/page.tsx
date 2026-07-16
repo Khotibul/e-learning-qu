@@ -24,9 +24,9 @@ export default async function RankingPage({ searchParams }: PageProps) {
   if (!siswa) redirect("/siswa")
 
   const kelasId = kelas || siswa.kelasId || ""
-  const whereKelas: any = {
-    kelasId: kelasId,
-    deletedAt: null,
+  const whereKelas: any = { deletedAt: null }
+  if (kelasId) {
+    whereKelas.kelasId = kelasId
   }
 
   const semuaSiswa = await prisma.siswa.findMany({

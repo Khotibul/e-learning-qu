@@ -175,7 +175,7 @@ export function SoalManagementClient() {
             <Select value={jenisSoal} onValueChange={(v) => { setJenisSoal(v); setPage(1) }}>
               <SelectTrigger><SelectValue placeholder="Jenis Soal" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value=" ">Semua Jenis</SelectItem>
+                <SelectItem value="">Semua Jenis</SelectItem>
                 {Object.entries(jenisSoalLabels).map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v}</SelectItem>
                 ))}
@@ -184,7 +184,7 @@ export function SoalManagementClient() {
             <Select value={tingkatKesulitan} onValueChange={(v) => { setTingkatKesulitan(v); setPage(1) }}>
               <SelectTrigger><SelectValue placeholder="Tingkat Kesulitan" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value=" ">Semua Tingkat</SelectItem>
+                <SelectItem value="">Semua Tingkat</SelectItem>
                 {Object.entries(tingkatLabels).map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v}</SelectItem>
                 ))}
@@ -193,7 +193,7 @@ export function SoalManagementClient() {
             <Select value={mataPelajaranId} onValueChange={(v) => { setMataPelajaranId(v); setPage(1) }}>
               <SelectTrigger><SelectValue placeholder="Mata Pelajaran" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value=" ">Semua Mapel</SelectItem>
+                <SelectItem value="">Semua Mapel</SelectItem>
                 {mapels.map((m) => (
                   <SelectItem key={m.id} value={m.id}>{m.nama}</SelectItem>
                 ))}

@@ -305,10 +305,12 @@ export async function submitUjian(ujianId: string) {
       perolehPoin += poin
     }
 
-    await prisma.jawabanUjian.update({
-      where: { id: jawab?.id },
-      data: { isCorrect, poin: isCorrect ? poin : 0 },
-    })
+    if (jawab) {
+      await prisma.jawabanUjian.update({
+        where: { id: jawab.id },
+        data: { isCorrect, poin: isCorrect ? poin : 0 },
+      })
+    }
 
     hasilSoal.push({
       nomor: us.nomor,

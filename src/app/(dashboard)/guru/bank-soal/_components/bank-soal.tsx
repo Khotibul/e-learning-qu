@@ -163,7 +163,7 @@ export function BankSoalClient({
             <Select value={mataPelajaranId} onValueChange={(v) => { setMataPelajaranId(v); setPage(1) }}>
               <SelectTrigger><SelectValue placeholder="Mata Pelajaran" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value=" ">Semua Mapel</SelectItem>
+                <SelectItem value="">Semua Mapel</SelectItem>
                 {mapels.map((m) => (
                   <SelectItem key={m.id} value={m.id}>{m.nama}</SelectItem>
                 ))}
@@ -172,7 +172,7 @@ export function BankSoalClient({
             <Select value={kategoriId} onValueChange={(v) => { setKategoriId(v); setPage(1) }}>
               <SelectTrigger><SelectValue placeholder="Kategori" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value=" ">Semua Kategori</SelectItem>
+                <SelectItem value="">Semua Kategori</SelectItem>
                 {kategories.map((k) => (
                   <SelectItem key={k.id} value={k.id}>{k.nama}</SelectItem>
                 ))}
