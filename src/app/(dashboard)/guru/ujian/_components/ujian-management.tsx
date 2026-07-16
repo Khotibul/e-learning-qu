@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Plus, Edit, Trash2, Copy, ClipboardList } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Copy, ClipboardList, Play, Square } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getUjians, deleteUjian, duplicateUjian } from "../../actions"
+import { getUjians, deleteUjian, duplicateUjian, startUjian, stopUjian } from "../../actions"
 import Link from "next/link"
 import { formatDate } from "@/lib/utils"
 
@@ -35,12 +35,20 @@ interface UjianItem {
   id: string
   nama: string
   status: string
+  mode: string
   durasi: number
   tanggal: Date
+  jamMulai: Date
+  jamSelesai: Date
   createdAt: Date
   mataPelajaran: { nama: string }
   kelas: { nama: string }
   _count: { ujianSoal: number }
+}
+
+const modeLabels: Record<string, string> = {
+  manual: "Manual",
+  otomatis: "Otomatis",
 }
 
 export function UjianManagementClient() {
@@ -92,6 +100,28 @@ export function UjianManagementClient() {
     }
   }
 
+  const handleStart = async (id: string, nama: string) => {
+    if (!confirm(`Mulai ujian "${nama}"? Siswa akan bisa mengakses ujian ini.`)) return
+    try {
+      await startUjian(id)
+      toast.success("Ujian berhasil dimulai")
+      fetchData()
+    } catch {
+      toast.error("Gagal memulai ujian")
+    }
+  }
+
+  const handleStop = async (id: string, nama: string) => {
+    if (!confirm(`Hentikan ujian "${nama}"? Siswa tidak akan bisa mengakses ujian ini lagi.`)) return
+    try {
+      await stopUjian(id)
+      toast.success("Ujian berhasil dihentikan")
+      fetchData()
+    } catch {
+      toast.error("Gagal menghentikan ujian")
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -124,7 +154,7 @@ export function UjianManagementClient() {
             <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1) }}>
               <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value=" ">Semua Status</SelectItem>
+                <SelectItem value="">Semua Status</SelectItem>
                 {Object.entries(statusLabels).map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v}</SelectItem>
                 ))}
@@ -164,6 +194,7 @@ export function UjianManagementClient() {
                   <TableHead>Tanggal</TableHead>
                   <TableHead>Durasi</TableHead>
                   <TableHead>Soal</TableHead>
+                  <TableHead>Mode</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
@@ -179,21 +210,36 @@ export function UjianManagementClient() {
                     <TableCell>{ujian.durasi} menit</TableCell>
                     <TableCell>{ujian._count.ujianSoal}</TableCell>
                     <TableCell>
+                      <Badge variant={ujian.mode === "manual" ? "default" : "outline"}>
+                        {modeLabels[ujian.mode] || ujian.mode}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
                       <Badge variant={statusColors[ujian.status] as any}>
                         {statusLabels[ujian.status] || ujian.status}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleDuplicate(ujian.id)}>
+                        {ujian.mode === "manual" && ujian.status === "DRAFT" && (
+                          <Button variant="ghost" size="icon" onClick={() => handleStart(ujian.id, ujian.nama)} className="text-green-600" title="Mulai Ujian">
+                            <Play className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {ujian.mode === "manual" && ujian.status === "AKTIF" && (
+                          <Button variant="ghost" size="icon" onClick={() => handleStop(ujian.id, ujian.nama)} className="text-destructive" title="Hentikan Ujian">
+                            <Square className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => handleDuplicate(ujian.id)} title="Duplikat">
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" asChild>
+                        <Button variant="ghost" size="icon" asChild title="Edit">
                           <Link href={`/guru/ujian/${ujian.id}`}>
                             <Edit className="h-4 w-4" />
                           </Link>
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(ujian.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(ujian.id)} title="Hapus">
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>

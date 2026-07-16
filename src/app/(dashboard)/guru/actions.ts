@@ -242,7 +242,16 @@ export async function getUjians(params: {
       skip: (page - 1) * limit,
       take: limit,
       orderBy: { createdAt: "desc" },
-      include: {
+      select: {
+        id: true,
+        nama: true,
+        status: true,
+        mode: true,
+        durasi: true,
+        tanggal: true,
+        jamMulai: true,
+        jamSelesai: true,
+        createdAt: true,
         mataPelajaran: { select: { nama: true } },
         kelas: { select: { nama: true } },
         _count: { select: { ujianSoal: true } },
@@ -463,6 +472,36 @@ export async function deleteUjian(id: string) {
   await prisma.ujian.updateMany({
     where: { id, guruId: guru.id, deletedAt: null },
     data: { deletedAt: new Date() },
+  })
+  revalidatePath("/(dashboard)/guru/ujian")
+}
+
+export async function startUjian(id: string) {
+  const guru = await getCurrentGuru()
+  const ujian = await prisma.ujian.findFirst({
+    where: { id, guruId: guru.id, deletedAt: null },
+  })
+  if (!ujian) throw new Error("Ujian tidak ditemukan")
+  if (ujian.status !== "DRAFT") throw new Error("Hanya ujian dengan status Draft yang bisa dimulai")
+
+  await prisma.ujian.updateMany({
+    where: { id, guruId: guru.id, deletedAt: null },
+    data: { status: "AKTIF" },
+  })
+  revalidatePath("/(dashboard)/guru/ujian")
+}
+
+export async function stopUjian(id: string) {
+  const guru = await getCurrentGuru()
+  const ujian = await prisma.ujian.findFirst({
+    where: { id, guruId: guru.id, deletedAt: null },
+  })
+  if (!ujian) throw new Error("Ujian tidak ditemukan")
+  if (ujian.status !== "AKTIF") throw new Error("Hanya ujian dengan status Aktif yang bisa dihentikan")
+
+  await prisma.ujian.updateMany({
+    where: { id, guruId: guru.id, deletedAt: null },
+    data: { status: "SELESAI" },
   })
   revalidatePath("/(dashboard)/guru/ujian")
 }
