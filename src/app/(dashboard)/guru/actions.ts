@@ -620,8 +620,15 @@ export async function getGuruMapelRefs() {
 
 export async function getGuruKelasRefs() {
   const guru = await getCurrentGuru()
-  return prisma.kelas.findMany({
+  const mapels = await prisma.mataPelajaran.findMany({
     where: { guruId: guru.id, deletedAt: null },
+    select: { kelasId: true },
+    distinct: ["kelasId"],
+  })
+  const kelasIds = mapels.map((m) => m.kelasId)
+  if (kelasIds.length === 0) return []
+  return prisma.kelas.findMany({
+    where: { id: { in: kelasIds }, deletedAt: null },
     select: { id: true, nama: true, tingkat: true },
     orderBy: [{ tingkat: "asc" }, { nama: "asc" }],
   })
