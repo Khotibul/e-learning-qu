@@ -42,13 +42,20 @@ import {
   Search,
   Users,
   Plus,
+  UserPlus,
   Edit,
   Trash2,
   ChevronLeft,
   ChevronRight,
   Loader2,
 } from "lucide-react"
-import { getGuruMurids, createGuruMurid, updateGuruMurid, deleteGuruMurid } from "../../actions"
+import {
+  getGuruMurids,
+  getGuruPendingMurids,
+  createGuruMurid,
+  updateGuruMurid,
+  deleteGuruMurid,
+} from "../../actions"
 
 interface Murid {
   id: string
@@ -76,6 +83,7 @@ interface Props {
   initialSearch: string
   initialKelasId: string
   kelasRefs: KelasRef[]
+  initialTab?: string
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -87,6 +95,7 @@ function useDebounce<T>(value: T, delay: number): T {
 export function MuridManagement(props: Props) {
   const router = useRouter()
 
+  const [tab, setTab] = useState(props.initialTab || "saya")
   const [data, setData] = useState<Murid[]>(props.initialData)
   const [total, setTotal] = useState(props.initialTotal)
   const [totalPages, setTotalPages] = useState(props.initialTotalPages)
@@ -114,7 +123,12 @@ export function MuridManagement(props: Props) {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await getGuruMurids({ search: debouncedSearch, page, limit: 10, kelasId: kelasId || undefined })
+      let result
+      if (tab === "pendaftar") {
+        result = await getGuruPendingMurids({ search: debouncedSearch, page, limit: 10 })
+      } else {
+        result = await getGuruMurids({ search: debouncedSearch, page, limit: 10, kelasId: kelasId || undefined })
+      }
       setData(result.data as Murid[])
       setTotal(result.total)
       setTotalPages(result.totalPages)
@@ -123,7 +137,7 @@ export function MuridManagement(props: Props) {
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch, page, kelasId])
+  }, [debouncedSearch, page, kelasId, tab])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -131,9 +145,10 @@ export function MuridManagement(props: Props) {
     const params = new URLSearchParams()
     if (debouncedSearch) params.set("search", debouncedSearch)
     if (page > 1) params.set("page", String(page))
-    if (kelasId) params.set("kelas", kelasId)
+    if (tab === "pendaftar") params.set("tab", "pendaftar")
+    else if (kelasId) params.set("kelas", kelasId)
     router.replace(`/guru/murid?${params.toString()}`, { scroll: false })
-  }, [debouncedSearch, page, kelasId, router])
+  }, [debouncedSearch, page, kelasId, tab, router])
 
   function resetForm() {
     setFormData({ nama: "", email: "", nis: "", nisn: "", alamat: "", noTelp: "", kelasId: "", password: "" })
@@ -158,6 +173,13 @@ export function MuridManagement(props: Props) {
       password: "",
     })
     setDialogOpen(true)
+  }
+
+  function switchTab(newTab: string) {
+    setTab(newTab)
+    setPage(1)
+    setSearch("")
+    setKelasId("")
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -226,12 +248,15 @@ export function MuridManagement(props: Props) {
       cell: ({ row }) => row.original.kelas?.nama || "-",
     },
     {
-      header: "Status",
-      cell: ({ row }) => (
-        <Badge variant={row.original.user.isActive ? "success" : "destructive"}>
-          {row.original.user.isActive ? "Aktif" : "Nonaktif"}
-        </Badge>
-      ),
+      header: tab === "pendaftar" ? "Email" : "Status",
+      cell: ({ row }) =>
+        tab === "pendaftar" ? (
+          <span className="text-sm truncate max-w-[180px] block">{row.original.user.email}</span>
+        ) : (
+          <Badge variant={row.original.user.isActive ? "success" : "destructive"}>
+            {row.original.user.isActive ? "Aktif" : "Nonaktif"}
+          </Badge>
+        ),
     },
     {
       header: "Aksi",
@@ -278,17 +303,41 @@ export function MuridManagement(props: Props) {
         </div>
       </div>
 
+      <div className="flex items-center gap-1 border-b">
+        <button
+          onClick={() => switchTab("saya")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            tab === "saya"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Murid Saya
+        </button>
+        <button
+          onClick={() => switchTab("pendaftar")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors inline-flex items-center gap-1.5 ${
+            tab === "pendaftar"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <UserPlus className="h-4 w-4" />
+          Pendaftar Baru
+        </button>
+      </div>
+
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Cari murid..."
+            placeholder={tab === "pendaftar" ? "Cari pendaftar..." : "Cari murid..."}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             className="pl-9"
           />
         </div>
-        {props.kelasRefs.length > 0 && (
+        {tab !== "pendaftar" && props.kelasRefs.length > 0 && (
           <Select value={kelasId} onValueChange={(v) => { setKelasId(v); setPage(1) }}>
             <SelectTrigger className="w-full sm:w-44">
               <SelectValue placeholder="Semua Kelas" />
@@ -335,7 +384,11 @@ export function MuridManagement(props: Props) {
             ) : data.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">
-                  {search ? "Tidak ada murid yang sesuai pencarian" : "Belum ada murid di kelas Anda"}
+                  {search
+                    ? "Tidak ada data yang sesuai pencarian"
+                    : tab === "pendaftar"
+                      ? "Belum ada pendaftar baru"
+                      : "Belum ada murid di kelas Anda"}
                 </TableCell>
               </TableRow>
             ) : (
@@ -417,7 +470,7 @@ export function MuridManagement(props: Props) {
             </div>
             {!editingMurid && (
               <div className="space-y-2">
-                <Label htmlFor="password">Password <span className="text-muted-foreground text-xs">(opsional, default: nis)</span></Label>
+                <Label htmlFor="password">Password <span className="text-muted-foreground text-xs">(opsional)</span></Label>
                 <Input id="password" type="text" value={formData.password} onChange={(e) => setFormData((p) => ({ ...p, password: e.target.value }))} placeholder="Kosongkan untuk auto-generate" />
               </div>
             )}

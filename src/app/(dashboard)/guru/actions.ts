@@ -661,6 +661,40 @@ export async function getGuruMurids(params: {
   return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
 }
 
+export async function getGuruPendingMurids(params: {
+  search?: string
+  page?: number
+  limit?: number
+}) {
+  const guru = await getCurrentGuru()
+  const { search, page = 1, limit = 10 } = params
+
+  const where: Record<string, unknown> = { deletedAt: null, kelasId: null }
+  if (search) {
+    where.OR = [
+      { nama: { contains: search, mode: "insensitive" } },
+      { nis: { contains: search, mode: "insensitive" } },
+      { nisn: { contains: search, mode: "insensitive" } },
+      { noTelp: { contains: search, mode: "insensitive" } },
+    ]
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.siswa.findMany({
+      where: where as any,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: { select: { email: true, isActive: true } },
+        kelas: { select: { nama: true, tingkat: true } },
+      },
+    }),
+    prisma.siswa.count({ where: where as any }),
+  ])
+  return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
+}
+
 export async function getGuruKelasForMurid() {
   const guru = await getCurrentGuru()
   const mapels = await prisma.mataPelajaran.findMany({
