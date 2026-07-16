@@ -90,17 +90,26 @@ export async function createSoal(data: {
   bab?: string
   tags?: string
   mataPelajaranId: string
+  subSoal?: { pertanyaan: string; jawaban: string; poin: number }[]
 }) {
   const guru = await getCurrentGuru()
+  const subSoal = data.subSoal?.filter((s) => s.pertanyaan.trim())
+  const totalPoin = subSoal && subSoal.length > 0
+    ? subSoal.reduce((sum, s) => sum + (s.poin || 0), 0)
+    : data.poin
+  const combinedJawaban = subSoal && subSoal.length > 0
+    ? JSON.stringify(subSoal.map((s) => s.jawaban))
+    : data.jawaban
   const soal = await prisma.soal.create({
     data: {
       pertanyaan: data.pertanyaan,
+      subSoal: subSoal && subSoal.length > 0 ? subSoal as any : undefined,
       jenisSoal: data.jenisSoal as any,
       tingkatKesulitan: data.tingkatKesulitan as any,
       pilihanGanda: data.pilihanGanda || undefined,
       trueFalse: data.trueFalse ?? undefined,
-      jawaban: data.jawaban,
-      poin: data.poin,
+      jawaban: combinedJawaban,
+      poin: totalPoin,
       bab: data.bab || null,
       tags: data.tags || null,
       mataPelajaranId: data.mataPelajaranId,
@@ -125,26 +134,39 @@ export async function updateSoal(
     bab?: string
     tags?: string
     mataPelajaranId?: string
+    subSoal?: { pertanyaan: string; jawaban: string; poin: number }[]
   }
 ) {
   const guru = await getCurrentGuru()
-  const soal = await prisma.soal.updateMany({
+  const updateData: Record<string, any> = {}
+  if (data.pertanyaan !== undefined) updateData.pertanyaan = data.pertanyaan
+  if (data.jenisSoal !== undefined) updateData.jenisSoal = data.jenisSoal as any
+  if (data.tingkatKesulitan !== undefined) updateData.tingkatKesulitan = data.tingkatKesulitan as any
+  if (data.pilihanGanda !== undefined) updateData.pilihanGanda = data.pilihanGanda
+  if (data.trueFalse !== undefined) updateData.trueFalse = data.trueFalse
+  if (data.jawaban !== undefined) updateData.jawaban = data.jawaban
+  if (data.poin !== undefined) updateData.poin = data.poin
+  if (data.bab !== undefined) updateData.bab = data.bab
+  if (data.tags !== undefined) updateData.tags = data.tags
+  if (data.mataPelajaranId !== undefined) updateData.mataPelajaranId = data.mataPelajaranId
+
+  if (data.subSoal !== undefined) {
+    const subSoal = data.subSoal.filter((s) => s.pertanyaan.trim())
+    updateData.subSoal = subSoal.length > 0 ? subSoal : null
+    updateData.jawaban = subSoal.length > 0
+      ? JSON.stringify(subSoal.map((s) => s.jawaban))
+      : data.jawaban ?? ""
+    updateData.poin = subSoal.length > 0
+      ? subSoal.reduce((sum, s) => sum + (s.poin || 0), 0)
+      : data.poin ?? 0
+  }
+
+  await prisma.soal.updateMany({
     where: { id, guruId: guru.id, deletedAt: null },
-    data: {
-      ...(data.pertanyaan !== undefined && { pertanyaan: data.pertanyaan }),
-      ...(data.jenisSoal !== undefined && { jenisSoal: data.jenisSoal as any }),
-      ...(data.tingkatKesulitan !== undefined && { tingkatKesulitan: data.tingkatKesulitan as any }),
-      ...(data.pilihanGanda !== undefined && { pilihanGanda: data.pilihanGanda }),
-      ...(data.trueFalse !== undefined && { trueFalse: data.trueFalse }),
-      ...(data.jawaban !== undefined && { jawaban: data.jawaban }),
-      ...(data.poin !== undefined && { poin: data.poin }),
-      ...(data.bab !== undefined && { bab: data.bab }),
-      ...(data.tags !== undefined && { tags: data.tags }),
-      ...(data.mataPelajaranId !== undefined && { mataPelajaranId: data.mataPelajaranId }),
-    },
+    data: updateData,
   })
   revalidatePath("/(dashboard)/guru/soal")
-  return soal
+  return { success: true }
 }
 
 export async function deleteSoal(id: string) {
@@ -165,6 +187,7 @@ export async function duplicateSoal(id: string) {
   const data = {
     pertanyaan: original.pertanyaan + " (Copy)",
     gambar: original.gambar,
+    subSoal: original.subSoal as any,
     jenisSoal: original.jenisSoal,
     tingkatKesulitan: original.tingkatKesulitan,
     pilihanGanda: original.pilihanGanda as any,
@@ -862,7 +885,7 @@ export async function getBankSoalRefs() {
   const guru = await getCurrentGuru()
   return prisma.soal.findMany({
     where: { guruId: guru.id, deletedAt: null },
-    select: { id: true, pertanyaan: true, jenisSoal: true, bab: true, mataPelajaranId: true },
+    select: { id: true, pertanyaan: true, jenisSoal: true, bab: true, mataPelajaranId: true, subSoal: true },
     orderBy: { createdAt: "desc" },
   })
 }

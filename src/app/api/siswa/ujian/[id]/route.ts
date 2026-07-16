@@ -45,6 +45,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         id: us.soal.id,
         nomor: us.nomor,
         pertanyaan: us.soal.pertanyaan,
+        subSoal: us.soal.subSoal as { pertanyaan: string; jawaban: string; poin: number }[] | null,
         gambar: us.soal.gambar,
         jenisSoal: us.soal.jenisSoal,
         tingkatKesulitan: us.soal.tingkatKesulitan,

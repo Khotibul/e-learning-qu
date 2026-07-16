@@ -1,13 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Save, ArrowLeft, Plus, Trash2 } from "lucide-react"
+import { Save, ArrowLeft, Plus, Trash2, ListTree } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
@@ -32,6 +34,12 @@ interface PilihanGanda {
   text: string
 }
 
+interface SubSoalItem {
+  pertanyaan: string
+  jawaban: string
+  poin: number
+}
+
 interface MapelRef {
   id: string
   nama: string
@@ -39,29 +47,40 @@ interface MapelRef {
   kelas: { id: string; nama: string }
 }
 
+interface SoalData {
+  id: string
+  pertanyaan: string
+  subSoal: any
+  jenisSoal: string
+  tingkatKesulitan: string
+  pilihanGanda: any
+  trueFalse: boolean | null
+  jawaban: string
+  poin: number
+  bab: string | null
+  tags: string | null
+  mataPelajaranId: string
+  mataPelajaran: { id: string; nama: string }
+}
+
 export function SoalFormClient({
   soal,
   mapels,
   isNew,
 }: {
-  soal: {
-    id: string
-    pertanyaan: string
-    jenisSoal: string
-    tingkatKesulitan: string
-    pilihanGanda: any
-    trueFalse: boolean | null
-    jawaban: string
-    poin: number
-    bab: string | null
-    tags: string | null
-    mataPelajaranId: string
-    mataPelajaran: { id: string; nama: string }
-  } | null
+  soal: SoalData | null
   mapels: MapelRef[]
   isNew: boolean
 }) {
   const router = useRouter()
+
+  const parseSubSoal = (val: any): SubSoalItem[] => {
+    if (Array.isArray(val)) return val as SubSoalItem[]
+    return []
+  }
+
+  const initialSub = parseSubSoal(soal?.subSoal)
+
   const [pertanyaan, setPertanyaan] = useState(soal?.pertanyaan ?? "")
   const [jenisSoal, setJenisSoal] = useState(soal?.jenisSoal ?? "PILIHAN_GANDA")
   const [tingkatKesulitan, setTingkatKesulitan] = useState(soal?.tingkatKesulitan ?? "SEDANG")
@@ -79,7 +98,16 @@ export function SoalFormClient({
   const [bab, setBab] = useState(soal?.bab ?? "")
   const [tags, setTags] = useState(soal?.tags ?? "")
   const [mataPelajaranId, setMataPelajaranId] = useState(soal?.mataPelajaranId ?? "")
+  const [subSoal, setSubSoal] = useState<SubSoalItem[]>(
+    initialSub.length > 0 ? initialSub : []
+  )
   const [saving, setSaving] = useState(false)
+
+  const hasSubSoal = subSoal.length > 0 && subSoal.some((s) => s.pertanyaan.trim())
+
+  const computedPoin = hasSubSoal
+    ? subSoal.reduce((sum, s) => sum + (s.poin || 0), 0)
+    : poin
 
   const isPG = jenisSoal === "PILIHAN_GANDA"
   const isTF = jenisSoal === "TRUE_FALSE"
@@ -104,18 +132,38 @@ export function SoalFormClient({
     setPilihanGanda(updated)
   }
 
+  const addSubSoal = () => {
+    setSubSoal([...subSoal, { pertanyaan: "", jawaban: "", poin: 1 }])
+  }
+
+  const updateSubSoal = (idx: number, field: keyof SubSoalItem, value: string | number) => {
+    const updated = [...subSoal]
+    updated[idx] = { ...updated[idx], [field]: value }
+    setSubSoal(updated)
+  }
+
+  const removeSubSoal = (idx: number) => {
+    if (subSoal.length <= 1) return
+    setSubSoal(subSoal.filter((_, i) => i !== idx))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!pertanyaan.trim()) { toast.error("Pertanyaan harus diisi"); return }
+    if (!pertanyaan.trim()) { toast.error("Judul/instruksi soal harus diisi"); return }
     if (!mataPelajaranId) { toast.error("Mata pelajaran harus dipilih"); return }
 
-    if (isPG) {
-      const emptyOption = pilihanGanda.find((o) => !o.text.trim())
-      if (emptyOption) { toast.error(`Opsi ${emptyOption.label} belum diisi`); return }
-      if (!jawaban.trim()) { toast.error("Jawaban benar harus dipilih"); return }
+    if (hasSubSoal) {
+      const emptySub = subSoal.find((s) => !s.pertanyaan.trim())
+      if (emptySub) { toast.error("Semua sub pertanyaan harus diisi"); return }
+    } else {
+      if (isPG) {
+        const emptyOption = pilihanGanda.find((o) => !o.text.trim())
+        if (emptyOption) { toast.error(`Opsi ${emptyOption.label} belum diisi`); return }
+        if (!jawaban.trim()) { toast.error("Jawaban benar harus dipilih"); return }
+      }
+      if (isTF && trueFalse === null) { toast.error("Jawaban benar harus dipilih"); return }
+      if (!jawaban.trim() && !isTF) { toast.error("Jawaban harus diisi"); return }
     }
-    if (isTF && trueFalse === null) { toast.error("Jawaban benar harus dipilih"); return }
-    if (!jawaban.trim() && !isTF) { toast.error("Jawaban harus diisi"); return }
 
     setSaving(true)
     try {
@@ -126,10 +174,11 @@ export function SoalFormClient({
         pilihanGanda: isPG ? pilihanGanda : undefined,
         trueFalse: isTF && trueFalse !== null ? trueFalse : undefined,
         jawaban: isTF ? String(trueFalse) : jawaban,
-        poin,
+        poin: hasSubSoal ? computedPoin : poin,
         bab: bab || undefined,
         tags: tags || undefined,
         mataPelajaranId,
+        subSoal: hasSubSoal ? subSoal : undefined,
       }
 
       if (isNew) {
@@ -211,8 +260,8 @@ export function SoalFormClient({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="poin">Poin</Label>
-                <Input id="poin" type="number" min={1} value={poin} onChange={(e) => setPoin(Number(e.target.value))} />
+                <Label htmlFor="poin">Poin {hasSubSoal && <span className="text-xs text-muted-foreground">(otomatis dari sub)</span>}</Label>
+                <Input id="poin" type="number" min={1} value={hasSubSoal ? computedPoin : poin} onChange={(e) => setPoin(Number(e.target.value))} disabled={hasSubSoal} />
               </div>
             </div>
 
@@ -230,18 +279,94 @@ export function SoalFormClient({
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Pertanyaan</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ListTree className="h-5 w-5" />
+              {hasSubSoal ? "Judul / Instruksi Soal" : "Pertanyaan"}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="pertanyaan">Teks Pertanyaan</Label>
-              <textarea
+              <Label htmlFor="pertanyaan">
+                {hasSubSoal ? "Judul / Instruksi" : "Teks Pertanyaan"}
+              </Label>
+              <Textarea
                 id="pertanyaan"
-                className="flex min-h-[120px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                placeholder="Masukkan teks pertanyaan..."
+                placeholder={hasSubSoal ? "Contoh: Jawablah pertanyaan-pertanyaan berikut dengan benar" : "Masukkan teks pertanyaan..."}
                 value={pertanyaan}
                 onChange={(e) => setPertanyaan(e.target.value)}
+                className="min-h-[80px]"
               />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <ListTree className="h-5 w-5" />
+              Sub Pertanyaan
+              {hasSubSoal && (
+                <Badge variant="secondary" className="ml-2">{subSoal.length} pertanyaan</Badge>
+              )}
+            </CardTitle>
+            <Button type="button" variant="outline" size="sm" onClick={addSubSoal}>
+              <Plus className="h-4 w-4 mr-1" /> Tambah
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {subSoal.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <p className="text-sm">Belum ada sub pertanyaan</p>
+                <p className="text-xs mt-1">Klik "Tambah" untuk menambahkan pertanyaan dalam soal ini</p>
+              </div>
+            ) : (
+              subSoal.map((item, idx) => (
+                <div key={idx} className="rounded-xl border p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary">Pertanyaan {idx + 1}</Badge>
+                    {subSoal.length > 1 && (
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeSubSoal(idx)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Teks Pertanyaan</Label>
+                    <Textarea
+                      value={item.pertanyaan}
+                      onChange={(e) => updateSubSoal(idx, "pertanyaan", e.target.value)}
+                      placeholder="Masukkan teks sub pertanyaan..."
+                      className="min-h-[60px]"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Kunci Jawaban</Label>
+                      <Input
+                        value={item.jawaban}
+                        onChange={(e) => updateSubSoal(idx, "jawaban", e.target.value)}
+                        placeholder="Jawaban benar"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Poin</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={item.poin}
+                        onChange={(e) => updateSubSoal(idx, "poin", Number(e.target.value) || 1)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+            {hasSubSoal && (
+              <div className="text-sm text-muted-foreground text-right">
+                Total Poin: <span className="font-semibold text-foreground">{computedPoin}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -333,9 +458,22 @@ export function SoalFormClient({
           <CardHeader><CardTitle>Preview Soal</CardTitle></CardHeader>
           <CardContent>
             <div className="rounded-xl border p-4 space-y-3 bg-muted/30">
-              <p className="font-medium">Soal:</p>
-              <p className="whitespace-pre-wrap">{pertanyaan || <span className="text-muted-foreground italic">Belum ada pertanyaan</span>}</p>
-              {isPG && (
+              <p className="font-medium">{hasSubSoal ? "Judul:" : "Soal:"}</p>
+              <p className="whitespace-pre-wrap">{pertanyaan || <span className="text-muted-foreground italic">Belum ada judul</span>}</p>
+              {hasSubSoal && (
+                <div className="space-y-3 mt-3">
+                  {subSoal.map((item, idx) => (
+                    <div key={idx} className="p-3 rounded-lg border bg-background">
+                      <p className="text-sm font-medium">{idx + 1}. {item.pertanyaan || <span className="text-muted-foreground italic">Kosong</span>}</p>
+                      <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                        <span>Kunci: {item.jawaban || "-"}</span>
+                        <span>{item.poin} poin</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!hasSubSoal && isPG && (
                 <div className="space-y-2 mt-3">
                   {pilihanGanda.map((opt, idx) => (
                     <div key={idx} className={`p-2 rounded-lg border ${jawaban === opt.label ? "border-primary bg-primary/5" : ""}`}>
@@ -345,10 +483,10 @@ export function SoalFormClient({
                   ))}
                 </div>
               )}
-              {isTF && trueFalse !== null && (
+              {!hasSubSoal && isTF && trueFalse !== null && (
                 <p className="mt-2 text-sm">Jawaban: <span className="font-semibold">{trueFalse ? "Benar" : "Salah"}</span></p>
               )}
-              {!isPG && !isTF && jawaban && (
+              {!hasSubSoal && !isPG && !isTF && jawaban && (
                 <p className="mt-2 text-sm">Jawaban: <span className="font-semibold">{jawaban}</span></p>
               )}
               <div className="flex gap-2 mt-3">
@@ -359,8 +497,13 @@ export function SoalFormClient({
                   {tingkatOptions.find((o) => o.value === tingkatKesulitan)?.label}
                 </span>
                 <span className="text-xs bg-muted px-2 py-1 rounded-full">
-                  {poin} poin
+                  {hasSubSoal ? computedPoin : poin} poin
                 </span>
+                {hasSubSoal && (
+                  <span className="text-xs bg-muted px-2 py-1 rounded-full">
+                    {subSoal.length} sub soal
+                  </span>
+                )}
               </div>
             </div>
           </CardContent>

@@ -33,6 +33,7 @@ interface SoalData {
   id: string
   nomor: number
   pertanyaan: string
+  subSoal?: { pertanyaan: string; jawaban: string; poin: number }[] | null
   gambar?: string | null
   jenisSoal: string
   tingkatKesulitan: string
@@ -384,14 +385,26 @@ export default function UjianPengerjaanPage() {
     }
   }
 
-  const reviewItems = ujianData.soal.map((s) => ({
-    nomor: s.nomor,
-    soalId: s.id,
-    pertanyaan: s.pertanyaan,
-    jawaban: answers[s.id] || "",
-    isRagu: raguRagu.includes(s.id),
-    isAnswered: !!answers[s.id] && answers[s.id].trim() !== "",
-  }))
+  const reviewItems = ujianData.soal.map((s) => {
+    const hasSub = s.subSoal && s.subSoal.length > 0 && s.subSoal.some((x) => x.pertanyaan.trim())
+    let subAnswered = 0
+    let subTotal = 0
+    if (hasSub && s.subSoal) {
+      subTotal = s.subSoal.length
+      try {
+        const arr = JSON.parse(answers[s.id] || "[]")
+        if (Array.isArray(arr)) subAnswered = arr.filter((a: string) => a?.trim()).length
+      } catch { subAnswered = 0 }
+    }
+    return {
+      nomor: s.nomor,
+      soalId: s.id,
+      pertanyaan: hasSub ? `${s.pertanyaan} (${subAnswered}/${subTotal} sub)` : s.pertanyaan,
+      jawaban: hasSub ? `${subAnswered}/${subTotal} terjawab` : (answers[s.id] || ""),
+      isRagu: raguRagu.includes(s.id),
+      isAnswered: hasSub ? subAnswered > 0 : (!!answers[s.id] && answers[s.id].trim() !== ""),
+    }
+  })
 
   return (
     <div className="min-h-screen bg-background">

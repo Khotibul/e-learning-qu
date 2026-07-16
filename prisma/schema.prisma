@@ -218,6 +218,7 @@ model Semester {
 model Soal {
   id              String          @id @default(uuid()) @db.Uuid
   pertanyaan      String          @db.Text
+  subSoal         Json?
   gambar          String?
   jenisSoal       JenisSoal
   tingkatKesulitan TingkatKesulitan @default(SEDANG)

@@ -75,37 +75,70 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     for (const us of ujian.ujianSoal) {
       const jawab = jawabans.find((j) => j.soalId === us.soal.id)
       const jawabanUser = jawab?.jawaban ?? ""
-      const jawabanBenar = us.soal.jawaban
-      const poin = us.soal.poin
-      totalPoin += poin
+      const subSoal = us.soal.subSoal as { pertanyaan: string; jawaban: string; poin: number }[] | null
+      const hasSub = subSoal && subSoal.length > 0 && subSoal.some((s) => s.pertanyaan.trim())
 
-      let isCorrect = false
-      if (us.soal.jenisSoal === "PILIHAN_GANDA" || us.soal.jenisSoal === "TRUE_FALSE") {
-        isCorrect = jawabanUser === jawabanBenar
-      } else if (us.soal.jenisSoal === "ISIAN_SINGKAT") {
-        isCorrect = jawabanUser.toLowerCase().trim() === jawabanBenar.toLowerCase().trim()
+      if (hasSub) {
+        let subUser: string[] = []
+        try { const p = JSON.parse(jawabanUser); if (Array.isArray(p)) subUser = p } catch { subUser = [] }
+        let subPoin = 0
+        let subTotal = 0
+        for (let i = 0; i < subSoal.length; i++) {
+          const s = subSoal[i]
+          const userAns = subUser[i]?.trim() ?? ""
+          const correct = userAns.toLowerCase() === s.jawaban.toLowerCase().trim()
+          subTotal += s.poin
+          if (correct) subPoin += s.poin
+        }
+        totalPoin += subTotal
+        perolehPoin += subPoin
+        const allCorrect = subPoin === subTotal
+        if (jawab) {
+          await prisma.jawabanUjian.update({
+            where: { id: jawab.id },
+            data: { isCorrect: allCorrect, poin: subPoin },
+          })
+        }
+        hasilSoal.push({
+          nomor: us.nomor,
+          jawaban: jawabanUser,
+          jawabanBenar: JSON.stringify(subSoal.map((s) => s.jawaban)),
+          isCorrect: allCorrect,
+          poin: subPoin,
+        })
       } else {
-        isCorrect = jawabanUser.trim() === jawabanBenar.trim()
-      }
+        const jawabanBenar = us.soal.jawaban
+        const poin = us.soal.poin
+        totalPoin += poin
 
-      if (isCorrect) {
-        perolehPoin += poin
-      }
+        let isCorrect = false
+        if (us.soal.jenisSoal === "PILIHAN_GANDA" || us.soal.jenisSoal === "TRUE_FALSE") {
+          isCorrect = jawabanUser === jawabanBenar
+        } else if (us.soal.jenisSoal === "ISIAN_SINGKAT") {
+          isCorrect = jawabanUser.toLowerCase().trim() === jawabanBenar.toLowerCase().trim()
+        } else {
+          isCorrect = jawabanUser.trim() === jawabanBenar.trim()
+        }
 
-      if (jawab) {
-        await prisma.jawabanUjian.update({
-          where: { id: jawab.id },
-          data: { isCorrect, poin: isCorrect ? poin : 0 },
+        if (isCorrect) {
+          perolehPoin += poin
+        }
+
+        if (jawab) {
+          await prisma.jawabanUjian.update({
+            where: { id: jawab.id },
+            data: { isCorrect, poin: isCorrect ? poin : 0 },
+          })
+        }
+
+        hasilSoal.push({
+          nomor: us.nomor,
+          jawaban: jawabanUser,
+          jawabanBenar,
+          isCorrect,
+          poin,
         })
       }
-
-      hasilSoal.push({
-        nomor: us.nomor,
-        jawaban: jawabanUser,
-        jawabanBenar,
-        isCorrect,
-        poin,
-      })
     }
 
     const nilaiAkhir = totalPoin > 0 ? Math.round((perolehPoin / totalPoin) * 100) : 0

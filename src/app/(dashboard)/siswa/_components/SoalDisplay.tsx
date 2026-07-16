@@ -3,13 +3,21 @@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, ListTree } from "lucide-react"
+
+interface SubSoalItem {
+  pertanyaan: string
+  jawaban: string
+  poin: number
+}
 
 interface SoalData {
   id: string
   nomor: number
   pertanyaan: string
+  subSoal?: SubSoalItem[] | null
   gambar?: string | null
   jenisSoal: string
   tingkatKesulitan: string
@@ -36,7 +44,69 @@ const tingkatLabel: Record<string, string> = {
   SULIT: "Sulit",
 }
 
+function parseSubJawaban(jawaban: string, count: number): string[] {
+  try {
+    const arr = JSON.parse(jawaban)
+    if (Array.isArray(arr)) {
+      while (arr.length < count) arr.push("")
+      return arr.slice(0, count)
+    }
+  } catch {}
+  return Array(count).fill("")
+}
+
 export function SoalDisplay({ soal, jawaban, onJawab, isRaguRagu }: SoalDisplayProps) {
+  const hasSubSoal = soal.subSoal && soal.subSoal.length > 0 && soal.subSoal.some((s) => s.pertanyaan.trim())
+
+  if (hasSubSoal && soal.subSoal) {
+    const subJawabans = parseSubJawaban(jawaban, soal.subSoal.length)
+
+    const updateSub = (idx: number, val: string) => {
+      const updated = [...subJawabans]
+      updated[idx] = val
+      onJawab(JSON.stringify(updated))
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">
+              Soal Nomor {soal.nomor}
+            </span>
+            <Badge variant="outline">{soal.subSoal.length} sub soal</Badge>
+            <Badge variant="outline">{soal.poin} poin</Badge>
+          </div>
+          {isRaguRagu && (
+            <Badge variant="warning" className="flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              Ragu-ragu
+            </Badge>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-card p-4 space-y-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <ListTree className="h-4 w-4" />
+            {soal.pertanyaan}
+          </div>
+
+          {soal.subSoal.map((sub, idx) => (
+            <div key={idx} className="space-y-2 pl-4 border-l-2 border-muted">
+              <p className="text-sm font-medium">{idx + 1}. {sub.pertanyaan}</p>
+              <p className="text-xs text-muted-foreground">{sub.poin} poin</p>
+              <Input
+                value={subJawabans[idx]}
+                onChange={(e) => updateSub(idx, e.target.value)}
+                placeholder="Tulis jawaban..."
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="space-y-4">

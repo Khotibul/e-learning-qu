@@ -45,9 +45,16 @@ interface TahunAjaranRef {
 interface BankSoalRef {
   id: string
   pertanyaan: string
+  subSoal: any
   jenisSoal: string
   bab: string | null
   mataPelajaranId: string
+}
+
+const subCount = (s: BankSoalRef) => {
+  if (!s.subSoal) return 0
+  const arr = Array.isArray(s.subSoal) ? s.subSoal : []
+  return arr.filter((a: any) => a.pertanyaan?.trim()).length
 }
 
 interface UjianData {
@@ -408,6 +415,9 @@ export function UjianFormClient({
                           <div className="flex gap-2 mt-1">
                             <Badge variant="secondary" className="text-[10px]">{s.jenisSoal}</Badge>
                             {s.bab && <Badge variant="secondary" className="text-[10px]">{s.bab}</Badge>}
+                            {subCount(s) > 0 && (
+                              <Badge variant="outline" className="text-[10px]">{subCount(s)} sub</Badge>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -430,6 +440,9 @@ export function UjianFormClient({
                     <span className="text-sm font-medium text-muted-foreground w-8">{idx + 1}.</span>
                     <p className="flex-1 text-sm line-clamp-1">{s.pertanyaan}</p>
                     <Badge variant="secondary" className="text-[10px] shrink-0">{s.jenisSoal}</Badge>
+                    {subCount(s) > 0 && (
+                      <Badge variant="outline" className="text-[10px] shrink-0">{subCount(s)} sub</Badge>
+                    )}
                     <Button
                       type="button"
                       variant="ghost"

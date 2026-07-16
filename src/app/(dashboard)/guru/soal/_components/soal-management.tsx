@@ -47,12 +47,19 @@ const tingkatColors: Record<string, string> = {
 interface SoalData {
   id: string
   pertanyaan: string
+  subSoal: any
   jenisSoal: string
   tingkatKesulitan: string
   poin: number
   bab: string | null
   createdAt: Date
   mataPelajaran: { nama: string; kode: string }
+}
+
+const subCount = (s: SoalData) => {
+  if (!s.subSoal) return 0
+  const arr = Array.isArray(s.subSoal) ? s.subSoal : []
+  return arr.filter((a: any) => a.pertanyaan?.trim()).length
 }
 
 interface MapelRef {
@@ -413,7 +420,12 @@ export function SoalManagementClient() {
                 {data.map((soal, idx) => (
                   <TableRow key={soal.id}>
                     <TableCell>{(page - 1) * limit + idx + 1}</TableCell>
-                    <TableCell className="max-w-xs truncate">{soal.pertanyaan}</TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      <span>{soal.pertanyaan}</span>
+                      {subCount(soal) > 0 && (
+                        <Badge variant="secondary" className="ml-2 text-[10px]">{subCount(soal)} sub</Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{jenisSoalLabels[soal.jenisSoal] || soal.jenisSoal}</Badge>
                     </TableCell>
@@ -474,9 +486,25 @@ export function SoalManagementClient() {
           {previewSoal && (
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-muted-foreground">Pertanyaan</p>
+                <p className="text-sm text-muted-foreground">
+                  {subCount(previewSoal) > 0 ? "Judul / Instruksi" : "Pertanyaan"}
+                </p>
                 <p className="mt-1 whitespace-pre-wrap">{previewSoal.pertanyaan}</p>
               </div>
+              {subCount(previewSoal) > 0 && previewSoal.subSoal && Array.isArray(previewSoal.subSoal) && (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Sub Pertanyaan ({subCount(previewSoal)})</p>
+                  {previewSoal.subSoal.filter((s: any) => s.pertanyaan?.trim()).map((s: any, i: number) => (
+                    <div key={i} className="rounded-lg border p-3">
+                      <p className="text-sm font-medium">{i + 1}. {s.pertanyaan}</p>
+                      <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                        <span>Kunci: {s.jawaban || "-"}</span>
+                        <span>{s.poin || 0} poin</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Jenis</p>

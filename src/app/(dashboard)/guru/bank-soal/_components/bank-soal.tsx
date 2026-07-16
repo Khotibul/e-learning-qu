@@ -43,6 +43,7 @@ const tingkatColors: Record<string, string> = {
 interface SoalItem {
   id: string
   pertanyaan: string
+  subSoal: any
   jenisSoal: string
   tingkatKesulitan: string
   poin: number
@@ -51,6 +52,12 @@ interface SoalItem {
   createdAt: Date
   mataPelajaran: { nama: string }
   kategori: { nama: string } | null
+}
+
+const subCount = (s: SoalItem) => {
+  if (!s.subSoal) return 0
+  const arr = Array.isArray(s.subSoal) ? s.subSoal : []
+  return arr.filter((a: any) => a.pertanyaan?.trim()).length
 }
 
 interface KategoriRef {
@@ -215,6 +222,9 @@ export function BankSoalClient({
                           {tingkatLabels[soal.tingkatKesulitan]}
                         </Badge>
                         <Badge variant="secondary" className="text-[10px]">{soal.poin} poin</Badge>
+                        {subCount(soal) > 0 && (
+                          <Badge variant="outline" className="text-[10px]">{subCount(soal)} sub</Badge>
+                        )}
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">{soal.mataPelajaran.nama}</span>
