@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Plus, Edit, Trash2, Upload, Download, FileSpreadsheet, Eye, Copy, FileText, Loader2 } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Upload, Download, FileSpreadsheet, Eye, Copy, FileText, Loader2, Pencil } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -552,10 +553,25 @@ export function SoalManagementClient() {
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">Soal {soal.nomor}</Badge>
                     {soal.jenis && <Badge variant="outline">{soal.jenis}</Badge>}
+                    <Badge variant="outline" className="ml-auto text-[10px] gap-1">
+                      <Pencil className="h-3 w-3" /> Edit
+                    </Badge>
                   </div>
-                  <p className="text-sm whitespace-pre-wrap">{soal.pertanyaan}</p>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Pertanyaan</Label>
+                    <Textarea
+                      value={soal.pertanyaan}
+                      onChange={(e) => {
+                        const updated = [...ocrResults]
+                        updated[i] = { ...updated[i], pertanyaan: e.target.value }
+                        setOcrResults(updated)
+                      }}
+                      className="min-h-[60px] text-sm"
+                    />
+                  </div>
                   {soal.options && soal.options.length > 0 && (
                     <div className="space-y-1 pl-4">
+                      <p className="text-xs text-muted-foreground">Opsi:</p>
                       {soal.options.map((opt, oi) => (
                         <p key={oi} className="text-sm text-muted-foreground">
                           {opt.label}. {opt.value}
@@ -563,9 +579,19 @@ export function SoalManagementClient() {
                       ))}
                     </div>
                   )}
-                  {soal.jawaban && (
-                    <p className="text-sm font-medium text-green-600">Kunci: {soal.jawaban}</p>
-                  )}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Kunci Jawaban</Label>
+                    <Input
+                      value={soal.jawaban || ""}
+                      onChange={(e) => {
+                        const updated = [...ocrResults]
+                        updated[i] = { ...updated[i], jawaban: e.target.value }
+                        setOcrResults(updated)
+                      }}
+                      className="text-sm"
+                      placeholder="Masukkan kunci jawaban"
+                    />
+                  </div>
                 </div>
               ))}
               <div className="flex justify-end gap-3 pt-2">
@@ -622,12 +648,38 @@ export function SoalManagementClient() {
 
               <div className="space-y-2">
                 {importResults.map((item, i) => (
-                  <div key={i} className="rounded-xl border p-3">
-                    <p className="text-sm font-medium">Soal {i + 1}</p>
-                    <p className="text-sm mt-1">{item.pertanyaan}</p>
-                    {item.jawaban && (
-                      <p className="text-sm text-green-600 mt-1">Kunci: {item.jawaban}</p>
-                    )}
+                  <div key={i} className="rounded-xl border p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">Soal {i + 1}</p>
+                      <Badge variant="outline" className="text-[10px] gap-1">
+                        <Pencil className="h-3 w-3" /> Edit
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Pertanyaan</Label>
+                      <Textarea
+                        value={item.pertanyaan}
+                        onChange={(e) => {
+                          const updated = [...importResults]
+                          updated[i] = { ...updated[i], pertanyaan: e.target.value }
+                          setImportResults(updated)
+                        }}
+                        className="min-h-[60px] text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Kunci Jawaban</Label>
+                      <Input
+                        value={item.jawaban || ""}
+                        onChange={(e) => {
+                          const updated = [...importResults]
+                          updated[i] = { ...updated[i], jawaban: e.target.value }
+                          setImportResults(updated)
+                        }}
+                        className="text-sm"
+                        placeholder="Masukkan kunci jawaban"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
