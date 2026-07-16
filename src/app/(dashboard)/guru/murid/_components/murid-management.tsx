@@ -14,6 +14,7 @@ import { toast } from "react-hot-toast"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -25,6 +26,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -34,10 +41,14 @@ import {
 import {
   Search,
   Users,
+  Plus,
+  Edit,
+  Trash2,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react"
-import { getGuruMurids } from "../../actions"
+import { getGuruMurids, createGuruMurid, updateGuruMurid, deleteGuruMurid } from "../../actions"
 
 interface Murid {
   id: string
@@ -84,6 +95,19 @@ export function MuridManagement(props: Props) {
   const [kelasId, setKelasId] = useState(props.initialKelasId)
   const [loading, setLoading] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([])
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingMurid, setEditingMurid] = useState<Murid | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [formData, setFormData] = useState({
+    nama: "",
+    email: "",
+    nis: "",
+    nisn: "",
+    alamat: "",
+    noTelp: "",
+    kelasId: "",
+    password: "",
+  })
 
   const debouncedSearch = useDebounce(search, 300)
 
@@ -111,6 +135,83 @@ export function MuridManagement(props: Props) {
     router.replace(`/guru/murid?${params.toString()}`, { scroll: false })
   }, [debouncedSearch, page, kelasId, router])
 
+  function resetForm() {
+    setFormData({ nama: "", email: "", nis: "", nisn: "", alamat: "", noTelp: "", kelasId: "", password: "" })
+  }
+
+  function openCreateDialog() {
+    setEditingMurid(null)
+    resetForm()
+    setDialogOpen(true)
+  }
+
+  function openEditDialog(murid: Murid) {
+    setEditingMurid(murid)
+    setFormData({
+      nama: murid.nama,
+      email: murid.user.email,
+      nis: murid.nis || "",
+      nisn: murid.nisn || "",
+      alamat: murid.alamat || "",
+      noTelp: murid.noTelp || "",
+      kelasId: murid.kelasId || "",
+      password: "",
+    })
+    setDialogOpen(true)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formData.nama.trim()) { toast.error("Nama harus diisi"); return }
+    if (!formData.email.trim() && !editingMurid) { toast.error("Email harus diisi"); return }
+    if (!formData.kelasId) { toast.error("Kelas harus dipilih"); return }
+
+    setSubmitting(true)
+    try {
+      if (editingMurid) {
+        await updateGuruMurid(editingMurid.id, {
+          nama: formData.nama,
+          nis: formData.nis || undefined,
+          nisn: formData.nisn || undefined,
+          alamat: formData.alamat || undefined,
+          noTelp: formData.noTelp || undefined,
+          kelasId: formData.kelasId,
+        })
+        toast.success("Murid berhasil diperbarui")
+      } else {
+        await createGuruMurid({
+          nama: formData.nama,
+          email: formData.email,
+          nis: formData.nis || undefined,
+          nisn: formData.nisn || undefined,
+          alamat: formData.alamat || undefined,
+          noTelp: formData.noTelp || undefined,
+          kelasId: formData.kelasId,
+          password: formData.password || undefined,
+        })
+        toast.success("Murid berhasil ditambahkan")
+      }
+      setDialogOpen(false)
+      resetForm()
+      fetchData()
+    } catch (err: any) {
+      toast.error(err?.message || "Terjadi kesalahan")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Yakin ingin menonaktifkan murid ini?")) return
+    try {
+      await deleteGuruMurid(id)
+      toast.success("Murid berhasil dinonaktifkan")
+      fetchData()
+    } catch (err: any) {
+      toast.error(err?.message || "Terjadi kesalahan")
+    }
+  }
+
   const columns: ColumnDef<Murid>[] = [
     {
       header: "No",
@@ -131,6 +232,22 @@ export function MuridManagement(props: Props) {
           {row.original.user.isActive ? "Aktif" : "Nonaktif"}
         </Badge>
       ),
+    },
+    {
+      header: "Aksi",
+      cell: ({ row }) => {
+        const murid = row.original
+        return (
+          <div className="flex gap-1">
+            <Button variant="ghost" size="sm" className="p-2 sm:px-3 sm:py-1" onClick={() => openEditDialog(murid)} title="Edit">
+              <Edit className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span>
+            </Button>
+            <Button variant="ghost" size="sm" className="p-2 sm:px-3 sm:py-1 text-destructive" onClick={() => handleDelete(murid.id)} title="Nonaktifkan">
+              <Trash2 className="h-4 w-4" /><span className="hidden sm:inline ml-1">Hapus</span>
+            </Button>
+          </div>
+        )
+      },
     },
   ]
 
@@ -153,7 +270,12 @@ export function MuridManagement(props: Props) {
           <Users className="h-6 w-6 text-primary" />
           Data Murid
         </h1>
-        <p className="text-sm text-muted-foreground">Total: {total} murid</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-muted-foreground hidden sm:block">Total: {total} murid</p>
+          <Button size="sm" onClick={openCreateDialog}>
+            <Plus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Tambah Murid</span>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -238,15 +360,76 @@ export function MuridManagement(props: Props) {
             <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
               <ChevronLeft className="h-4 w-4 mr-1" /> Sebelumnya
             </Button>
-            <span className="text-sm text-muted-foreground px-2">
-              {page} / {totalPages}
-            </span>
+            <span className="text-sm text-muted-foreground px-2">{page} / {totalPages}</span>
             <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
               Selanjutnya <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
         </div>
       )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingMurid ? "Edit Murid" : "Tambah Murid Baru"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="nama">Nama Lengkap</Label>
+              <Input id="nama" value={formData.nama} onChange={(e) => setFormData((p) => ({ ...p, nama: e.target.value }))} placeholder="Nama siswa" required />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))} placeholder="email@sekolah.com" required={!editingMurid} disabled={!!editingMurid} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="kelas">Kelas</Label>
+                <Select value={formData.kelasId} onValueChange={(v) => setFormData((p) => ({ ...p, kelasId: v }))}>
+                  <SelectTrigger id="kelas"><SelectValue placeholder="Pilih kelas" /></SelectTrigger>
+                  <SelectContent>
+                    {props.kelasRefs.map((k) => (
+                      <SelectItem key={k.id} value={k.id}>{k.nama}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="nis">NIS</Label>
+                <Input id="nis" value={formData.nis} onChange={(e) => setFormData((p) => ({ ...p, nis: e.target.value }))} placeholder="Nomor Induk Siswa" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="nisn">NISN</Label>
+                <Input id="nisn" value={formData.nisn} onChange={(e) => setFormData((p) => ({ ...p, nisn: e.target.value }))} placeholder="NISN" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="alamat">Alamat</Label>
+                <Input id="alamat" value={formData.alamat} onChange={(e) => setFormData((p) => ({ ...p, alamat: e.target.value }))} placeholder="Alamat" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="noTelp">No. Telepon</Label>
+                <Input id="noTelp" value={formData.noTelp} onChange={(e) => setFormData((p) => ({ ...p, noTelp: e.target.value }))} placeholder="08xxx" />
+              </div>
+            </div>
+            {!editingMurid && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password <span className="text-muted-foreground text-xs">(opsional, default: nis)</span></Label>
+                <Input id="password" type="text" value={formData.password} onChange={(e) => setFormData((p) => ({ ...p, password: e.target.value }))} placeholder="Kosongkan untuk auto-generate" />
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Menyimpan...</> : editingMurid ? "Simpan" : "Tambah Murid"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

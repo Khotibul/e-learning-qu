@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import bcrypt from "bcryptjs"
 
 async function getCurrentGuru() {
   const session = await auth()
@@ -674,6 +675,87 @@ export async function getGuruKelasForMurid() {
     select: { id: true, nama: true, tingkat: true },
     orderBy: [{ tingkat: "asc" }, { nama: "asc" }],
   })
+}
+
+export async function createGuruMurid(data: {
+  nama: string
+  nis?: string
+  nisn?: string
+  alamat?: string
+  noTelp?: string
+  kelasId: string
+  email: string
+  password?: string
+}) {
+  const guru = await getCurrentGuru()
+
+  const mapels = await prisma.mataPelajaran.findMany({
+    where: { guruId: guru.id, deletedAt: null, kelasId: data.kelasId },
+    select: { id: true },
+  })
+  if (mapels.length === 0) throw new Error("Anda tidak mengajar di kelas ini")
+
+  const existing = await prisma.user.findUnique({ where: { email: data.email } })
+  if (existing) throw new Error("Email sudah terdaftar")
+
+  const hashedPassword = data.password ? await bcrypt.hash(data.password, 12) : null
+  const siswa = await prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: { email: data.email, name: data.nama, role: "SISWA", password: hashedPassword },
+    })
+    return tx.siswa.create({
+      data: {
+        nama: data.nama,
+        nis: data.nis || null,
+        nisn: data.nisn || null,
+        alamat: data.alamat || null,
+        noTelp: data.noTelp || null,
+        kelasId: data.kelasId,
+        userId: user.id,
+      },
+      include: { user: true },
+    })
+  })
+  revalidatePath("/(dashboard)/guru/murid")
+  return siswa
+}
+
+export async function updateGuruMurid(
+  id: string,
+  data: { nama?: string; nis?: string; nisn?: string; alamat?: string; noTelp?: string; kelasId?: string }
+) {
+  const guru = await getCurrentGuru()
+
+  const siswa = await prisma.siswa.findUnique({ where: { id }, select: { kelasId: true } })
+  if (!siswa) throw new Error("Murid tidak ditemukan")
+
+  const targetKelasId = data.kelasId || siswa.kelasId
+  if (targetKelasId) {
+    const mapels = await prisma.mataPelajaran.findMany({
+      where: { guruId: guru.id, deletedAt: null, kelasId: targetKelasId },
+      select: { id: true },
+    })
+    if (mapels.length === 0) throw new Error("Anda tidak mengajar di kelas ini")
+  }
+
+  const updated = await prisma.siswa.update({ where: { id }, data })
+  revalidatePath("/(dashboard)/guru/murid")
+  return updated
+}
+
+export async function deleteGuruMurid(id: string) {
+  const guru = await getCurrentGuru()
+  const siswa = await prisma.siswa.findUnique({ where: { id }, select: { kelasId: true } })
+  if (!siswa) throw new Error("Murid tidak ditemukan")
+  if (siswa.kelasId) {
+    const mapels = await prisma.mataPelajaran.findMany({
+      where: { guruId: guru.id, deletedAt: null, kelasId: siswa.kelasId },
+      select: { id: true },
+    })
+    if (mapels.length === 0) throw new Error("Anda tidak memiliki akses ke murid ini")
+  }
+  await prisma.siswa.update({ where: { id }, data: { deletedAt: new Date() } })
+  revalidatePath("/(dashboard)/guru/murid")
 }
 
 // ─── REFS ────────────────────────────────────────────────────
