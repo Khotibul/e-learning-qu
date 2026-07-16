@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
-  Search, FileText, Eye, Copy, Shuffle, Filter,
+  Search, FileText, Eye, Copy, Edit, Shuffle, Filter,
 } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import { duplicateSoal, getBankSoal } from "../../actions"
+import Link from "next/link"
 
 const jenisSoalLabels: Record<string, string> = {
   PILIHAN_GANDA: "Pilihan Ganda",
@@ -220,6 +221,11 @@ export function BankSoalClient({
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPreviewSoal(soal)}>
                             <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                            <Link href={`/guru/soal/${soal.id}`}>
+                              <Edit className="h-3.5 w-3.5" />
+                            </Link>
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDuplicate(soal.id)}>
                             <Copy className="h-3.5 w-3.5" />
