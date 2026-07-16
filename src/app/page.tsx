@@ -108,7 +108,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <motion.nav
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -133,11 +133,11 @@ export default function HomePage() {
         </div>
       </motion.nav>
 
-      <section className="relative pt-28 pb-16 sm:pt-40 sm:pb-28">
+      <section className="relative pt-24 pb-12 sm:pt-40 sm:pb-28">
         <div className="absolute inset-0 -z-10">
           <div className="absolute inset-0 bg-gradient-to-b from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-950 dark:to-blue-950" />
-          <div className="absolute right-0 top-0 -z-10 h-[300px] w-[300px] sm:h-[500px] sm:w-[500px] translate-x-1/2 rounded-full bg-gradient-to-br from-blue-200/30 to-purple-200/30 blur-3xl dark:from-blue-800/20 dark:to-purple-800/20" />
-          <div className="absolute bottom-0 left-0 -z-10 h-[250px] w-[250px] sm:h-[400px] sm:w-[400px] -translate-x-1/3 rounded-full bg-gradient-to-tr from-purple-200/20 to-pink-200/20 blur-3xl dark:from-purple-800/10 dark:to-pink-800/10" />
+          <div className="absolute right-0 top-0 -z-10 h-[200px] w-[200px] sm:h-[500px] sm:w-[500px] translate-x-1/3 sm:translate-x-1/2 rounded-full bg-gradient-to-br from-blue-200/30 to-purple-200/30 blur-3xl dark:from-blue-800/20 dark:to-purple-800/20" />
+          <div className="absolute bottom-0 left-0 -z-10 h-[180px] w-[180px] sm:h-[400px] sm:w-[400px] -translate-x-1/4 sm:-translate-x-1/3 rounded-full bg-gradient-to-tr from-purple-200/20 to-pink-200/20 blur-3xl dark:from-purple-800/10 dark:to-pink-800/10" />
         </div>
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -156,7 +156,7 @@ export default function HomePage() {
             </motion.div>
             <motion.h1
               variants={itemVariants}
-              className="text-3xl sm:text-5xl lg:text-7xl font-bold tracking-tight"
+              className="text-2xl sm:text-5xl lg:text-7xl font-bold tracking-tight px-2 sm:px-0"
             >
               Belajar Jadi Lebih{" "}
               <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
@@ -165,7 +165,7 @@ export default function HomePage() {
             </motion.h1>
             <motion.p
               variants={itemVariants}
-              className="mt-4 sm:mt-6 text-base sm:text-lg lg:text-xl leading-7 sm:leading-8 text-muted-foreground px-2 sm:px-0"
+              className="mt-3 sm:mt-6 text-sm sm:text-lg lg:text-xl leading-6 sm:leading-8 text-muted-foreground px-4 sm:px-0"
             >
               Platform pembelajaran digital modern yang menghubungkan Guru dan Siswa
               dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.
@@ -241,32 +241,32 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="py-16 sm:py-28">
+      <section className="py-12 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary to-purple-600 px-6 py-12 text-center text-white sm:px-16 sm:py-24"
+            className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary to-purple-600 px-5 py-10 sm:px-16 sm:py-24 text-center text-white"
           >
             <div className="relative">
-              <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">
+              <h2 className="text-xl sm:text-4xl font-bold tracking-tight">
                 Siap Memulai Perjalanan Belajar?
               </h2>
-              <p className="mx-auto mt-3 sm:mt-4 max-w-xl text-sm sm:text-lg text-white/80">
+              <p className="mx-auto mt-2 sm:mt-4 max-w-xl text-xs sm:text-lg text-white/80 px-2 sm:px-0">
                 Bergabunglah dengan ribuan Guru dan Siswa yang sudah menggunakan
                 E-Learning QU untuk pengalaman belajar yang lebih baik.
               </p>
-              <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+              <div className="mt-6 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
                 <Link href="/login" className="w-full sm:w-auto">
                   <Button
                     size="lg"
                     variant="secondary"
-                    className="gap-2 bg-white text-primary hover:bg-white/90 text-base w-full sm:w-auto"
+                    className="gap-2 bg-white text-primary hover:bg-white/90 text-sm sm:text-base w-full sm:w-auto"
                   >
                     Mulai Sekarang
-                    <ArrowRight className="h-5 w-5" />
+                    <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
                   </Button>
                 </Link>
               </div>

@@ -298,12 +298,12 @@ export function SoalFormClient({
         <Card>
           <CardHeader><CardTitle>Informasi Soal</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-4 mb-2">
+            <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-4 mb-2">
               <Button
                 type="button"
                 variant={soalMode === "single" ? "default" : "outline"}
                 onClick={() => { setSoalMode("single"); setSubSoal([]) }}
-                className="flex-1 sm:flex-none"
+                className="w-full sm:w-auto"
               >
                 <FileText className="h-4 w-4 mr-2" /> Soal Tunggal
               </Button>
@@ -311,7 +311,7 @@ export function SoalFormClient({
                 type="button"
                 variant={soalMode === "sub" ? "default" : "outline"}
                 onClick={() => { setSoalMode("sub"); if (subSoal.length === 0) addSubSoal() }}
-                className="flex-1 sm:flex-none"
+                className="w-full sm:w-auto"
               >
                 <Layers className="h-4 w-4 mr-2" /> Sub Pertanyaan
               </Button>
@@ -407,7 +407,7 @@ export function SoalFormClient({
                     <Badge variant="secondary" className="ml-2">{subSoal.length} pertanyaan</Badge>
                   )}
                 </CardTitle>
-                <Button type="button" variant="outline" size="sm" onClick={addSubSoal}>
+                <Button type="button" variant="outline" size="sm" onClick={addSubSoal} className="text-xs sm:text-sm px-2 sm:px-3">
                   <Plus className="h-4 w-4 mr-1" /> Tambah
                 </Button>
               </CardHeader>
@@ -423,14 +423,14 @@ export function SoalFormClient({
                     const isSubTF = item.jenis === "TRUE_FALSE"
                     return (
                       <div key={idx} className="rounded-xl border p-4 space-y-3">
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary">Soal {idx + 1}</Badge>
+                        <div className="flex items-start sm:items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">Soal {idx + 1}</Badge>
                             <Select
                               value={item.jenis}
                               onValueChange={(v) => updateSubSoal(idx, "jenis", v)}
                             >
-                              <SelectTrigger className="h-7 w-auto text-xs gap-1 border-0 bg-muted/50 shadow-none">
+                              <SelectTrigger className="h-8 w-auto text-xs gap-1 border-0 bg-muted/50 shadow-none">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -443,7 +443,7 @@ export function SoalFormClient({
                             </Select>
                           </div>
                           {subSoal.length > 1 && (
-                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeSubSoal(idx)}>
+                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeSubSoal(idx)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           )}
@@ -463,21 +463,23 @@ export function SoalFormClient({
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-xs">Opsi Jawaban</Label>
-                              <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={() => addSubOption(idx)}>
-                                <Plus className="h-3 w-3 mr-1" /> Tambah
+                              <Button type="button" variant="ghost" size="sm" className="h-7 sm:h-6 text-xs" onClick={() => addSubOption(idx)}>
+                                <Plus className="h-3.5 w-3.5 mr-1" /> Tambah
                               </Button>
                             </div>
                             {(item.pilihanGanda || []).map((opt, oi) => (
-                              <div key={oi} className="flex items-center gap-2">
-                                <input
-                                  type="radio"
-                                  name={`sub-pg-${idx}`}
-                                  value={opt.label}
-                                  checked={item.jawaban === opt.label}
-                                  onChange={(e) => updateSubSoal(idx, "jawaban", e.target.value)}
-                                  className="h-4 w-4 shrink-0"
-                                />
-                                <span className="font-medium text-xs w-5 shrink-0">{opt.label}.</span>
+                              <div key={oi} className="flex items-start sm:items-center gap-1.5 sm:gap-2">
+                                <div className="flex items-center gap-1.5 pt-1.5 sm:pt-0 shrink-0">
+                                  <input
+                                    type="radio"
+                                    name={`sub-pg-${idx}`}
+                                    value={opt.label}
+                                    checked={item.jawaban === opt.label}
+                                    onChange={(e) => updateSubSoal(idx, "jawaban", e.target.value)}
+                                    className="h-4 w-4"
+                                  />
+                                  <span className="font-medium text-xs w-4 shrink-0">{opt.label}.</span>
+                                </div>
                                 <Input
                                   value={opt.text}
                                   onChange={(e) => updateSubOption(idx, oi, e.target.value)}
@@ -485,7 +487,7 @@ export function SoalFormClient({
                                   className="h-8 text-sm flex-1 min-w-0"
                                 />
                                 {(item.pilihanGanda || []).length > 2 && (
-                                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeSubOption(idx, oi)}>
+                                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 sm:h-7 sm:w-7 shrink-0" onClick={() => removeSubOption(idx, oi)}>
                                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                   </Button>
                                 )}
@@ -495,13 +497,13 @@ export function SoalFormClient({
                         )}
 
                         {isSubTF && (
-                          <div className="flex gap-3">
+                          <div className="grid grid-cols-2 gap-2 sm:gap-3">
                             <Button
                               type="button"
                               variant={item.trueFalse === true ? "default" : "outline"}
                               onClick={() => { const u = [...subSoal]; u[idx] = { ...u[idx], trueFalse: true, jawaban: "true" }; setSubSoal(u) }}
                               size="sm"
-                              className="flex-1 h-8 text-xs"
+                              className="h-9 sm:h-8 text-xs sm:text-sm"
                             >
                               Benar
                             </Button>
@@ -510,7 +512,7 @@ export function SoalFormClient({
                               variant={item.trueFalse === false ? "default" : "outline"}
                               onClick={() => { const u = [...subSoal]; u[idx] = { ...u[idx], trueFalse: false, jawaban: "false" }; setSubSoal(u) }}
                               size="sm"
-                              className="flex-1 h-8 text-xs"
+                              className="h-9 sm:h-8 text-xs sm:text-sm"
                             >
                               Salah
                             </Button>
@@ -524,7 +526,7 @@ export function SoalFormClient({
                               value={item.jawaban}
                               onChange={(e) => updateSubSoal(idx, "jawaban", e.target.value)}
                               placeholder="Jawaban benar"
-                              className="h-8 text-sm"
+                              className="h-9 sm:h-8 text-sm"
                             />
                           </div>
                         )}
