@@ -115,29 +115,29 @@ export default function HomePage() {
         transition={{ duration: 0.5 }}
         className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl"
       >
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70">
-              <Sparkles className="h-5 w-5 text-white" />
+            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70">
+              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
             </div>
-            <span className="text-xl font-bold">E-Learning QU</span>
+            <span className="text-lg sm:text-xl font-bold">E-Learning QU</span>
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/login">
-              <Button variant="ghost">Masuk</Button>
+              <Button variant="ghost" size="sm" className="sm:h-10 sm:px-4">Masuk</Button>
             </Link>
             <Link href="/login">
-              <Button>Daftar</Button>
+              <Button size="sm" className="sm:h-10 sm:px-4">Daftar</Button>
             </Link>
           </div>
         </div>
       </motion.nav>
 
-      <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-28">
+      <section className="relative pt-28 pb-16 sm:pt-40 sm:pb-28">
         <div className="absolute inset-0 -z-10">
           <div className="absolute inset-0 bg-gradient-to-b from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-950 dark:to-blue-950" />
-          <div className="absolute right-0 top-0 -z-10 h-[500px] w-[500px] translate-x-1/2 rounded-full bg-gradient-to-br from-blue-200/30 to-purple-200/30 blur-3xl dark:from-blue-800/20 dark:to-purple-800/20" />
-          <div className="absolute bottom-0 left-0 -z-10 h-[400px] w-[400px] -translate-x-1/3 rounded-full bg-gradient-to-tr from-purple-200/20 to-pink-200/20 blur-3xl dark:from-purple-800/10 dark:to-pink-800/10" />
+          <div className="absolute right-0 top-0 -z-10 h-[300px] w-[300px] sm:h-[500px] sm:w-[500px] translate-x-1/2 rounded-full bg-gradient-to-br from-blue-200/30 to-purple-200/30 blur-3xl dark:from-blue-800/20 dark:to-purple-800/20" />
+          <div className="absolute bottom-0 left-0 -z-10 h-[250px] w-[250px] sm:h-[400px] sm:w-[400px] -translate-x-1/3 rounded-full bg-gradient-to-tr from-purple-200/20 to-pink-200/20 blur-3xl dark:from-purple-800/10 dark:to-pink-800/10" />
         </div>
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -156,7 +156,7 @@ export default function HomePage() {
             </motion.div>
             <motion.h1
               variants={itemVariants}
-              className="text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl"
+              className="text-3xl sm:text-5xl lg:text-7xl font-bold tracking-tight"
             >
               Belajar Jadi Lebih{" "}
               <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
@@ -165,23 +165,23 @@ export default function HomePage() {
             </motion.h1>
             <motion.p
               variants={itemVariants}
-              className="mt-6 text-lg leading-8 text-muted-foreground sm:text-xl"
+              className="mt-4 sm:mt-6 text-base sm:text-lg lg:text-xl leading-7 sm:leading-8 text-muted-foreground px-2 sm:px-0"
             >
               Platform pembelajaran digital modern yang menghubungkan Guru dan Siswa
               dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.
             </motion.p>
             <motion.div
               variants={itemVariants}
-              className="mt-10 flex items-center justify-center gap-4"
+              className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4"
             >
-              <Link href="/login">
-                <Button size="lg" className="gap-2 text-base">
+              <Link href="/login" className="w-full sm:w-auto">
+                <Button size="lg" className="gap-2 text-base w-full sm:w-auto">
                   Mulai Belajar
                   <ArrowRight className="h-5 w-5" />
                 </Button>
               </Link>
-              <Link href="#features">
-                <Button variant="outline" size="lg" className="text-base">
+              <Link href="#features" className="w-full sm:w-auto">
+                <Button variant="outline" size="lg" className="text-base w-full sm:w-auto">
                   Pelajari Lebih Lanjut
                 </Button>
               </Link>
@@ -190,7 +190,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="features" className="py-20 sm:py-28">
+      <section id="features" className="py-16 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -199,10 +199,10 @@ export default function HomePage() {
             transition={{ duration: 0.5 }}
             className="mx-auto max-w-2xl text-center"
           >
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">
               Fitur Unggulan
             </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
+            <p className="mt-3 sm:mt-4 text-base sm:text-lg text-muted-foreground px-4 sm:px-0">
               Semua yang Anda butuhkan untuk pengalaman belajar mengajar yang lebih baik.
             </p>
           </motion.div>
@@ -212,7 +212,7 @@ export default function HomePage() {
             whileInView="visible"
             viewport={{ once: true, margin: "-50px" }}
             variants={containerVariants}
-            className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+            className="mt-10 sm:mt-16 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
           >
             {features.map((feature) => {
               const Icon = feature.icon
@@ -222,7 +222,7 @@ export default function HomePage() {
                     <div
                       className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 transition-opacity duration-300 group-hover:opacity-5`}
                     />
-                    <CardContent className="p-6">
+                    <CardContent className="p-5 sm:p-6">
                       <div
                         className={`mb-4 inline-flex rounded-xl bg-gradient-to-br ${feature.color} p-3 text-white shadow-sm`}
                       >
@@ -241,29 +241,29 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="py-20 sm:py-28">
+      <section className="py-16 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-purple-600 px-8 py-16 text-center text-white sm:px-16 sm:py-24"
+            className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary to-purple-600 px-6 py-12 text-center text-white sm:px-16 sm:py-24"
           >
             <div className="relative">
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">
                 Siap Memulai Perjalanan Belajar?
               </h2>
-              <p className="mx-auto mt-4 max-w-xl text-lg text-white/80">
+              <p className="mx-auto mt-3 sm:mt-4 max-w-xl text-sm sm:text-lg text-white/80">
                 Bergabunglah dengan ribuan Guru dan Siswa yang sudah menggunakan
                 E-Learning QU untuk pengalaman belajar yang lebih baik.
               </p>
-              <div className="mt-10 flex items-center justify-center gap-4">
-                <Link href="/login">
+              <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+                <Link href="/login" className="w-full sm:w-auto">
                   <Button
                     size="lg"
                     variant="secondary"
-                    className="gap-2 bg-white text-primary hover:bg-white/90 text-base"
+                    className="gap-2 bg-white text-primary hover:bg-white/90 text-base w-full sm:w-auto"
                   >
                     Mulai Sekarang
                     <ArrowRight className="h-5 w-5" />
@@ -275,8 +275,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-border py-8">
-        <div className="mx-auto max-w-7xl px-4 text-center text-sm text-muted-foreground sm:px-6 lg:px-8">
+      <footer className="border-t border-border py-6 sm:py-8">
+        <div className="mx-auto max-w-7xl px-4 text-center text-xs sm:text-sm text-muted-foreground sm:px-6 lg:px-8">
           <p>&copy; {new Date().getFullYear()} E-Learning QU. All rights reserved.</p>
         </div>
       </footer>
