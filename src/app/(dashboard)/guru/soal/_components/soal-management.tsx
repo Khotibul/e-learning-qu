@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Plus, Edit, Trash2, Upload, Download, FileSpreadsheet, Eye, Copy, FileText } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Upload, Download, FileSpreadsheet, Eye, Copy, FileText, Loader2 } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -60,6 +61,14 @@ interface MapelRef {
   kelas: { id: string; nama: string }
 }
 
+interface OcrSoal {
+  nomor: number
+  jenis?: string
+  pertanyaan: string
+  options?: { label: string; value: string }[]
+  jawaban?: string
+}
+
 export function SoalManagementClient() {
   const router = useRouter()
   const [data, setData] = useState<SoalData[]>([])
@@ -73,6 +82,15 @@ export function SoalManagementClient() {
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
   const [previewSoal, setPreviewSoal] = useState<SoalData | null>(null)
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrResults, setOcrResults] = useState<OcrSoal[] | null>(null)
+  const [ocrDialogOpen, setOcrDialogOpen] = useState(false)
+  const [importLoading, setImportLoading] = useState(false)
+  const [importResults, setImportResults] = useState<{ pertanyaan: string; jawaban?: string }[] | null>(null)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
+
+  const ocrInputRef = useRef<HTMLInputElement>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   const limit = 10
 
@@ -117,20 +135,91 @@ export function SoalManagementClient() {
     }
   }
 
-  const handleImport = () => {
-    toast.success("Fitur impor Excel akan segera hadir")
+  const handleExport = async () => {
+    try {
+      const res = await fetch("/api/export?type=soal")
+      if (!res.ok) throw new Error("Gagal mengekspor data")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `soal_${new Date().toISOString().split("T")[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success("Ekspor berhasil")
+    } catch {
+      toast.error("Gagal mengekspor data")
+    }
   }
 
-  const handleExport = () => {
-    toast.success("Fitur ekspor akan segera hadir")
+  const handleImportClick = () => {
+    importInputRef.current?.click()
   }
 
-  const handleOCR = () => {
-    toast.success("Fitur OCR akan segera hadir")
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportLoading(true)
+    try {
+      const text = await file.text()
+      const lines = text.split("\n").filter(Boolean)
+      if (lines.length < 2) { toast.error("File CSV tidak valid"); return }
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
+      const pertanyaanIdx = headers.findIndex((h) => h.includes("pertanyaan") || h.includes("soal"))
+      const jawabanIdx = headers.findIndex((h) => h.includes("jawaban"))
+      if (pertanyaanIdx === -1) { toast.error("Format CSV tidak sesuai. Kolom 'pertanyaan' diperlukan"); return }
+      const parsed = lines.slice(1).map((line) => {
+        const cols = line.split(",").map((c) => c.replace(/^"|"$/g, "").trim())
+        return {
+          pertanyaan: cols[pertanyaanIdx] || "",
+          jawaban: jawabanIdx >= 0 ? cols[jawabanIdx] || undefined : undefined,
+        }
+      }).filter((p) => p.pertanyaan)
+      if (parsed.length === 0) { toast.error("Tidak ada data yang bisa diimpor"); return }
+      setImportResults(parsed)
+      setImportDialogOpen(true)
+      toast.success(`${parsed.length} soal berhasil dibaca dari file`)
+    } catch {
+      toast.error("Gagal membaca file. Pastikan format CSV.")
+    } finally {
+      setImportLoading(false)
+      if (e.target) e.target.value = ""
+    }
+  }
+
+  const handleOcrClick = () => {
+    ocrInputRef.current?.click()
+  }
+
+  const handleOcrFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setOcrLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch("/api/ocr", { method: "POST", body: formData })
+      const result = await res.json()
+      if (!res.ok) { toast.error(result.error || "OCR gagal"); return }
+      if (!result.soal || result.soal.length === 0) { toast.error("Tidak ada soal terdeteksi dari gambar"); return }
+      setOcrResults(result.soal)
+      setOcrDialogOpen(true)
+      toast.success(`${result.soal.length} soal berhasil dideteksi`)
+    } catch {
+      toast.error("Gagal memproses OCR")
+    } finally {
+      setOcrLoading(false)
+      if (e.target) e.target.value = ""
+    }
   }
 
   return (
     <div className="space-y-6">
+      <input type="file" ref={ocrInputRef} accept="image/*" className="hidden" onChange={handleOcrFile} />
+      <input type="file" ref={importInputRef} accept=".csv,.xlsx,.xls" className="hidden" onChange={handleImportFile} />
+
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -140,17 +229,19 @@ export function SoalManagementClient() {
           <p className="text-muted-foreground mt-1">Total {total} soal</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={handleOCR} size="sm" className="sm:hidden p-2" title="OCR">
-            <Upload className="h-4 w-4" />
+          <Button variant="outline" onClick={handleOcrClick} disabled={ocrLoading} size="sm" className="sm:hidden p-2" title="OCR Kamera">
+            {ocrLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           </Button>
-          <Button variant="outline" onClick={handleOCR} className="hidden sm:inline-flex">
-            <Upload className="h-4 w-4 mr-2" /> OCR
+          <Button variant="outline" onClick={handleOcrClick} disabled={ocrLoading} className="hidden sm:inline-flex">
+            {ocrLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+            OCR
           </Button>
-          <Button variant="outline" onClick={handleImport} size="sm" className="sm:hidden p-2" title="Import Excel">
-            <FileSpreadsheet className="h-4 w-4" />
+          <Button variant="outline" onClick={handleImportClick} disabled={importLoading} size="sm" className="sm:hidden p-2" title="Import Excel">
+            {importLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
           </Button>
-          <Button variant="outline" onClick={handleImport} className="hidden sm:inline-flex">
-            <FileSpreadsheet className="h-4 w-4 mr-2" /> Import Excel
+          <Button variant="outline" onClick={handleImportClick} disabled={importLoading} className="hidden sm:inline-flex">
+            {importLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />}
+            Import Excel
           </Button>
           <Button variant="outline" onClick={handleExport} size="sm" className="sm:hidden p-2" title="Export">
             <Download className="h-4 w-4" />
@@ -343,6 +434,80 @@ export function SoalManagementClient() {
                   <p className="mt-1">{previewSoal.bab}</p>
                 </div>
               )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={ocrDialogOpen} onOpenChange={setOcrDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Hasil OCR ({ocrResults?.length || 0} soal terdeteksi)</DialogTitle>
+          </DialogHeader>
+          {ocrResults && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Soal berikut terdeteksi dari gambar. Silakan review dan buat soal secara manual.
+              </p>
+              {ocrResults.map((soal, i) => (
+                <div key={i} className="rounded-xl border p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">Soal {soal.nomor}</Badge>
+                    {soal.jenis && <Badge variant="outline">{soal.jenis}</Badge>}
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap">{soal.pertanyaan}</p>
+                  {soal.options && soal.options.length > 0 && (
+                    <div className="space-y-1 pl-4">
+                      {soal.options.map((opt, oi) => (
+                        <p key={oi} className="text-sm text-muted-foreground">
+                          {opt.label}. {opt.value}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {soal.jawaban && (
+                    <p className="text-sm font-medium text-green-600">Kunci: {soal.jawaban}</p>
+                  )}
+                </div>
+              ))}
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" onClick={() => setOcrDialogOpen(false)}>Tutup</Button>
+                <Button onClick={() => { setOcrDialogOpen(false); router.push("/guru/soal/new") }}>
+                  <Plus className="h-4 w-4 mr-1" /> Buat Soal Baru
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Hasil Import ({importResults?.length || 0} soal)</DialogTitle>
+          </DialogHeader>
+          {importResults && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Soal berikut berhasil dibaca dari file CSV. Silakan review dan buat soal secara manual.
+              </p>
+              <div className="space-y-2">
+                {importResults.map((item, i) => (
+                  <div key={i} className="rounded-xl border p-3">
+                    <p className="text-sm font-medium">Soal {i + 1}</p>
+                    <p className="text-sm mt-1">{item.pertanyaan}</p>
+                    {item.jawaban && (
+                      <p className="text-sm text-green-600 mt-1">Kunci: {item.jawaban}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" onClick={() => setImportDialogOpen(false)}>Tutup</Button>
+                <Button onClick={() => { setImportDialogOpen(false); router.push("/guru/soal/new") }}>
+                  <Plus className="h-4 w-4 mr-1" /> Buat Soal Baru
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

@@ -112,8 +112,24 @@ export function NilaiGradingClient() {
     g.siswa.nama.toLowerCase().includes(searchSiswa.toLowerCase())
   )
 
-  const handleExport = (format: string) => {
-    toast.success(`Ekspor ${format} akan segera hadir`)
+  const handleExport = async (format: string) => {
+    try {
+      const res = await fetch(`/api/export?type=nilai&ujianId=${selectedUjianId}&format=${format.toLowerCase()}`)
+      if (!res.ok) throw new Error("Gagal mengekspor data")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const ext = format === "Excel" ? "xlsx" : format.toLowerCase()
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `nilai_${selectedUjianId.slice(0, 8)}_${new Date().toISOString().split("T")[0]}.${ext}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success(`Ekspor ${format} berhasil`)
+    } catch {
+      toast.error(`Gagal mengekspor ${format}`)
+    }
   }
 
   return (
