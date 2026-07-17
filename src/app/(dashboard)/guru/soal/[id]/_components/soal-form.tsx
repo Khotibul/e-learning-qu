@@ -117,6 +117,7 @@ export function SoalFormClient({
     initialSub.length > 0 ? initialSub : []
   )
   const [saving, setSaving] = useState(false)
+  const [addCount, setAddCount] = useState(1)
 
   const isSubMode = soalMode === "sub"
   const hasSubSoal = isSubMode && subSoal.length > 0 && subSoal.some((s) => s.pertanyaan.trim())
@@ -418,9 +419,18 @@ export function SoalFormClient({
                     <Badge variant="secondary" className="ml-2">{subSoal.length} pertanyaan</Badge>
                   )}
                 </CardTitle>
-                <Button type="button" variant="outline" size="sm" onClick={addSubSoal} className="text-xs sm:text-sm px-2 sm:px-3">
-                  <Plus className="h-4 w-4 mr-1" /> Tambah
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={addCount}
+                    onChange={(e) => setAddCount(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="h-8 w-14 text-xs text-center"
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={() => { for (let i = 0; i < addCount; i++) addSubSoal() }} className="text-xs sm:text-sm px-2 sm:px-3">
+                    <Plus className="h-4 w-4 mr-1" /> Tambah
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {subSoal.length === 0 ? (
