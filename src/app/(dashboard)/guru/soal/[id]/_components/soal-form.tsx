@@ -434,24 +434,24 @@ export function SoalFormClient({
                     const isSubTF = item.jenis === "TRUE_FALSE"
                     return (
                       <div key={idx} className="rounded-xl border p-4 space-y-3">
-                        <div className="flex items-start sm:items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                             <Badge variant="secondary" className="text-xs">Soal {idx + 1}</Badge>
-                            <Select
-                              value={item.jenis}
-                              onValueChange={(v) => updateSubSoal(idx, "jenis", v)}
-                            >
-                              <SelectTrigger className="h-7 text-xs gap-1 border border-border bg-background shadow-none px-2">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {subJenisOptions.map((o) => (
-                                  <SelectItem key={o.value} value={o.value} className="text-xs">
-                                    {o.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            {subJenisOptions.map((o) => (
+                              <Button
+                                key={o.value}
+                                type="button"
+                                variant={item.jenis === o.value ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => updateSubSoal(idx, "jenis", o.value)}
+                                className="h-7 text-[10px] sm:text-xs px-1.5 sm:px-2"
+                              >
+                                {o.label === "Isian Singkat" ? "Isian" :
+                                 o.label === "Pilihan Ganda" ? "PG" :
+                                 o.label === "Benar/Salah" ? "B/S" :
+                                 o.label}
+                              </Button>
+                            ))}
                           </div>
                           {subSoal.length > 1 && (
                             <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeSubSoal(idx)}>
