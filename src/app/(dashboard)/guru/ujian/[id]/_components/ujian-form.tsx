@@ -134,6 +134,14 @@ export function UjianFormClient({
   const [soalSearch, setSoalSearch] = useState("")
   const [saving, setSaving] = useState(false)
 
+  const countSoalItems = (s: BankSoalRef) => {
+    if (s.subSoal && Array.isArray(s.subSoal)) {
+      const valid = s.subSoal.filter((a: any) => a.pertanyaan?.trim())
+      if (valid.length > 0) return valid.length
+    }
+    return 1
+  }
+
   const filteredBankSoal = bankSoal.filter(
     (s) =>
       s.pertanyaan.toLowerCase().includes(soalSearch.toLowerCase()) &&
@@ -185,7 +193,7 @@ export function UjianFormClient({
         kelasId,
         semesterId,
         tahunAjaranId,
-        jumlahSoal: selectedSoalIds.length,
+        jumlahSoal: selectedSoals.reduce((sum, s) => sum + countSoalItems(s), 0),
         nilaiMinimum,
         durasi,
         tanggal,
@@ -341,7 +349,7 @@ export function UjianFormClient({
             <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
               <div className="space-y-2">
                 <Label htmlFor="jumlahSoal">Jumlah Soal</Label>
-                <Input id="jumlahSoal" type="number" min={1} value={selectedSoalIds.length} readOnly className="bg-muted" />
+                <Input id="jumlahSoal" type="number" min={1} value={selectedSoals.reduce((sum, s) => sum + countSoalItems(s), 0)} readOnly className="bg-muted" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="nilaiMin">Nilai Minimum</Label>
@@ -430,9 +438,7 @@ export function UjianFormClient({
                           <div className="flex gap-2 mt-1">
                             <Badge variant="secondary" className="text-[10px]">{s.jenisSoal}</Badge>
                             {s.bab && <Badge variant="secondary" className="text-[10px]">{s.bab}</Badge>}
-                            {subCount(s) > 0 && (
-                              <Badge variant="outline" className="text-[10px]">{subCount(s)} sub</Badge>
-                            )}
+                            <Badge variant="outline" className="text-[10px]">{subCount(s) > 0 ? `${subCount(s)} sub` : "1 soal"}</Badge>
                           </div>
                         </div>
                       </div>
@@ -461,10 +467,10 @@ export function UjianFormClient({
                                 {subJenisLabels[j] ?? j}
                               </Badge>
                             ))}
-                            <Badge variant="secondary" className="text-[10px]">{subCount(s)} sub</Badge>
+                            <Badge variant="secondary" className="text-[10px]">{subCount(s)} item</Badge>
                           </div>
                         ) : (
-                          <Badge variant="secondary" className="text-[10px] shrink-0">{s.jenisSoal}</Badge>
+                          <Badge variant="secondary" className="text-[10px] shrink-0">1 item</Badge>
                         )}
                         <Button
                           type="button"

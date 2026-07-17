@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 
+const SUB_RE = /^(.+)::sub::(\d+)$/
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth()
@@ -24,6 +26,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       where: { id },
       include: {
         ujianSoal: {
+          orderBy: { nomor: "asc" },
           include: { soal: true },
         },
       },
@@ -33,35 +36,98 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Ujian not found" }, { status: 404 })
     }
 
+    const subSoalItem = (s: any) => {
+      if (!s) return []
+      const arr = Array.isArray(s) ? s : []
+      return arr.filter((a: any) => a.pertanyaan?.trim())
+    }
+
+    // Regroup flattened sub-answers back into parent soal JSON arrays
+    const regrouped: Record<string, string> = {}
+    const subBuckets: Record<string, Record<number, string>> = {}
+
     if (answers && typeof answers === "object") {
-      for (const [soalId, jawaban] of Object.entries(answers)) {
+      for (const [key, val] of Object.entries(answers)) {
+        const m = key.match(SUB_RE)
+        if (m) {
+          const parentId = m[1]
+          const subIdx = parseInt(m[2])
+          if (!subBuckets[parentId]) subBuckets[parentId] = {}
+          subBuckets[parentId][subIdx] = val as string
+        } else {
+          regrouped[key] = val as string
+        }
+      }
+    }
+
+    // Determine if any sub-item under a parent soal is flagged ragu-ragu
+    const parentRagu = (soalId: string) => {
+      if (!Array.isArray(raguRagu)) return false
+      const subs = subSoalItem(ujian.ujianSoal.find((us) => us.soal.id === soalId)?.soal.subSoal)
+      if (subs.length === 0) return raguRagu.includes(soalId)
+      return subs.some((_: any, i: number) => raguRagu.includes(`${soalId}::sub::${i}`))
+    }
+
+    // Build JSON arrays for sub-question parents and store JawabanUjian
+    for (const us of ujian.ujianSoal) {
+      const subs = subSoalItem(us.soal.subSoal)
+      if (subs.length > 0 && subBuckets[us.soal.id]) {
+        const arr: string[] = []
+        const bucket = subBuckets[us.soal.id]
+        for (let i = 0; i < subs.length; i++) {
+          arr.push(bucket[i] || "")
+        }
+        const jawabanJson = JSON.stringify(arr)
+        regrouped[us.soal.id] = jawabanJson
+
         await prisma.jawabanUjian.upsert({
           where: {
             ujianId_siswaId_soalId: {
               ujianId: id,
               siswaId: siswa.id,
-              soalId,
+              soalId: us.soal.id,
             },
           },
           update: {
-            jawaban: jawaban as string,
-            raguRagu: Array.isArray(raguRagu) && raguRagu.includes(soalId),
+            jawaban: jawabanJson,
+            raguRagu: parentRagu(us.soal.id),
           },
           create: {
             ujianId: id,
             siswaId: siswa.id,
-            soalId,
-            jawaban: jawaban as string,
-            raguRagu: Array.isArray(raguRagu) && raguRagu.includes(soalId),
+            soalId: us.soal.id,
+            jawaban: jawabanJson,
+            raguRagu: parentRagu(us.soal.id),
+          },
+        })
+      } else {
+        const jawabanStr = regrouped[us.soal.id] ?? ""
+
+        await prisma.jawabanUjian.upsert({
+          where: {
+            ujianId_siswaId_soalId: {
+              ujianId: id,
+              siswaId: siswa.id,
+              soalId: us.soal.id,
+            },
+          },
+          update: {
+            jawaban: jawabanStr,
+            raguRagu: parentRagu(us.soal.id),
+          },
+          create: {
+            ujianId: id,
+            siswaId: siswa.id,
+            soalId: us.soal.id,
+            jawaban: jawabanStr,
+            raguRagu: parentRagu(us.soal.id),
           },
         })
       }
     }
 
-    const jawabans = await prisma.jawabanUjian.findMany({
-      where: { ujianId: id, siswaId: siswa.id },
-    })
-
+    // Grade and produce flattened hasilSoal (one entry per sub-question)
+    let flatNomor = 0
     let totalPoin = 0
     let perolehPoin = 0
     const hasilSoal: {
@@ -73,84 +139,68 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }[] = []
 
     for (const us of ujian.ujianSoal) {
-      const jawab = jawabans.find((j) => j.soalId === us.soal.id)
-      const jawabanUser = jawab?.jawaban ?? ""
-      const subSoal = us.soal.subSoal as { pertanyaan: string; jawaban: string; poin: number }[] | null
-      const hasSub = subSoal && subSoal.length > 0 && subSoal.some((s) => s.pertanyaan.trim())
+      const jawab = regrouped[us.soal.id] ?? ""
+      const subs = subSoalItem(us.soal.subSoal)
 
-      if (hasSub) {
+      if (subs.length > 0) {
         let subUser: string[] = []
-        try { const p = JSON.parse(jawabanUser); if (Array.isArray(p)) subUser = p } catch { subUser = [] }
-        let subPoin = 0
-        let subTotal = 0
-        for (let i = 0; i < subSoal.length; i++) {
-          const s = subSoal as any
-          const item = Array.isArray(s) ? s[i] : s
+        try { const p = JSON.parse(jawab); if (Array.isArray(p)) subUser = p } catch { subUser = [] }
+
+        for (let i = 0; i < subs.length; i++) {
+          flatNomor++
+          const item = subs[i] as any
           const userAns = (subUser[i]?.trim() ?? "").toLowerCase()
           const jenis = item.jenis || "ISIAN_SINGKAT"
-          let correct = false
+          const jawabanBenar = item.jawaban || ""
+          const poin = item.poin || 1
+
+          let isCorrect = false
           if (jenis === "PILIHAN_GANDA" || jenis === "TRUE_FALSE") {
-            correct = userAns === (item.jawaban || "").toLowerCase().trim()
-          } else if (jenis === "ISIAN_SINGKAT") {
-            correct = userAns === (item.jawaban || "").toLowerCase().trim()
+            isCorrect = userAns === jawabanBenar.toLowerCase().trim()
           } else {
-            correct = userAns === (item.jawaban || "").toLowerCase().trim()
+            isCorrect = userAns === jawabanBenar.toLowerCase().trim()
           }
-          subTotal += item.poin || 0
-          if (correct) subPoin += item.poin || 0
-        }
-        totalPoin += subTotal
-        perolehPoin += subPoin
-        const allCorrect = subPoin === subTotal
-        if (jawab) {
-          await prisma.jawabanUjian.update({
-            where: { id: jawab.id },
-            data: { isCorrect: allCorrect, poin: subPoin },
+
+          totalPoin += poin
+          if (isCorrect) perolehPoin += poin
+
+          hasilSoal.push({
+            nomor: flatNomor,
+            jawaban: subUser[i] || null,
+            jawabanBenar,
+            isCorrect,
+            poin: isCorrect ? poin : 0,
           })
         }
-        hasilSoal.push({
-          nomor: us.nomor,
-          jawaban: jawabanUser,
-          jawabanBenar: JSON.stringify(subSoal.map((s) => s.jawaban)),
-          isCorrect: allCorrect,
-          poin: subPoin,
-        })
       } else {
+        flatNomor++
         const jawabanBenar = us.soal.jawaban
         const poin = us.soal.poin
         totalPoin += poin
 
         let isCorrect = false
         if (us.soal.jenisSoal === "PILIHAN_GANDA" || us.soal.jenisSoal === "TRUE_FALSE") {
-          isCorrect = jawabanUser === jawabanBenar
+          isCorrect = jawab === jawabanBenar
         } else if (us.soal.jenisSoal === "ISIAN_SINGKAT") {
-          isCorrect = jawabanUser.toLowerCase().trim() === jawabanBenar.toLowerCase().trim()
+          isCorrect = jawab.toLowerCase().trim() === jawabanBenar.toLowerCase().trim()
         } else {
-          isCorrect = jawabanUser.trim() === jawabanBenar.trim()
+          isCorrect = jawab.trim() === jawabanBenar.trim()
         }
 
-        if (isCorrect) {
-          perolehPoin += poin
-        }
-
-        if (jawab) {
-          await prisma.jawabanUjian.update({
-            where: { id: jawab.id },
-            data: { isCorrect, poin: isCorrect ? poin : 0 },
-          })
-        }
+        if (isCorrect) perolehPoin += poin
 
         hasilSoal.push({
-          nomor: us.nomor,
-          jawaban: jawabanUser,
+          nomor: flatNomor,
+          jawaban: jawab || null,
           jawabanBenar,
           isCorrect,
-          poin,
+          poin: isCorrect ? poin : 0,
         })
       }
     }
 
     const nilaiAkhir = totalPoin > 0 ? Math.round((perolehPoin / totalPoin) * 100) : 0
+    const jumlahBenar = hasilSoal.filter((h) => h.isCorrect).length
 
     await prisma.nilai.create({
       data: {
@@ -168,8 +218,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       nilai: nilaiAkhir,
       totalPoin,
       perolehPoin,
-      jumlahSoal: ujian.jumlahSoal,
-      jumlahBenar: hasilSoal.filter((h) => h.isCorrect).length,
+      jumlahSoal: flatNomor,
+      jumlahBenar,
       hasilSoal,
     })
   } catch (error) {

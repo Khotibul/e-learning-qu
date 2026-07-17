@@ -28,12 +28,56 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: "Ujian not found" }, { status: 404 })
     }
 
+    const subSoalItem = (s: any) => {
+      if (!s) return []
+      const arr = Array.isArray(s) ? s : []
+      return arr.filter((a: any) => a.pertanyaan?.trim())
+    }
+
+    let flatNomor = 0
+    const soal: any[] = []
+    const parentMap: Record<number, { soalId: string; subIdx: number }> = {}
+
+    for (const us of ujian.ujianSoal) {
+      const subs = subSoalItem(us.soal.subSoal)
+      if (subs.length > 0) {
+        for (let i = 0; i < subs.length; i++) {
+          flatNomor++
+          const sub = subs[i]
+          soal.push({
+            id: `${us.soal.id}::sub::${i}`,
+            nomor: flatNomor,
+            pertanyaan: sub.pertanyaan,
+            jenisSoal: sub.jenis || "ISIAN_SINGKAT",
+            tingkatKesulitan: us.soal.tingkatKesulitan,
+            poin: sub.poin || 1,
+            pilihanGanda: sub.pilihanGanda || null,
+            trueFalse: sub.trueFalse ?? null,
+            soalInduk: us.soal.pertanyaan,
+          })
+          parentMap[flatNomor] = { soalId: us.soal.id, subIdx: i }
+        }
+      } else {
+        flatNomor++
+        soal.push({
+          id: us.soal.id,
+          nomor: flatNomor,
+          pertanyaan: us.soal.pertanyaan,
+          jenisSoal: us.soal.jenisSoal,
+          tingkatKesulitan: us.soal.tingkatKesulitan,
+          poin: us.soal.poin,
+          pilihanGanda: us.soal.pilihanGanda as { label: string; text: string }[] | null,
+          trueFalse: us.soal.trueFalse ?? null,
+        })
+      }
+    }
+
     const data = {
       id: ujian.id,
       nama: ujian.nama,
       mapel: ujian.mataPelajaran.nama,
       durasi: ujian.durasi,
-      jumlahSoal: ujian.jumlahSoal,
+      jumlahSoal: flatNomor,
       fullscreen: ujian.fullscreen,
       disableCopy: ujian.disableCopy,
       disablePaste: ujian.disablePaste,
@@ -41,17 +85,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       randomJawaban: ujian.randomJawaban,
       nilaiMinimum: ujian.nilaiMinimum,
       status: ujian.status,
-      soal: ujian.ujianSoal.map((us) => ({
-        id: us.soal.id,
-        nomor: us.nomor,
-        pertanyaan: us.soal.pertanyaan,
-        subSoal: us.soal.subSoal as { pertanyaan: string; jawaban: string; poin: number }[] | null,
-        gambar: us.soal.gambar,
-        jenisSoal: us.soal.jenisSoal,
-        tingkatKesulitan: us.soal.tingkatKesulitan,
-        pilihanGanda: us.soal.pilihanGanda as { label: string; value: string }[] | null,
-        poin: us.soal.poin,
-      })),
+      soal,
+      parentMap,
     }
 
     return NextResponse.json(data)
