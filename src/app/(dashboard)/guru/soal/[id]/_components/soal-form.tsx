@@ -331,20 +331,31 @@ export function SoalFormClient({
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {!isSubMode && (
-                <div className="space-y-2">
-                  <Label htmlFor="jenis">Jenis Soal</Label>
-                  <Select value={jenisSoal} onValueChange={setJenisSoal}>
-                    <SelectTrigger id="jenis"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {jenisSoalOptions.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            {!isSubMode && (
+              <div className="space-y-2">
+                <Label>Jenis Soal</Label>
+                <div className="flex flex-wrap gap-2">
+                  {jenisSoalOptions.map((o) => (
+                    <Button
+                      key={o.value}
+                      type="button"
+                      variant={jenisSoal === o.value ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setJenisSoal(o.value)}
+                      className="text-xs sm:text-sm"
+                    >
+                      {o.label === "Pilihan Ganda" ? "PG" :
+                       o.label === "Benar/Salah" ? "B/S" :
+                       o.label === "Menjodohkan" ? "Menjodohkan" :
+                       o.label === "Isian Singkat" ? "Isian" :
+                       o.label}
+                    </Button>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="tingkat">Tingkat Kesulitan</Label>
                 <Select value={tingkatKesulitan} onValueChange={setTingkatKesulitan}>
@@ -430,7 +441,7 @@ export function SoalFormClient({
                               value={item.jenis}
                               onValueChange={(v) => updateSubSoal(idx, "jenis", v)}
                             >
-                              <SelectTrigger className="h-8 w-auto text-xs gap-1 border-0 bg-muted/50 shadow-none">
+                              <SelectTrigger className="h-7 text-xs gap-1 border border-border bg-background shadow-none px-2">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
