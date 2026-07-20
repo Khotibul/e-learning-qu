@@ -477,6 +477,33 @@ model AbsensiSiswa {
   @@map("absensi_siswa")
 }
 
+model SiteConfig {
+  id          String   @id @default(uuid()) @db.Uuid
+  siteName    String   @default("E-Learning QU")
+  tagline     String   @default("Platform E-Learning Modern")
+  description String   @default("Platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
+  logoUrl     String?
+  aboutTitle  String   @default("Tentang Kami")
+  aboutText   String   @default("E-Learning QU adalah platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("site_config")
+}
+
+model LandingFeature {
+  id          String   @id @default(uuid()) @db.Uuid
+  icon        String   @default("FileText")
+  title       String
+  description String
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("landing_features")
+}
+
 model AuditLog {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @db.Uuid

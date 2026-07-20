@@ -2,59 +2,32 @@
 
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
-  BookOpen,
-  FileText,
-  BarChart3,
-  Users,
-  Target,
-  GraduationCap,
-  ArrowRight,
-  Sparkles,
+  BookOpen, FileText, BarChart3, Users, Target, GraduationCap,
+  ArrowRight, Sparkles, Globe, Shield, Zap, Heart, Star, Award, TrendingUp,
 } from "lucide-react"
 
-const features = [
-  {
-    icon: FileText,
-    title: "Bank Soal Digital",
-    description: "Kumpulan soal terstruktur dengan berbagai tipe: PG, Essay, True/False, dan Matching.",
-    color: "from-blue-500 to-cyan-500",
-  },
-  {
-    icon: GraduationCap,
-    title: "Ujian Online",
-    description: "Ujian dan latihan interaktif real-time dengan pengawasan otomatis.",
-    color: "from-purple-500 to-pink-500",
-  },
-  {
-    icon: BarChart3,
-    title: "Monitoring Nilai",
-    description: "Pantau perkembangan nilai siswa secara detail dan akurat.",
-    color: "from-orange-500 to-red-500",
-  },
-  {
-    icon: Users,
-    title: "Manajemen Kelas",
-    description: "Kelola kelas, mata pelajaran, dan jadwal dengan mudah.",
-    color: "from-green-500 to-emerald-500",
-  },
-  {
-    icon: Target,
-    title: "Analitik & Laporan",
-    description: "Visualisasi data pembelajaran untuk evaluasi yang lebih baik.",
-    color: "from-violet-500 to-indigo-500",
-  },
-  {
-    icon: BookOpen,
-    title: "Belajar Mandiri",
-    description: "Akses materi dan latihan kapan saja, di mana saja.",
-    color: "from-rose-500 to-pink-500",
-  },
+const iconMap: Record<string, React.ElementType> = {
+  FileText, GraduationCap, BarChart3, Users, Target, BookOpen,
+  Sparkles, Globe, Shield, Zap, Heart, Star, Award, TrendingUp,
+}
+
+const colorGradients = [
+  "from-blue-500 to-cyan-500",
+  "from-purple-500 to-pink-500",
+  "from-orange-500 to-red-500",
+  "from-green-500 to-emerald-500",
+  "from-violet-500 to-indigo-500",
+  "from-rose-500 to-pink-500",
+  "from-cyan-500 to-blue-500",
+  "from-amber-500 to-orange-500",
+  "from-teal-500 to-green-500",
+  "from-indigo-500 to-purple-500",
 ]
 
 const containerVariants = {
@@ -78,6 +51,20 @@ export default function HomePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const checkedRef = useRef(false)
+  const [siteConfig, setSiteConfig] = useState<any>({ siteName: "E-Learning QU", tagline: "Platform E-Learning Modern", description: "", logoUrl: "", aboutTitle: "Tentang Kami", aboutText: "" })
+  const [features, setFeatures] = useState<any[]>([])
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/site-config").then((r) => r.json()),
+      fetch("/api/features").then((r) => r.json()),
+    ])
+      .then(([config, feats]) => {
+        if (config?.siteName) setSiteConfig(config)
+        if (Array.isArray(feats)) setFeatures(feats)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (status === "authenticated" && session?.user && !checkedRef.current) {
@@ -117,10 +104,14 @@ export default function HomePage() {
       >
         <div className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70">
-              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-            </div>
-            <span className="text-lg sm:text-xl font-bold">E-Learning QU</span>
+            {siteConfig.logoUrl ? (
+              <img src={siteConfig.logoUrl} alt="Logo" className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg object-cover" />
+            ) : (
+              <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70">
+                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+              </div>
+            )}
+            <span className="text-lg sm:text-xl font-bold">{siteConfig.siteName}</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/login">
@@ -152,7 +143,7 @@ export default function HomePage() {
               className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary"
             >
               <Sparkles className="h-4 w-4" />
-              Platform E-Learning Modern
+              {siteConfig.tagline}
             </motion.div>
             <motion.h1
               variants={itemVariants}
@@ -167,8 +158,7 @@ export default function HomePage() {
               variants={itemVariants}
               className="mt-3 sm:mt-6 text-sm sm:text-lg lg:text-xl leading-6 sm:leading-8 text-muted-foreground px-4 sm:px-0"
             >
-              Platform pembelajaran digital modern yang menghubungkan Guru dan Siswa
-              dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.
+              {siteConfig.description || "Platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan."}
             </motion.p>
             <motion.div
               variants={itemVariants}
@@ -190,56 +180,70 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="features" className="py-16 sm:py-28">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.5 }}
-            className="mx-auto max-w-2xl text-center"
-          >
-            <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">
-              Fitur Unggulan
-            </h2>
-            <p className="mt-3 sm:mt-4 text-base sm:text-lg text-muted-foreground px-4 sm:px-0">
-              Semua yang Anda butuhkan untuk pengalaman belajar mengajar yang lebih baik.
-            </p>
-          </motion.div>
+      {features.length > 0 && (
+        <section id="features" className="py-16 sm:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.5 }}
+              className="mx-auto max-w-2xl text-center"
+            >
+              <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">Fitur Unggulan</h2>
+              <p className="mt-3 sm:mt-4 text-base sm:text-lg text-muted-foreground px-4 sm:px-0">
+                Semua yang Anda butuhkan untuk pengalaman belajar mengajar yang lebih baik.
+              </p>
+            </motion.div>
 
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-50px" }}
-            variants={containerVariants}
-            className="mt-10 sm:mt-16 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-          >
-            {features.map((feature) => {
-              const Icon = feature.icon
-              return (
-                <motion.div key={feature.title} variants={itemVariants}>
-                  <Card className="group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-                    <div
-                      className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 transition-opacity duration-300 group-hover:opacity-5`}
-                    />
-                    <CardContent className="p-5 sm:p-6">
-                      <div
-                        className={`mb-4 inline-flex rounded-xl bg-gradient-to-br ${feature.color} p-3 text-white shadow-sm`}
-                      >
-                        <Icon className="h-6 w-6" />
-                      </div>
-                      <h3 className="mb-2 text-lg font-semibold">{feature.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {feature.description}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )
-            })}
-          </motion.div>
-        </div>
-      </section>
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
+              variants={containerVariants}
+              className="mt-10 sm:mt-16 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {features.map((feature, idx) => {
+                const Icon = iconMap[feature.icon] || FileText
+                const color = colorGradients[idx % colorGradients.length]
+                return (
+                  <motion.div key={feature.id || idx} variants={itemVariants}>
+                    <Card className="group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+                      <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 transition-opacity duration-300 group-hover:opacity-5`} />
+                      <CardContent className="p-5 sm:p-6">
+                        <div className={`mb-4 inline-flex rounded-xl bg-gradient-to-br ${color} p-3 text-white shadow-sm`}>
+                          <Icon className="h-6 w-6" />
+                        </div>
+                        <h3 className="mb-2 text-lg font-semibold">{feature.title}</h3>
+                        <p className="text-sm text-muted-foreground">{feature.description}</p>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+          </div>
+        </section>
+      )}
+
+      {siteConfig.aboutText && (
+        <section id="about" className="py-16 sm:py-28 bg-muted/30">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="mx-auto max-w-3xl text-center"
+            >
+              <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">{siteConfig.aboutTitle || "Tentang Kami"}</h2>
+              <p className="mt-4 sm:mt-6 text-base sm:text-lg leading-7 sm:leading-8 text-muted-foreground">
+                {siteConfig.aboutText}
+              </p>
+            </motion.div>
+          </div>
+        </section>
+      )}
 
       <section className="py-12 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -251,20 +255,13 @@ export default function HomePage() {
             className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary to-purple-600 px-5 py-10 sm:px-16 sm:py-24 text-center text-white"
           >
             <div className="relative">
-              <h2 className="text-xl sm:text-4xl font-bold tracking-tight">
-                Siap Memulai Perjalanan Belajar?
-              </h2>
+              <h2 className="text-xl sm:text-4xl font-bold tracking-tight">Siap Memulai Perjalanan Belajar?</h2>
               <p className="mx-auto mt-2 sm:mt-4 max-w-xl text-xs sm:text-lg text-white/80 px-2 sm:px-0">
-                Bergabunglah dengan ribuan Guru dan Siswa yang sudah menggunakan
-                E-Learning QU untuk pengalaman belajar yang lebih baik.
+                Bergabunglah dengan ribuan Guru dan Siswa yang sudah menggunakan {siteConfig.siteName} untuk pengalaman belajar yang lebih baik.
               </p>
               <div className="mt-6 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
                 <Link href="/login" className="w-full sm:w-auto">
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    className="gap-2 bg-white text-primary hover:bg-white/90 text-sm sm:text-base w-full sm:w-auto"
-                  >
+                  <Button size="lg" variant="secondary" className="gap-2 bg-white text-primary hover:bg-white/90 text-sm sm:text-base w-full sm:w-auto">
                     Mulai Sekarang
                     <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
                   </Button>
@@ -277,7 +274,7 @@ export default function HomePage() {
 
       <footer className="border-t border-border py-6 sm:py-8">
         <div className="mx-auto max-w-7xl px-4 text-center text-xs sm:text-sm text-muted-foreground sm:px-6 lg:px-8">
-          <p>&copy; {new Date().getFullYear()} E-Learning QU. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} {siteConfig.siteName}. All rights reserved.</p>
         </div>
       </footer>
     </div>

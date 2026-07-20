@@ -45,6 +45,7 @@ export const NAV_ITEMS = {
     { label: "Jadwal Ujian", href: "/admin/jadwal-ujian", icon: "CalendarClock" },
     { label: "Pengumuman", href: "/admin/pengumuman", icon: "Megaphone" },
     { label: "Nilai", href: "/admin/nilai", icon: "Award" },
+    { label: "Pengaturan", href: "/admin/pengaturan", icon: "Settings" },
     { label: "Statistik", href: "/admin/statistik", icon: "BarChart3" },
   ],
   GURU: [

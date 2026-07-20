@@ -1,72 +1,36 @@
-import { PrismaClient, Role } from "@prisma/client"
-import bcrypt from "bcryptjs"
+import { PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
 
+const defaultFeatures = [
+  { icon: "FileText", title: "Bank Soal Digital", description: "Kumpulan soal terstruktur dengan berbagai tipe: PG, Essay, True/False, dan Matching.", order: 1 },
+  { icon: "GraduationCap", title: "Ujian Online", description: "Ujian dan latihan interaktif real-time dengan pengawasan otomatis.", order: 2 },
+  { icon: "BarChart3", title: "Monitoring Nilai", description: "Pantau perkembangan nilai siswa secara detail dan akurat.", order: 3 },
+  { icon: "Users", title: "Manajemen Kelas", description: "Kelola kelas, mata pelajaran, dan jadwal dengan mudah.", order: 4 },
+  { icon: "Target", title: "Analitik & Laporan", description: "Visualisasi data pembelajaran untuk evaluasi yang lebih baik.", order: 5 },
+  { icon: "BookOpen", title: "Belajar Mandiri", description: "Akses materi dan latihan kapan saja, di mana saja.", order: 6 },
+]
+
 async function main() {
-  console.log("Seeding database...")
-
-  const adminPassword = await bcrypt.hash("admin123", 12)
-
-  const adminUser = await prisma.user.upsert({
-    where: { email: "admin@elearningqu.com" },
-    update: {},
-    create: {
-      email: "admin@elearningqu.com",
-      name: "Admin E-Learning QU",
-      password: adminPassword,
-      role: Role.ADMIN,
-      isActive: true,
-    },
-  })
-  console.log(`Created admin user: ${adminUser.email} (password: admin123)`)
-
-  const tahunAjaran = await prisma.tahunAjaran.upsert({
-    where: { nama: "2025/2026" },
-    update: {},
-    create: {
-      nama: "2025/2026",
-      tahunMulai: 2025,
-      tahunSelesai: 2026,
-      isAktif: true,
-    },
-  })
-  console.log(`Created tahun ajaran: ${tahunAjaran.nama}`)
-
-  const semester = await prisma.semester.create({
-    data: {
-      nama: "Ganjil",
-      tahunAjaranId: tahunAjaran.id,
-      isAktif: true,
-    },
-  })
-  console.log(`Created semester: ${semester.nama}`)
-
-  const kelasData = [
-    { nama: "X-A", tingkat: 10 },
-    { nama: "X-B", tingkat: 10 },
-    { nama: "XI-A", tingkat: 11 },
-    { nama: "XI-B", tingkat: 11 },
-    { nama: "XII-A", tingkat: 12 },
-    { nama: "XII-B", tingkat: 12 },
-  ]
-
-  for (const k of kelasData) {
-    await prisma.kelas.create({ data: { nama: k.nama, tingkat: k.tingkat } })
-    console.log(`Created kelas: ${k.nama}`)
+  const existing = await prisma.siteConfig.findFirst()
+  if (!existing) {
+    await prisma.siteConfig.create({ data: {} })
+    console.log("Seeded SiteConfig")
+  } else {
+    console.log("SiteConfig already exists")
   }
 
-  await prisma.kategoriSoal.create({ data: { nama: "Umum" } })
-  console.log("Created kategori soal: Umum")
-
-  console.log("Seeding completed!")
+  const featureCount = await prisma.landingFeature.count()
+  if (featureCount === 0) {
+    for (const f of defaultFeatures) {
+      await prisma.landingFeature.create({ data: f })
+    }
+    console.log("Seeded default features")
+  } else {
+    console.log("Features already exist")
+  }
 }
 
 main()
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+  .catch((e) => console.error(e))
+  .finally(() => prisma.$disconnect())

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { rateLimit } from "@/lib/rate-limit"
+import { prisma } from "@/lib/prisma"
+import { writeFile, mkdir } from "fs/promises"
+import path from "path"
 
 export async function POST(req: Request) {
   const session = await auth()
@@ -8,44 +10,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown"
-  const { success } = rateLimit(`upload_${ip}`, 20, 60000)
-  if (!success) {
-    return NextResponse.json({ error: "Too many requests" }, { status: 429 })
-  }
-
   try {
     const formData = await req.formData()
     const file = formData.get("file") as File | null
-
     if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 })
-    }
-
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: "Invalid file type" }, { status: 400 })
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: "File too large (max 10MB)" }, { status: 400 })
+      return NextResponse.json({ error: "No file" }, { status: 400 })
     }
 
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const blob = new Blob([buffer], { type: file.type })
-    const url = URL.createObjectURL(blob)
+    const uploadDir = path.join(process.cwd(), "public", "uploads")
+    await mkdir(uploadDir, { recursive: true })
 
-    return NextResponse.json({
-      success: true,
-      url,
-      filename: file.name,
-      size: file.size,
-      type: file.type,
-    })
-  } catch (error) {
-    console.error("Upload error:", error)
+    const ext = file.name.split(".").pop() || "png"
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    const filepath = path.join(uploadDir, filename)
+    await writeFile(filepath, buffer)
+
+    const url = `/uploads/${filename}`
+    return NextResponse.json({ url })
+  } catch {
     return NextResponse.json({ error: "Upload failed" }, { status: 500 })
   }
 }

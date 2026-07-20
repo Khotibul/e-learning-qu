@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { NAV_ITEMS } from "@/constants"
 import {
   LayoutDashboard, UserCheck, Users, DoorOpen, BookOpen,
-  Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3,
+  Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3, Settings,
   Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy,
   GraduationCap, X
 } from "lucide-react"
@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, UserCheck, Users, DoorOpen, BookOpen,
-  Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3,
+  Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3, Settings,
   Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy, GraduationCap,
 }
 
