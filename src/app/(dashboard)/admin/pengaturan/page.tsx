@@ -161,7 +161,7 @@ export default function PengaturanPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Pengaturan Landing Page</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Pengaturan Landing Page</h1>
         <p className="text-muted-foreground mt-1">Atur tampilan halaman utama website</p>
       </div>
 

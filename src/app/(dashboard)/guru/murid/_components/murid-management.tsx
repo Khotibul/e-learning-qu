@@ -291,8 +291,8 @@ export function MuridManagement(props: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Users className="h-6 w-6 text-primary" />
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+          <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
           Data Murid
         </h1>
         <div className="flex items-center gap-2">

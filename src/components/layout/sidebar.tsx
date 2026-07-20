@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { NAV_ITEMS } from "@/constants"
 import {
@@ -28,6 +29,14 @@ interface SidebarProps {
 export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
   const items = NAV_ITEMS[role as keyof typeof NAV_ITEMS] || []
+  const [siteConfig, setSiteConfig] = useState({ siteName: "E-Learning QU", logoUrl: "" })
+
+  useEffect(() => {
+    fetch("/api/site-config")
+      .then((r) => r.json())
+      .then((d) => { if (d?.siteName) setSiteConfig(d) })
+      .catch(() => {})
+  }, [])
 
   return (
     <>
@@ -42,10 +51,14 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
       >
         <div className="flex items-center justify-between p-4 border-b">
           <Link href="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
-              <GraduationCap className="h-5 w-5 text-white" />
-            </div>
-            <span className="font-bold text-lg">E-Learning QU</span>
+            {siteConfig.logoUrl ? (
+              <img src={siteConfig.logoUrl} alt={siteConfig.siteName} className="h-8 w-8 rounded-lg object-cover" />
+            ) : (
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
+                <GraduationCap className="h-5 w-5 text-white" />
+              </div>
+            )}
+            <span className="font-bold text-lg">{siteConfig.siteName}</span>
           </Link>
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={onClose}>
             <X className="h-5 w-5" />

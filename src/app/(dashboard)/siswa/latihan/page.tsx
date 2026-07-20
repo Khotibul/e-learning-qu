@@ -43,7 +43,7 @@ export default async function LatihanListPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Latihan</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Latihan</h1>
         <p className="text-muted-foreground">Latihan soal untuk meningkatkan pemahaman</p>
       </div>
 

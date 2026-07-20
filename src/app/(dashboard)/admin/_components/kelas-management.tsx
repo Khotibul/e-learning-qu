@@ -141,7 +141,7 @@ export function KelasManagement(props: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h1 className="text-2xl font-bold">Data Kelas</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Data Kelas</h1>
         <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true) }}>
           <Plus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Tambah Kelas</span>
         </Button>

@@ -282,7 +282,7 @@ export function SoalFormClient({
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               {isNew ? "Buat Soal Baru" : "Edit Soal"}
             </h1>
             <p className="text-muted-foreground mt-1">

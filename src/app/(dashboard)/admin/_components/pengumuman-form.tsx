@@ -106,7 +106,7 @@ export function PengumumanForm({ userId, initialData, kelasRefs }: Props) {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Megaphone className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">Pengumuman</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Pengumuman</h1>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

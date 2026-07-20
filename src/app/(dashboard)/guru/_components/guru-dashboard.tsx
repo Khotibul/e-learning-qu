@@ -37,7 +37,7 @@ export function GuruDashboardClient({ stats }: { stats: GuruDashboardStats }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard Guru</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard Guru</h1>
         <p className="text-muted-foreground mt-1">
           Selamat datang di dashboard guru. Kelola soal, ujian, dan nilai di sini.
         </p>

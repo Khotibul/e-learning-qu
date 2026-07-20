@@ -47,7 +47,7 @@ export function AbsensiSiswaClient() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Riwayat Absensi</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Riwayat Absensi</h1>
         <p className="text-muted-foreground mt-1">Lihat riwayat kehadiran Anda</p>
       </div>
 

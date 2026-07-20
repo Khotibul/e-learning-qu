@@ -167,7 +167,7 @@ export function AbsensiClient({ kelasList, mapels }: AbsensiClientProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Absensi</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Absensi</h1>
           <p className="text-muted-foreground mt-1">
             Catat kehadiran siswa setiap pertemuan
           </p>

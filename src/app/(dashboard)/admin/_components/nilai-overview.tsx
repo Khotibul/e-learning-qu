@@ -115,7 +115,7 @@ export function NilaiOverview(props: Props) {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <GraduationCap className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">Data Nilai</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Data Nilai</h1>
       </div>
 
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">

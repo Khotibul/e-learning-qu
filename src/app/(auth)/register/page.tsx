@@ -149,7 +149,7 @@ export default function RegisterPage() {
             <Sparkles className="h-8 w-8 text-white" />
           </motion.div>
           <div className="space-y-1">
-            <CardTitle className="text-2xl font-bold">Lengkapi Profil</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl font-bold">Lengkapi Profil</CardTitle>
             <CardDescription className="text-base">
               Pilih role dan lengkapi data diri Anda
             </CardDescription>

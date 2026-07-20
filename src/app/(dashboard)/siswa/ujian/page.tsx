@@ -64,7 +64,7 @@ export default async function UjianListPage({ searchParams }: PageProps) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Ujian</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Ujian</h1>
           <p className="text-muted-foreground">Daftar ujian yang tersedia</p>
         </div>
         <div className="flex gap-2">

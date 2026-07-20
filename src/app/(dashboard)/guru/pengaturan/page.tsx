@@ -108,7 +108,7 @@ export default function GuruPengaturanPage() {
       className="space-y-6 p-4 sm:p-6"
     >
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Pengaturan Profil</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Pengaturan Profil</h1>
         <p className="text-sm text-muted-foreground mt-1">Kelola informasi profil dan keamanan akun Anda</p>
       </div>
 

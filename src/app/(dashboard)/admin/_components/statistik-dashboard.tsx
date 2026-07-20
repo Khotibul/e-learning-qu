@@ -92,7 +92,7 @@ export function StatistikDashboard({ guruMurid, perKelas, perMapel }: Props) {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <BarChart3 className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">Statistik</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Statistik</h1>
       </div>
 
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">

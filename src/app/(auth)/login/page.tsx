@@ -23,7 +23,15 @@ function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [siteConfig, setSiteConfig] = useState({ siteName: "E-Learning QU", logoUrl: "" })
   const checkedRef = useRef(false)
+
+  useEffect(() => {
+    fetch("/api/site-config")
+      .then((r) => r.json())
+      .then((d) => { if (d?.siteName) setSiteConfig(d) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (error === "OAuthAccountNotLinked") {
@@ -108,10 +116,14 @@ function LoginForm() {
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-purple-600 shadow-lg"
           >
-            <Sparkles className="h-8 w-8 text-white" />
+            {siteConfig.logoUrl ? (
+              <img src={siteConfig.logoUrl} alt={siteConfig.siteName} className="h-10 w-10 rounded-xl object-cover" />
+            ) : (
+              <Sparkles className="h-8 w-8 text-white" />
+            )}
           </motion.div>
           <div className="space-y-1">
-            <CardTitle className="text-2xl font-bold">E-Learning QU</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl font-bold">{siteConfig.siteName}</CardTitle>
             <CardDescription className="text-base">
               {mode === "google" && "Pilih metode masuk"}
               {mode === "siswa" && "Masuk sebagai Siswa"}

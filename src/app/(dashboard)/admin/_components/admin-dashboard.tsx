@@ -54,8 +54,8 @@ export function AdminDashboardClient({ stats }: { stats: Stats }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <LayoutDashboard className="h-7 w-7 text-primary" />
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+          <LayoutDashboard className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
           Dashboard Admin
         </h1>
         <p className="text-muted-foreground mt-1">
