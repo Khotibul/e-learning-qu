@@ -13,13 +13,6 @@ const registerSchema = roleSelectionSchema.superRefine((data, ctx) => {
       path: ["nip"],
     })
   }
-  if (data.role === "SISWA" && !data.nis && !data.nisn) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "NIS atau NISN wajib diisi",
-      path: ["nis"],
-    })
-  }
 })
 
 export const GET = auth(async (req) => {
@@ -61,7 +54,7 @@ export const POST = auth(async (req) => {
       )
     }
 
-    const { role, nama, nip, nis, nisn, noTelp, alamat } = parsed.data
+    const { role, nama, nip, nis, nisn, kelasId, noTelp, alamat } = parsed.data
 
     const [existingGuru, existingSiswa] = await Promise.all([
       prisma.guru.findUnique({ where: { userId: req.auth.user.id } }),
@@ -96,6 +89,7 @@ export const POST = auth(async (req) => {
             nama,
             nis: nis || null,
             nisn: nisn || null,
+            kelasId: kelasId || null,
             noTelp: noTelp || null,
             alamat: alamat || null,
           },

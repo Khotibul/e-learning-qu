@@ -12,6 +12,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
 import { roleSelectionSchema } from "@/validators/auth"
 import { Sparkles, GraduationCap, Users } from "lucide-react"
 
@@ -21,13 +24,6 @@ const registerSchema = roleSelectionSchema.superRefine((data, ctx) => {
       code: z.ZodIssueCode.custom,
       message: "NIP wajib diisi untuk Guru",
       path: ["nip"],
-    })
-  }
-  if (data.role === "SISWA" && !data.nis && !data.nisn) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "NIS atau NISN wajib diisi",
-      path: ["nis"],
     })
   }
 })
@@ -40,6 +36,7 @@ export default function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [checkingProfile, setCheckingProfile] = useState(true)
   const [profileComplete, setProfileComplete] = useState(false)
+  const [kelasList, setKelasList] = useState<{ id: string; nama: string }[]>([])
   const checkedRef = useRef(false)
 
   const {
@@ -57,6 +54,7 @@ export default function RegisterPage() {
       nip: "",
       nis: "",
       nisn: "",
+      kelasId: "",
       noTelp: "",
       alamat: "",
     },
@@ -74,6 +72,10 @@ export default function RegisterPage() {
     if (session?.user?.name) {
       setValue("nama", session.user.name)
     }
+    fetch("/api/kelas")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setKelasList(data) })
+      .catch(() => {})
   }, [session, setValue])
 
   useEffect(() => {
@@ -265,16 +267,28 @@ export default function RegisterPage() {
                   className="space-y-4 overflow-hidden"
                 >
                   <div className="space-y-2">
-                    <Label htmlFor="nis">NIS</Label>
+                    <Label htmlFor="kelasId">Kelas</Label>
+                    <Select
+                      value={watch("kelasId")}
+                      onValueChange={(v) => setValue("kelasId", v, { shouldValidate: true })}
+                    >
+                      <SelectTrigger id="kelasId">
+                        <SelectValue placeholder="Pilih kelas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {kelasList.map((k) => (
+                          <SelectItem key={k.id} value={k.id}>{k.nama}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nis">NIS (opsional)</Label>
                     <Input
                       id="nis"
                       placeholder="Masukkan NIS"
                       {...register("nis")}
-                      className={errors.nis ? "border-destructive" : ""}
                     />
-                    {errors.nis && (
-                      <p className="text-sm text-destructive">{errors.nis.message}</p>
-                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="nisn">NISN (opsional)</Label>

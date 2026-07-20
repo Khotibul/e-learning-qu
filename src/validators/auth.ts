@@ -6,6 +6,7 @@ export const roleSelectionSchema = z.object({
   nip: z.string().optional(),
   nis: z.string().optional(),
   nisn: z.string().optional(),
+  kelasId: z.string().optional(),
   noTelp: z.string().optional(),
   alamat: z.string().optional(),
 })
