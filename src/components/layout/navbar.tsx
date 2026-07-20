@@ -70,7 +70,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/settings">
+            <Link href={`/${(session?.user as any)?.role?.toLowerCase() || "siswa"}/pengaturan`}>
               <Settings className="mr-2 h-4 w-4" /> Pengaturan
             </Link>
           </DropdownMenuItem>

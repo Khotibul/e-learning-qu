@@ -57,6 +57,7 @@ export const NAV_ITEMS = {
     { label: "Absensi", href: "/guru/absensi", icon: "ClipboardCheck" },
     { label: "Nilai", href: "/guru/nilai", icon: "Award" },
     { label: "Analitik", href: "/guru/analitik", icon: "BarChart3" },
+    { label: "Pengaturan", href: "/guru/pengaturan", icon: "Settings" },
   ],
   SISWA: [
     { label: "Dashboard", href: "/siswa", icon: "LayoutDashboard" },
@@ -65,5 +66,6 @@ export const NAV_ITEMS = {
     { label: "Absensi", href: "/siswa/absensi", icon: "ClipboardCheck" },
     { label: "Nilai", href: "/siswa/nilai", icon: "Award" },
     { label: "Ranking", href: "/siswa/ranking", icon: "Trophy" },
+    { label: "Pengaturan", href: "/siswa/pengaturan", icon: "Settings" },
   ],
 }

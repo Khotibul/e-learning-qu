@@ -92,7 +92,16 @@ export async function updateGuru(
   id: string,
   data: { nama?: string; nip?: string; nuptk?: string; alamat?: string; noTelp?: string }
 ) {
-  const guru = await prisma.guru.update({ where: { id }, data })
+  const guru = await prisma.$transaction(async (tx) => {
+    const updated = await tx.guru.update({ where: { id }, data, include: { user: true } })
+    if (data.nama) {
+      await tx.user.update({
+        where: { id: updated.userId },
+        data: { name: data.nama },
+      })
+    }
+    return updated
+  })
   revalidatePath("/(dashboard)/admin/guru")
   return guru
 }
@@ -182,7 +191,16 @@ export async function updateMurid(
   id: string,
   data: { nama?: string; nis?: string; nisn?: string; alamat?: string; noTelp?: string; kelasId?: string }
 ) {
-  const siswa = await prisma.siswa.update({ where: { id }, data })
+  const siswa = await prisma.$transaction(async (tx) => {
+    const updated = await tx.siswa.update({ where: { id }, data, include: { user: true } })
+    if (data.nama) {
+      await tx.user.update({
+        where: { id: updated.userId },
+        data: { name: data.nama },
+      })
+    }
+    return updated
+  })
   revalidatePath("/(dashboard)/admin/murid")
   return siswa
 }

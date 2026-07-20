@@ -822,7 +822,7 @@ export async function updateGuruMurid(
 ) {
   const guru = await getCurrentGuru()
 
-  const siswa = await prisma.siswa.findUnique({ where: { id }, select: { kelasId: true } })
+  const siswa = await prisma.siswa.findUnique({ where: { id }, select: { kelasId: true, userId: true } })
   if (!siswa) throw new Error("Murid tidak ditemukan")
 
   const targetKelasId = data.kelasId || siswa.kelasId
@@ -834,7 +834,16 @@ export async function updateGuruMurid(
     if (mapels.length === 0) throw new Error("Anda tidak mengajar di kelas ini")
   }
 
-  const updated = await prisma.siswa.update({ where: { id }, data })
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.siswa.update({ where: { id }, data })
+    if (data.nama && siswa.userId) {
+      await tx.user.update({
+        where: { id: siswa.userId },
+        data: { name: data.nama },
+      })
+    }
+    return result
+  })
   revalidatePath("/(dashboard)/guru/murid")
   return updated
 }
@@ -888,4 +897,68 @@ export async function getBankSoalRefs() {
     select: { id: true, pertanyaan: true, jenisSoal: true, bab: true, mataPelajaranId: true, subSoal: true },
     orderBy: { createdAt: "desc" },
   })
+}
+
+// ─── PENGATURAN (PROFIL) ─────────────────────────────────────
+
+export async function getGuruProfile() {
+  const guru = await getCurrentGuru()
+  return prisma.guru.findUnique({
+    where: { id: guru.id },
+    include: { user: { select: { id: true, email: true, name: true, image: true } } },
+  })
+}
+
+export async function updateGuruProfile(data: {
+  nama?: string
+  nip?: string
+  nuptk?: string
+  alamat?: string
+  noTelp?: string
+}) {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+
+  const result = await prisma.$transaction(async (tx) => {
+    const guru = await tx.guru.update({
+      where: { userId: session.user.id },
+      data: {
+        ...(data.nama !== undefined && { nama: data.nama }),
+        ...(data.nip !== undefined && { nip: data.nip || null }),
+        ...(data.nuptk !== undefined && { nuptk: data.nuptk || null }),
+        ...(data.alamat !== undefined && { alamat: data.alamat || null }),
+        ...(data.noTelp !== undefined && { noTelp: data.noTelp || null }),
+      },
+    })
+    if (data.nama) {
+      await tx.user.update({
+        where: { id: session.user.id },
+        data: { name: data.nama },
+      })
+    }
+    return guru
+  })
+  revalidatePath("/(dashboard)/guru/pengaturan")
+  return result
+}
+
+export async function updateGuruPassword(data: { passwordLama: string; passwordBaru: string }) {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { password: true },
+  })
+  if (!user?.password) throw new Error("Akun ini tidak memiliki password (mungkin menggunakan Google SSO)")
+
+  const isValid = await bcrypt.compare(data.passwordLama, user.password)
+  if (!isValid) throw new Error("Password lama tidak sesuai")
+
+  const hashed = await bcrypt.hash(data.passwordBaru, 12)
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { password: hashed },
+  })
+  return { success: true }
 }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import bcrypt from "bcryptjs"
 
 export async function getCurrentSiswa() {
   const session = await auth()
@@ -519,4 +520,70 @@ export async function getRankingList(kelasId?: string, semesterId?: string) {
       nama: `${s.nama} (${s.tahunAjaran.nama})`,
     })),
   }
+}
+
+// ─── PENGATURAN (PROFIL) ─────────────────────────────────────
+
+export async function getSiswaProfile() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+
+  return prisma.siswa.findUnique({
+    where: { userId: session.user.id },
+    include: { user: { select: { id: true, email: true, name: true, image: true } }, kelas: { select: { nama: true } } },
+  })
+}
+
+export async function updateSiswaProfile(data: {
+  nama?: string
+  nis?: string
+  nisn?: string
+  alamat?: string
+  noTelp?: string
+}) {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+
+  const result = await prisma.$transaction(async (tx) => {
+    const siswa = await tx.siswa.update({
+      where: { userId: session.user.id },
+      data: {
+        ...(data.nama !== undefined && { nama: data.nama }),
+        ...(data.nis !== undefined && { nis: data.nis || null }),
+        ...(data.nisn !== undefined && { nisn: data.nisn || null }),
+        ...(data.alamat !== undefined && { alamat: data.alamat || null }),
+        ...(data.noTelp !== undefined && { noTelp: data.noTelp || null }),
+      },
+    })
+    if (data.nama) {
+      await tx.user.update({
+        where: { id: session.user.id },
+        data: { name: data.nama },
+      })
+    }
+    return siswa
+  })
+  revalidatePath("/(dashboard)/siswa/pengaturan")
+  return result
+}
+
+export async function updateSiswaPassword(data: { passwordLama: string; passwordBaru: string }) {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { password: true },
+  })
+  if (!user?.password) throw new Error("Akun ini tidak memiliki password (mungkin menggunakan Google SSO)")
+
+  const isValid = await bcrypt.compare(data.passwordLama, user.password)
+  if (!isValid) throw new Error("Password lama tidak sesuai")
+
+  const hashed = await bcrypt.hash(data.passwordBaru, 12)
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { password: hashed },
+  })
+  return { success: true }
 }
