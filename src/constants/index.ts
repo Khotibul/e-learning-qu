@@ -53,6 +53,7 @@ export const NAV_ITEMS = {
     { label: "Bank Soal", href: "/guru/bank-soal", icon: "Database" },
     { label: "Soal", href: "/guru/soal", icon: "FileQuestion" },
     { label: "Ujian", href: "/guru/ujian", icon: "ClipboardList" },
+    { label: "Absensi", href: "/guru/absensi", icon: "ClipboardCheck" },
     { label: "Nilai", href: "/guru/nilai", icon: "Award" },
     { label: "Analitik", href: "/guru/analitik", icon: "BarChart3" },
   ],

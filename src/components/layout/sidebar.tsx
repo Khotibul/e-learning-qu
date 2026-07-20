@@ -7,7 +7,7 @@ import { NAV_ITEMS } from "@/constants"
 import {
   LayoutDashboard, UserCheck, Users, DoorOpen, BookOpen,
   Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3,
-  Database, FileQuestion, ClipboardList, FileText, Trophy,
+  Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy,
   GraduationCap, X
 } from "lucide-react"
 import type { Role } from "@/types"
@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button"
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, UserCheck, Users, DoorOpen, BookOpen,
   Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3,
-  Database, FileQuestion, ClipboardList, FileText, Trophy, GraduationCap,
+  Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy, GraduationCap,
 }
 
 interface SidebarProps {

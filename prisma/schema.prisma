@@ -97,100 +97,103 @@ model VerificationToken {
 }
 
 model Guru {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @unique @db.Uuid
-  nip       String?  @unique
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @unique @db.Uuid
+  nip       String?   @unique
   nuptk     String?
   nama      String
   alamat    String?
   noTelp    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mataPelajarans    MataPelajaran[]
-  kelas             Kelas[]
-  soal              Soal[]
-  ujian             Ujian[]
-  penilaianEssay    PenilaianEssay[]
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mataPelajarans MataPelajaran[]
+  kelas          Kelas[]
+  soal           Soal[]
+  ujian          Ujian[]
+  penilaianEssay PenilaianEssay[]
 
   @@map("guru")
 }
 
 model Siswa {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @unique @db.Uuid
-  nis       String?  @unique
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @unique @db.Uuid
+  nis       String?   @unique
   nisn      String?
   nama      String
   alamat    String?
   noTelp    String?
-  kelasId   String?  @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  kelasId   String?   @db.Uuid
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kelas          Kelas?          @relation(fields: [kelasId], references: [id])
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kelas          Kelas?           @relation(fields: [kelasId], references: [id])
   jawabanUjian   JawabanUjian[]
   jawabanLatihan JawabanLatihan[]
   nilai          Nilai[]
+  AbsensiSiswa   AbsensiSiswa[]
 
   @@map("siswa")
 }
 
 model Kelas {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String    @id @default(uuid()) @db.Uuid
   nama      String
   tingkat   Int
-  guruId    String?  @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  guruId    String?   @db.Uuid
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  guru          Guru?         @relation(fields: [guruId], references: [id])
-  siswas        Siswa[]
-  mataPelajarans MataPelajaran[]
-  ujians        Ujian[]
+  guru            Guru?             @relation(fields: [guruId], references: [id])
+  siswas          Siswa[]
+  mataPelajarans  MataPelajaran[]
+  ujians          Ujian[]
   jadwalPelajaran JadwalPelajaran[]
-  pengumuman    Pengumuman[]
+  pengumuman      Pengumuman[]
+  Absensi         Absensi[]
 
   @@map("kelas")
 }
 
 model MataPelajaran {
-  id        String   @id @default(uuid()) @db.Uuid
-  kode      String   @unique
-  nama      String
-  deskripsi String?
-  guruId    String   @db.Uuid
-  kelasId   String   @db.Uuid
-  semesterId String  @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
+  id         String    @id @default(uuid()) @db.Uuid
+  kode       String    @unique
+  nama       String
+  deskripsi  String?
+  guruId     String    @db.Uuid
+  kelasId    String    @db.Uuid
+  semesterId String    @db.Uuid
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
 
-  guru              Guru               @relation(fields: [guruId], references: [id])
-  kelas             Kelas              @relation(fields: [kelasId], references: [id])
-  semester          Semester           @relation(fields: [semesterId], references: [id])
-  soals             Soal[]
-  ujians            Ujian[]
-  jadwalPelajaran   JadwalPelajaran[]
-  nilai             Nilai[]
+  guru            Guru              @relation(fields: [guruId], references: [id])
+  kelas           Kelas             @relation(fields: [kelasId], references: [id])
+  semester        Semester          @relation(fields: [semesterId], references: [id])
+  soals           Soal[]
+  ujians          Ujian[]
+  jadwalPelajaran JadwalPelajaran[]
+  nilai           Nilai[]
+  Absensi         Absensi[]
 
   @@map("mata_pelajaran")
 }
 
 model TahunAjaran {
-  id        String   @id @default(uuid()) @db.Uuid
-  nama      String   @unique
-  tahunMulai Int
+  id           String    @id @default(uuid()) @db.Uuid
+  nama         String    @unique
+  tahunMulai   Int
   tahunSelesai Int
-  isAktif   Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
+  isAktif      Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 
   semesters Semester[]
   ujians    Ujian[]
@@ -199,15 +202,15 @@ model TahunAjaran {
 }
 
 model Semester {
-  id           String   @id @default(uuid()) @db.Uuid
-  nama         String
-  tahunAjaranId String  @db.Uuid
-  isAktif      Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  deletedAt    DateTime?
+  id            String    @id @default(uuid()) @db.Uuid
+  nama          String
+  tahunAjaranId String    @db.Uuid
+  isAktif       Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
 
-  tahunAjaran    TahunAjaran    @relation(fields: [tahunAjaranId], references: [id])
+  tahunAjaran    TahunAjaran     @relation(fields: [tahunAjaranId], references: [id])
   mataPelajarans MataPelajaran[]
   ujians         Ujian[]
   nilai          Nilai[]
@@ -216,41 +219,41 @@ model Semester {
 }
 
 model Soal {
-  id              String          @id @default(uuid()) @db.Uuid
-  pertanyaan      String          @db.Text
-  subSoal         Json?
-  gambar          String?
-  jenisSoal       JenisSoal
+  id               String           @id @default(uuid()) @db.Uuid
+  pertanyaan       String           @db.Text
+  subSoal          Json?
+  gambar           String?
+  jenisSoal        JenisSoal
   tingkatKesulitan TingkatKesulitan @default(SEDANG)
-  pilihanGanda    Json?
-  trueFalse       Boolean?
-  matching        Json?
-  jawaban         String          @db.Text
-  poin            Int             @default(1)
-  bab             String?
-  tags            String?
-  kategoriId      String?         @db.Uuid
-  mataPelajaranId String          @db.Uuid
-  guruId          String          @db.Uuid
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  deletedAt       DateTime?
+  pilihanGanda     Json?
+  trueFalse        Boolean?
+  matching         Json?
+  jawaban          String           @db.Text
+  poin             Int              @default(1)
+  bab              String?
+  tags             String?
+  kategoriId       String?          @db.Uuid
+  mataPelajaranId  String           @db.Uuid
+  guruId           String           @db.Uuid
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
 
-  kategori      KategoriSoal? @relation(fields: [kategoriId], references: [id])
-  mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id])
-  guru          Guru          @relation(fields: [guruId], references: [id])
-  ujianSoal     UjianSoal[]
-  jawabanUjian  JawabanUjian[]
+  kategori       KategoriSoal?    @relation(fields: [kategoriId], references: [id])
+  mataPelajaran  MataPelajaran    @relation(fields: [mataPelajaranId], references: [id])
+  guru           Guru             @relation(fields: [guruId], references: [id])
+  ujianSoal      UjianSoal[]
+  jawabanUjian   JawabanUjian[]
   jawabanLatihan JawabanLatihan[]
 
   @@map("soal")
 }
 
 model KategoriSoal {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String    @id @default(uuid()) @db.Uuid
   nama      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   soals Soal[]
@@ -259,37 +262,37 @@ model KategoriSoal {
 }
 
 model Ujian {
-  id              String     @id @default(uuid()) @db.Uuid
+  id              String      @id @default(uuid()) @db.Uuid
   nama            String
-  deskripsi       String?    @db.Text
-  mataPelajaranId String     @db.Uuid
-  kelasId         String     @db.Uuid
-  guruId          String     @db.Uuid
-  tahunAjaranId   String     @db.Uuid
-  semesterId      String     @db.Uuid
+  deskripsi       String?     @db.Text
+  mataPelajaranId String      @db.Uuid
+  kelasId         String      @db.Uuid
+  guruId          String      @db.Uuid
+  tahunAjaranId   String      @db.Uuid
+  semesterId      String      @db.Uuid
   jumlahSoal      Int
-  nilaiMinimum    Int        @default(0)
+  nilaiMinimum    Int         @default(0)
   durasi          Int
   tanggal         DateTime
   jamMulai        DateTime
   jamSelesai      DateTime
-  mode            String     @default("manual")
+  mode            String      @default("manual")
   status          StatusUjian @default(DRAFT)
-  isLatihan       Boolean    @default(false)
-  randomSoal      Boolean    @default(true)
-  randomJawaban   Boolean    @default(true)
-  fullscreen      Boolean    @default(true)
-  disableCopy     Boolean    @default(true)
-  disablePaste    Boolean    @default(true)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  isLatihan       Boolean     @default(false)
+  randomSoal      Boolean     @default(true)
+  randomJawaban   Boolean     @default(true)
+  fullscreen      Boolean     @default(true)
+  disableCopy     Boolean     @default(true)
+  disablePaste    Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
   deletedAt       DateTime?
 
-  mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id])
-  kelas         Kelas         @relation(fields: [kelasId], references: [id])
-  guru          Guru          @relation(fields: [guruId], references: [id])
-  tahunAjaran   TahunAjaran   @relation(fields: [tahunAjaranId], references: [id])
-  semester      Semester      @relation(fields: [semesterId], references: [id])
+  mataPelajaran MataPelajaran  @relation(fields: [mataPelajaranId], references: [id])
+  kelas         Kelas          @relation(fields: [kelasId], references: [id])
+  guru          Guru           @relation(fields: [guruId], references: [id])
+  tahunAjaran   TahunAjaran    @relation(fields: [tahunAjaranId], references: [id])
+  semester      Semester       @relation(fields: [semesterId], references: [id])
   ujianSoal     UjianSoal[]
   jawabanUjian  JawabanUjian[]
   nilai         Nilai[]
@@ -311,21 +314,21 @@ model UjianSoal {
 }
 
 model JawabanUjian {
-  id        String    @id @default(uuid()) @db.Uuid
-  ujianId   String    @db.Uuid
-  siswaId   String    @db.Uuid
-  soalId    String    @db.Uuid
-  jawaban   String?   @db.Text
-  esaiJawaban String? @db.Text
-  isCorrect Boolean?
-  poin      Int?
-  raguRagu  Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          String   @id @default(uuid()) @db.Uuid
+  ujianId     String   @db.Uuid
+  siswaId     String   @db.Uuid
+  soalId      String   @db.Uuid
+  jawaban     String?  @db.Text
+  esaiJawaban String?  @db.Text
+  isCorrect   Boolean?
+  poin        Int?
+  raguRagu    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  ujian Ujian @relation(fields: [ujianId], references: [id], onDelete: Cascade)
-  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
-  soal  Soal  @relation(fields: [soalId], references: [id], onDelete: Cascade)
+  ujian          Ujian           @relation(fields: [ujianId], references: [id], onDelete: Cascade)
+  siswa          Siswa           @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  soal           Soal            @relation(fields: [soalId], references: [id], onDelete: Cascade)
   penilaianEssay PenilaianEssay?
 
   @@unique([ujianId, siswaId, soalId])
@@ -348,17 +351,17 @@ model JawabanLatihan {
 }
 
 model Nilai {
-  id          String   @id @default(uuid()) @db.Uuid
-  siswaId     String   @db.Uuid
-  ujianId     String?  @db.Uuid
-  mataPelajaranId String @db.Uuid
-  semesterId  String   @db.Uuid
-  nilai       Float
-  jenis       String   @default("UJIAN")
-  keterangan  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  id              String    @id @default(uuid()) @db.Uuid
+  siswaId         String    @db.Uuid
+  ujianId         String?   @db.Uuid
+  mataPelajaranId String    @db.Uuid
+  semesterId      String    @db.Uuid
+  nilai           Float
+  jenis           String    @default("UJIAN")
+  keterangan      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
 
   siswa         Siswa         @relation(fields: [siswaId], references: [id], onDelete: Cascade)
   ujian         Ujian?        @relation(fields: [ujianId], references: [id])
@@ -369,15 +372,15 @@ model Nilai {
 }
 
 model PenilaianEssay {
-  id        String   @id @default(uuid()) @db.Uuid
-  jawabanUjianId String @unique @db.Uuid
-  guruId    String   @db.Uuid
-  nilai     Int
-  komentar  String?  @db.Text
-  catatan   String?  @db.Text
-  rubrik    Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(uuid()) @db.Uuid
+  jawabanUjianId String   @unique @db.Uuid
+  guruId         String   @db.Uuid
+  nilai          Int
+  komentar       String?  @db.Text
+  catatan        String?  @db.Text
+  rubrik         Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   jawabanUjian JawabanUjian @relation(fields: [jawabanUjianId], references: [id], onDelete: Cascade)
   guru         Guru         @relation(fields: [guruId], references: [id])
@@ -386,14 +389,14 @@ model PenilaianEssay {
 }
 
 model JadwalPelajaran {
-  id              String   @id @default(uuid()) @db.Uuid
-  kelasId         String   @db.Uuid
-  mataPelajaranId String   @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
+  kelasId         String    @db.Uuid
+  mataPelajaranId String    @db.Uuid
   hari            String
   jamMulai        String
   jamSelesai      String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
   kelas         Kelas         @relation(fields: [kelasId], references: [id], onDelete: Cascade)
@@ -403,16 +406,16 @@ model JadwalPelajaran {
 }
 
 model Pengumuman {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String    @id @default(uuid()) @db.Uuid
   judul     String
-  isi       String   @db.Text
+  isi       String    @db.Text
   gambar    String?
   lampiran  String?
-  tipe      String   @default("UMUM")
-  userId    String   @db.Uuid
-  kelasId   String?  @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  tipe      String    @default("UMUM")
+  userId    String    @db.Uuid
+  kelasId   String?   @db.Uuid
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   user  User   @relation(fields: [userId], references: [id])
@@ -434,6 +437,44 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+enum StatusAbsensi {
+  HADIR
+  TIDAK_HADIR
+  IZIN
+  SAKIT
+  ALPA
+}
+
+model Absensi {
+  id              String   @id @default(uuid()) @db.Uuid
+  kelasId         String   @db.Uuid
+  mataPelajaranId String   @db.Uuid
+  tanggal         DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  kelas         Kelas          @relation(fields: [kelasId], references: [id])
+  mataPelajaran MataPelajaran  @relation(fields: [mataPelajaranId], references: [id])
+  siswa         AbsensiSiswa[]
+
+  @@map("absensi")
+}
+
+model AbsensiSiswa {
+  id         String        @id @default(uuid()) @db.Uuid
+  absensiId  String        @db.Uuid
+  siswaId    String        @db.Uuid
+  status     StatusAbsensi @default(HADIR)
+  keterangan String?
+  createdAt  DateTime      @default(now())
+
+  absensi Absensi @relation(fields: [absensiId], references: [id], onDelete: Cascade)
+  siswa   Siswa   @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@unique([absensiId, siswaId])
+  @@map("absensi_siswa")
 }
 
 model AuditLog {
