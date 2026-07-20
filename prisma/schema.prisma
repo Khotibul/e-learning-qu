@@ -114,6 +114,7 @@ model Guru {
   soal           Soal[]
   ujian          Ujian[]
   penilaianEssay PenilaianEssay[]
+  materis        Materi[]
 
   @@map("guru")
 }
@@ -181,6 +182,7 @@ model MataPelajaran {
   jadwalPelajaran JadwalPelajaran[]
   nilai           Nilai[]
   Absensi         Absensi[]
+  materis         Materi[]
 
   @@map("mata_pelajaran")
 }
@@ -475,6 +477,25 @@ model AbsensiSiswa {
 
   @@unique([absensiId, siswaId])
   @@map("absensi_siswa")
+}
+
+model Materi {
+  id              String   @id @default(uuid()) @db.Uuid
+  judul           String
+  deskripsi       String?
+  fileUrl         String
+  fileType        String?
+  fileSize        Int?
+  mataPelajaranId String   @db.Uuid
+  guruId          String   @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id])
+  guru          Guru          @relation(fields: [guruId], references: [id])
+
+  @@map("materi")
 }
 
 model SiteConfig {

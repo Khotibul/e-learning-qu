@@ -962,3 +962,57 @@ export async function updateGuruPassword(data: { passwordLama: string; passwordB
   })
   return { success: true }
 }
+
+// ─── MATERI ──────────────────────────────────────────────────
+
+export async function getGuruMateris() {
+  const guru = await getCurrentGuru()
+  const data = await prisma.materi.findMany({
+    where: { guruId: guru.id, deletedAt: null },
+    include: { mataPelajaran: { select: { id: true, nama: true, kelas: { select: { nama: true } } } } },
+    orderBy: { createdAt: "desc" },
+  })
+  return data
+}
+
+export async function getGuruMapelsWithMateri() {
+  const guru = await getCurrentGuru()
+  return prisma.mataPelajaran.findMany({
+    where: { guruId: guru.id, deletedAt: null },
+    select: { id: true, nama: true, kode: true, kelas: { select: { id: true, nama: true } } },
+    orderBy: { nama: "asc" },
+  })
+}
+
+export async function createMateri(data: {
+  judul: string
+  deskripsi?: string
+  fileUrl: string
+  fileType?: string
+  fileSize?: number
+  mataPelajaranId: string
+}) {
+  const guru = await getCurrentGuru()
+  const materi = await prisma.materi.create({
+    data: {
+      judul: data.judul,
+      deskripsi: data.deskripsi || null,
+      fileUrl: data.fileUrl,
+      fileType: data.fileType || null,
+      fileSize: data.fileSize || null,
+      mataPelajaranId: data.mataPelajaranId,
+      guruId: guru.id,
+    },
+  })
+  revalidatePath("/(dashboard)/guru/materi")
+  return materi
+}
+
+export async function deleteMateri(id: string) {
+  const guru = await getCurrentGuru()
+  await prisma.materi.updateMany({
+    where: { id, guruId: guru.id, deletedAt: null },
+    data: { deletedAt: new Date() },
+  })
+  revalidatePath("/(dashboard)/guru/materi")
+}

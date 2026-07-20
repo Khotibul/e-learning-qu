@@ -587,3 +587,44 @@ export async function updateSiswaPassword(data: { passwordLama: string; password
   })
   return { success: true }
 }
+
+// ─── MATERI ──────────────────────────────────────────────────
+
+export async function getSiswaMateris() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+
+  const siswa = await prisma.siswa.findUnique({
+    where: { userId: session.user.id },
+    select: { kelasId: true },
+  })
+  if (!siswa?.kelasId) return []
+
+  const mapels = await prisma.mataPelajaran.findMany({
+    where: { kelasId: siswa.kelasId, deletedAt: null },
+    select: { id: true, nama: true, kode: true },
+    orderBy: { nama: "asc" },
+  })
+
+  const mapelIds = mapels.map((m) => m.id)
+  const materis = await prisma.materi.findMany({
+    where: { mataPelajaranId: { in: mapelIds }, deletedAt: null },
+    include: {
+      mataPelajaran: { select: { id: true, nama: true } },
+      guru: { select: { nama: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  })
+
+  const grouped: Record<string, { mapel: { id: string; nama: string }; items: typeof materis }> = {}
+  for (const m of mapels) {
+    grouped[m.id] = { mapel: m, items: [] }
+  }
+  for (const mat of materis) {
+    if (grouped[mat.mataPelajaranId]) {
+      grouped[mat.mataPelajaranId].items.push(mat)
+    }
+  }
+
+  return Object.values(grouped).filter((g) => g.items.length > 0)
+}
