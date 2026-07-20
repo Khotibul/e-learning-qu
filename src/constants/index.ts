@@ -61,6 +61,7 @@ export const NAV_ITEMS = {
     { label: "Dashboard", href: "/siswa", icon: "LayoutDashboard" },
     { label: "Ujian", href: "/siswa/ujian", icon: "ClipboardList" },
     { label: "Latihan", href: "/siswa/latihan", icon: "FileText" },
+    { label: "Absensi", href: "/siswa/absensi", icon: "ClipboardCheck" },
     { label: "Nilai", href: "/siswa/nilai", icon: "Award" },
     { label: "Ranking", href: "/siswa/ranking", icon: "Trophy" },
   ],
