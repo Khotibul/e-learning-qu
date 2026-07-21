@@ -160,6 +160,7 @@ export async function createMurid(data: {
   alamat?: string
   noTelp?: string
   kelasId?: string
+  jabatan?: string
   email: string
   password?: string
 }) {
@@ -178,6 +179,7 @@ export async function createMurid(data: {
         alamat: data.alamat || null,
         noTelp: data.noTelp || null,
         kelasId: data.kelasId || null,
+        jabatan: data.jabatan || null,
         userId: user.id,
       },
       include: { user: true },
@@ -189,7 +191,7 @@ export async function createMurid(data: {
 
 export async function updateMurid(
   id: string,
-  data: { nama?: string; nis?: string; nisn?: string; alamat?: string; noTelp?: string; kelasId?: string }
+  data: { nama?: string; nis?: string; nisn?: string; alamat?: string; noTelp?: string; kelasId?: string; jabatan?: string }
 ) {
   const siswa = await prisma.$transaction(async (tx) => {
     const updated = await tx.siswa.update({ where: { id }, data, include: { user: true } })

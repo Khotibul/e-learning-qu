@@ -128,16 +128,19 @@ model Siswa {
   alamat    String?
   noTelp    String?
   kelasId   String?   @db.Uuid
+  jabatan   String?   @db.VarChar(20)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kelas          Kelas?           @relation(fields: [kelasId], references: [id])
-  jawabanUjian   JawabanUjian[]
-  jawabanLatihan JawabanLatihan[]
-  nilai          Nilai[]
-  AbsensiSiswa   AbsensiSiswa[]
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kelas            Kelas?            @relation(fields: [kelasId], references: [id])
+  jawabanUjian     JawabanUjian[]
+  jawabanLatihan   JawabanLatihan[]
+  nilai            Nilai[]
+  AbsensiSiswa     AbsensiSiswa[]
+  jadwalPiket      JadwalPiket[]
+  pembayaranIuran  PembayaranIuran[]
 
   @@map("siswa")
 }
@@ -158,6 +161,8 @@ model Kelas {
   jadwalPelajaran JadwalPelajaran[]
   pengumuman      Pengumuman[]
   Absensi         Absensi[]
+  jadwalPiket     JadwalPiket[]
+  iuran           Iuran[]
 
   @@map("kelas")
 }
@@ -405,6 +410,55 @@ model JadwalPelajaran {
   mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id], onDelete: Cascade)
 
   @@map("jadwal_pelajaran")
+}
+
+model JadwalPiket {
+  id        String   @id @default(uuid()) @db.Uuid
+  kelasId   String   @db.Uuid
+  siswaId   String   @db.Uuid
+  hari      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kelas Kelas @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@unique([kelasId, siswaId, hari])
+  @@map("jadwal_piket")
+}
+
+model Iuran {
+  id           String    @id @default(uuid()) @db.Uuid
+  kelasId      String    @db.Uuid
+  nama         String
+  nominal      Int
+  tenggat      DateTime?
+  deskripsi    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  kelas      Kelas             @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+  pembayaran PembayaranIuran[]
+
+  @@map("iuran")
+}
+
+model PembayaranIuran {
+  id          String   @id @default(uuid()) @db.Uuid
+  iuranId     String   @db.Uuid
+  siswaId     String   @db.Uuid
+  jumlah      Int
+  status      String   @default("LUNAS")
+  tanggalBayar DateTime @default(now())
+  keterangan  String?
+  createdAt   DateTime @default(now())
+
+  iuran Iuran @relation(fields: [iuranId], references: [id], onDelete: Cascade)
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@unique([iuranId, siswaId])
+  @@map("pembayaran_iuran")
 }
 
 model Pengumuman {

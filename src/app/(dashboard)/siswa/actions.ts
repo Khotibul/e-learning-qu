@@ -628,3 +628,125 @@ export async function getSiswaMateris() {
 
   return Object.values(grouped).filter((g) => g.items.length > 0)
 }
+
+// ─── STRUKTUR KELAS ──────────────────────────────────────────
+
+export async function getStrukturKelas() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+
+  const siswa = await prisma.siswa.findUnique({
+    where: { userId: session.user.id },
+    select: { kelasId: true },
+  })
+  if (!siswa?.kelasId) return null
+
+  const kelas = await prisma.kelas.findUnique({
+    where: { id: siswa.kelasId },
+    include: {
+      guru: { select: { nama: true } },
+      siswas: {
+        where: { deletedAt: null, jabatan: { not: null } },
+        select: { id: true, nama: true, jabatan: true },
+        orderBy: { nama: "asc" },
+      },
+    },
+  })
+  return kelas
+}
+
+// ─── JADWAL PIKET ────────────────────────────────────────────
+
+export async function getJadwalPiketSiswa() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+
+  const siswa = await prisma.siswa.findUnique({
+    where: { userId: session.user.id },
+    select: { kelasId: true },
+  })
+  if (!siswa?.kelasId) return []
+
+  return prisma.jadwalPiket.findMany({
+    where: { kelasId: siswa.kelasId },
+    include: { siswa: { select: { id: true, nama: true } } },
+    orderBy: [{ hari: "asc" }, { siswa: { nama: "asc" } }],
+  })
+}
+
+// ─── JADWAL PELAJARAN ────────────────────────────────────────
+
+export async function getJadwalPelajaranSiswa() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+
+  const siswa = await prisma.siswa.findUnique({
+    where: { userId: session.user.id },
+    select: { kelasId: true },
+  })
+  if (!siswa?.kelasId) return []
+
+  return prisma.jadwalPelajaran.findMany({
+    where: { kelasId: siswa.kelasId, deletedAt: null },
+    include: { mataPelajaran: { select: { nama: true, guru: { select: { nama: true } } } } },
+    orderBy: [{ hari: "asc" }, { jamMulai: "asc" }],
+  })
+}
+
+// ─── IURAN ────────────────────────────────────────────────────
+
+export async function getIuranSiswa() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+
+  const siswa = await prisma.siswa.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true, kelasId: true },
+  })
+  if (!siswa?.kelasId) return []
+
+  const iuran = await prisma.iuran.findMany({
+    where: { kelasId: siswa.kelasId, deletedAt: null },
+    include: {
+      pembayaran: {
+        where: { siswaId: siswa.id },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  })
+
+  return iuran.map((i) => ({
+    id: i.id,
+    nama: i.nama,
+    nominal: i.nominal,
+    tenggat: i.tenggat,
+    deskripsi: i.deskripsi,
+    status: i.pembayaran.length > 0 ? i.pembayaran[0].status : "BELUM",
+    pembayaranId: i.pembayaran.length > 0 ? i.pembayaran[0].id : null,
+  }))
+}
+
+export async function bayarIuran(iuranId: string) {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+
+  const siswa = await prisma.siswa.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true, kelasId: true },
+  })
+  if (!siswa) throw new Error("Siswa tidak ditemukan")
+
+  const iuran = await prisma.iuran.findUnique({
+    where: { id: iuranId },
+    select: { kelasId: true, nominal: true },
+  })
+  if (!iuran || iuran.kelasId !== siswa.kelasId) throw new Error("Iuran tidak ditemukan")
+
+  await prisma.pembayaranIuran.upsert({
+    where: { iuranId_siswaId: { iuranId, siswaId: siswa.id } },
+    update: { jumlah: iuran.nominal, status: "LUNAS", tanggalBayar: new Date() },
+    create: { iuranId, siswaId: siswa.id, jumlah: iuran.nominal, status: "LUNAS" },
+  })
+  revalidatePath("/(dashboard)/siswa/iuran")
+  return { success: true }
+}

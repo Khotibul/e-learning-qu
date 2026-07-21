@@ -67,6 +67,7 @@ interface Murid {
   alamat: string | null
   noTelp: string | null
   kelasId: string | null
+  jabatan: string | null
   deletedAt: Date | null
   user: { email: string; isActive: boolean }
   kelas: { nama: string } | null
@@ -110,7 +111,7 @@ export function MuridManagement(props: Props) {
   })
   const [editing, setEditing] = useState<Murid | null>(null)
   const [formData, setFormData] = useState({
-    nama: "", nis: "", nisn: "", alamat: "", noTelp: "", email: "", kelasId: "", password: "",
+    nama: "", nis: "", nisn: "", alamat: "", noTelp: "", email: "", kelasId: "", jabatan: "", password: "",
   })
   const [submitting, setSubmitting] = useState(false)
 
@@ -154,6 +155,15 @@ export function MuridManagement(props: Props) {
       header: "Kelas",
       cell: ({ row }) => row.original.kelas?.nama || "-",
     },
+    {
+      header: "Jabatan",
+      cell: ({ row }) => {
+        const j = row.original.jabatan
+        if (!j) return "-"
+        const labels: Record<string, string> = { KETUA: "Ketua", WAKIL: "Wakil Ketua", BENDAHARA: "Bendahara", SEKRETARIS: "Sekretaris" }
+        return <Badge variant="secondary">{labels[j] || j}</Badge>
+      },
+    },
     { accessorKey: "noTelp", header: "No Telp", cell: ({ row }) => row.original.noTelp || "-" },
     {
       header: "Aksi",
@@ -173,7 +183,7 @@ export function MuridManagement(props: Props) {
               setFormData({
                 nama: m.nama, nis: m.nis || "", nisn: m.nisn || "",
                 alamat: m.alamat || "", noTelp: m.noTelp || "", email: m.user.email,
-                kelasId: m.kelasId || "", password: "",
+                kelasId: m.kelasId || "", password: "", jabatan: m.jabatan || "",
               })
               setDialogOpen(true)
             }} className="p-2 sm:px-3 sm:py-1">
@@ -205,7 +215,7 @@ export function MuridManagement(props: Props) {
         await updateMurid(editing.id, {
           nama: formData.nama, nis: formData.nis || undefined, nisn: formData.nisn || undefined,
           alamat: formData.alamat || undefined, noTelp: formData.noTelp || undefined,
-          kelasId: formData.kelasId || undefined,
+          kelasId: formData.kelasId || undefined, jabatan: formData.jabatan || undefined,
         })
         toast.success("Murid berhasil diperbarui")
       } else {
@@ -213,6 +223,7 @@ export function MuridManagement(props: Props) {
           nama: formData.nama, nis: formData.nis || undefined, nisn: formData.nisn || undefined,
           alamat: formData.alamat || undefined, noTelp: formData.noTelp || undefined,
           email: formData.email, kelasId: formData.kelasId || undefined,
+          jabatan: formData.jabatan || undefined,
           password: formData.password || undefined,
         })
         toast.success("Murid berhasil ditambahkan")
@@ -231,7 +242,7 @@ export function MuridManagement(props: Props) {
 
   function resetForm() {
     setEditing(null)
-    setFormData({ nama: "", nis: "", nisn: "", alamat: "", noTelp: "", email: "", kelasId: "", password: "" })
+    setFormData({ nama: "", nis: "", nisn: "", alamat: "", noTelp: "", email: "", kelasId: "", jabatan: "", password: "" })
   }
 
   return (
@@ -355,6 +366,19 @@ export function MuridManagement(props: Props) {
               <div className="space-y-2">
                 <label className="text-sm font-medium">No Telp</label>
                 <Input value={formData.noTelp} onChange={(e) => setFormData((f) => ({ ...f, noTelp: e.target.value }))} placeholder="0812xxxx" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Jabatan</label>
+                <Select value={formData.jabatan || "none"} onValueChange={(v) => setFormData((f) => ({ ...f, jabatan: v === "none" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Tidak ada" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Tidak ada</SelectItem>
+                    <SelectItem value="KETUA">Ketua Kelas</SelectItem>
+                    <SelectItem value="WAKIL">Wakil Ketua</SelectItem>
+                    <SelectItem value="BENDAHARA">Bendahara</SelectItem>
+                    <SelectItem value="SEKRETARIS">Sekretaris</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2 col-span-2">
                 <label className="text-sm font-medium">Alamat</label>
