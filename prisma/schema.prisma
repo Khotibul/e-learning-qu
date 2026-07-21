@@ -141,6 +141,7 @@ model Siswa {
   AbsensiSiswa     AbsensiSiswa[]
   jadwalPiket      JadwalPiket[]
   pembayaranIuran  PembayaranIuran[]
+  pembayaranDenda  PembayaranDenda[]
 
   @@map("siswa")
 }
@@ -163,6 +164,8 @@ model Kelas {
   Absensi         Absensi[]
   jadwalPiket     JadwalPiket[]
   iuran           Iuran[]
+  denda           Denda[]
+  pengeluaran     PengeluaranKelas[]
 
   @@map("kelas")
 }
@@ -459,6 +462,54 @@ model PembayaranIuran {
 
   @@unique([iuranId, siswaId])
   @@map("pembayaran_iuran")
+}
+
+model Denda {
+  id           String    @id @default(uuid()) @db.Uuid
+  kelasId      String    @db.Uuid
+  nama         String
+  nominal      Int
+  deskripsi    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  kelas      Kelas             @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+  pembayaran PembayaranDenda[]
+
+  @@map("denda")
+}
+
+model PembayaranDenda {
+  id           String   @id @default(uuid()) @db.Uuid
+  dendaId      String   @db.Uuid
+  siswaId      String   @db.Uuid
+  jumlah       Int
+  status       String   @default("LUNAS")
+  tanggalBayar DateTime @default(now())
+  keterangan   String?
+  createdAt    DateTime @default(now())
+
+  denda Denda @relation(fields: [dendaId], references: [id], onDelete: Cascade)
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@unique([dendaId, siswaId])
+  @@map("pembayaran_denda")
+}
+
+model PengeluaranKelas {
+  id          String   @id @default(uuid()) @db.Uuid
+  kelasId     String   @db.Uuid
+  jumlah      Int
+  keterangan  String
+  tanggal     DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  kelas Kelas @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+
+  @@map("pengeluaran_kelas")
 }
 
 model Pengumuman {

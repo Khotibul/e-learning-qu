@@ -750,3 +750,208 @@ export async function bayarIuran(iuranId: string) {
   revalidatePath("/(dashboard)/siswa/iuran")
   return { success: true }
 }
+
+// ─── BENDAHARA HELPER ─────────────────────────────────────────
+
+async function getCurrentBendahara() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+  const siswa = await prisma.siswa.findUnique({
+    where: { userId: session.user.id, jabatan: "BENDAHARA" },
+  })
+  if (!siswa) throw new Error("Hanya bendahara yang dapat mengakses fitur ini")
+  return siswa
+}
+
+// ─── BENDAHARA: IURAN ─────────────────────────────────────────
+
+export async function getBendaharaIuran() {
+  const siswa = await getCurrentBendahara()
+  if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  return prisma.iuran.findMany({
+    where: { kelasId: siswa.kelasId, deletedAt: null },
+    include: {
+      _count: { select: { pembayaran: true } },
+      pembayaran: {
+        include: { siswa: { select: { id: true, nama: true } } },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  })
+}
+
+export async function createBendaharaIuran(data: {
+  nama: string; nominal: number; tenggat?: string; deskripsi?: string
+}) {
+  const siswa = await getCurrentBendahara()
+  if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  await prisma.iuran.create({
+    data: {
+      kelasId: siswa.kelasId,
+      nama: data.nama,
+      nominal: data.nominal,
+      tenggat: data.tenggat ? new Date(data.tenggat) : null,
+      deskripsi: data.deskripsi || null,
+    },
+  })
+  revalidatePath("/(dashboard)/siswa/bendahara")
+  return { success: true }
+}
+
+export async function deleteBendaharaIuran(id: string) {
+  const siswa = await getCurrentBendahara()
+  const iuran = await prisma.iuran.findUnique({
+    where: { id },
+    select: { kelasId: true },
+  })
+  if (!iuran || iuran.kelasId !== siswa.kelasId) throw new Error("Akses ditolak")
+  await prisma.iuran.update({ where: { id }, data: { deletedAt: new Date() } })
+  revalidatePath("/(dashboard)/siswa/bendahara")
+  return { success: true }
+}
+
+export async function recordBendaharaPembayaranIuran(iuranId: string, siswaId: string, jumlah: number) {
+  const siswa = await getCurrentBendahara()
+  if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  const iuran = await prisma.iuran.findUnique({
+    where: { id: iuranId },
+    select: { kelasId: true },
+  })
+  if (!iuran || iuran.kelasId !== siswa.kelasId) throw new Error("Akses ditolak")
+  await prisma.pembayaranIuran.upsert({
+    where: { iuranId_siswaId: { iuranId, siswaId } },
+    update: { jumlah, status: "LUNAS", tanggalBayar: new Date() },
+    create: { iuranId, siswaId, jumlah, status: "LUNAS" },
+  })
+  revalidatePath("/(dashboard)/siswa/bendahara")
+  return { success: true }
+}
+
+// ─── BENDAHARA: DENDA ─────────────────────────────────────────
+
+export async function getBendaharaDenda() {
+  const siswa = await getCurrentBendahara()
+  if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  return prisma.denda.findMany({
+    where: { kelasId: siswa.kelasId, deletedAt: null },
+    include: {
+      _count: { select: { pembayaran: true } },
+      pembayaran: {
+        include: { siswa: { select: { id: true, nama: true } } },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  })
+}
+
+export async function createBendaharaDenda(data: {
+  nama: string; nominal: number; deskripsi?: string
+}) {
+  const siswa = await getCurrentBendahara()
+  if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  await prisma.denda.create({
+    data: {
+      kelasId: siswa.kelasId,
+      nama: data.nama,
+      nominal: data.nominal,
+      deskripsi: data.deskripsi || null,
+    },
+  })
+  revalidatePath("/(dashboard)/siswa/bendahara")
+  return { success: true }
+}
+
+export async function deleteBendaharaDenda(id: string) {
+  const siswa = await getCurrentBendahara()
+  const denda = await prisma.denda.findUnique({
+    where: { id },
+    select: { kelasId: true },
+  })
+  if (!denda || denda.kelasId !== siswa.kelasId) throw new Error("Akses ditolak")
+  await prisma.denda.update({ where: { id }, data: { deletedAt: new Date() } })
+  revalidatePath("/(dashboard)/siswa/bendahara")
+  return { success: true }
+}
+
+export async function recordBendaharaPembayaranDenda(dendaId: string, siswaId: string, jumlah: number) {
+  const siswa = await getCurrentBendahara()
+  if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  const denda = await prisma.denda.findUnique({
+    where: { id: dendaId },
+    select: { kelasId: true },
+  })
+  if (!denda || denda.kelasId !== siswa.kelasId) throw new Error("Akses ditolak")
+  await prisma.pembayaranDenda.upsert({
+    where: { dendaId_siswaId: { dendaId, siswaId } },
+    update: { jumlah, status: "LUNAS", tanggalBayar: new Date() },
+    create: { dendaId, siswaId, jumlah, status: "LUNAS" },
+  })
+  revalidatePath("/(dashboard)/siswa/bendahara")
+  return { success: true }
+}
+
+// ─── BENDAHARA: PENGELUARAN ───────────────────────────────────
+
+export async function getBendaharaPengeluaran() {
+  const siswa = await getCurrentBendahara()
+  if (!siswa.kelasId) return []
+  return prisma.pengeluaranKelas.findMany({
+    where: { kelasId: siswa.kelasId, deletedAt: null },
+    orderBy: { tanggal: "desc" },
+  })
+}
+
+export async function createBendaharaPengeluaran(data: {
+  jumlah: number; keterangan: string; tanggal?: string
+}) {
+  const siswa = await getCurrentBendahara()
+  if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  await prisma.pengeluaranKelas.create({
+    data: {
+      kelasId: siswa.kelasId,
+      jumlah: data.jumlah,
+      keterangan: data.keterangan,
+      tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
+    },
+  })
+  revalidatePath("/(dashboard)/siswa/bendahara")
+  return { success: true }
+}
+
+export async function deleteBendaharaPengeluaran(id: string) {
+  const siswa = await getCurrentBendahara()
+  const item = await prisma.pengeluaranKelas.findUnique({
+    where: { id },
+    select: { kelasId: true },
+  })
+  if (!item || item.kelasId !== siswa.kelasId) throw new Error("Akses ditolak")
+  await prisma.pengeluaranKelas.update({ where: { id }, data: { deletedAt: new Date() } })
+  revalidatePath("/(dashboard)/siswa/bendahara")
+  return { success: true }
+}
+
+// ─── BENDAHARA: SUMMARY ───────────────────────────────────────
+
+export async function getBendaharaSummary() {
+  const siswa = await getCurrentBendahara()
+  if (!siswa.kelasId) return null
+  const [totalIuran, totalDenda, totalPengeluaran] = await Promise.all([
+    prisma.pembayaranIuran.aggregate({
+      where: { iuran: { kelasId: siswa.kelasId, deletedAt: null } },
+      _sum: { jumlah: true },
+    }),
+    prisma.pembayaranDenda.aggregate({
+      where: { denda: { kelasId: siswa.kelasId, deletedAt: null } },
+      _sum: { jumlah: true },
+    }),
+    prisma.pengeluaranKelas.aggregate({
+      where: { kelasId: siswa.kelasId, deletedAt: null },
+      _sum: { jumlah: true },
+    }),
+  ])
+  const pemasukanIuran = totalIuran._sum.jumlah || 0
+  const pemasukanDenda = totalDenda._sum.jumlah || 0
+  const totalPemasukan = pemasukanIuran + pemasukanDenda
+  const totalKeluar = totalPengeluaran._sum.jumlah || 0
+  return { pemasukanIuran, pemasukanDenda, totalPemasukan, totalPengeluaran: totalKeluar, sisaKas: totalPemasukan - totalKeluar }
+}

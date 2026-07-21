@@ -1156,3 +1156,159 @@ export async function recordPembayaranIuran(iuranId: string, siswaId: string, ju
   revalidatePath("/(dashboard)/guru/wali-kelas")
   return { success: true }
 }
+
+// ─── DENDA ────────────────────────────────────────────────────
+
+export async function getDenda(kelasId: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  return prisma.denda.findMany({
+    where: { kelasId, deletedAt: null },
+    include: {
+      _count: { select: { pembayaran: true } },
+      pembayaran: {
+        include: { siswa: { select: { id: true, nama: true } } },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  })
+}
+
+export async function createDenda(data: {
+  kelasId: string; nama: string; nominal: number; deskripsi?: string
+}) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: data.kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  await prisma.denda.create({
+    data: {
+      kelasId: data.kelasId,
+      nama: data.nama,
+      nominal: data.nominal,
+      deskripsi: data.deskripsi || null,
+    },
+  })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
+
+export async function deleteDenda(id: string) {
+  const item = await prisma.denda.findUnique({
+    where: { id },
+    include: { kelas: { select: { guruId: true } } },
+  })
+  if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
+  await prisma.denda.update({ where: { id }, data: { deletedAt: new Date() } })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
+
+export async function recordPembayaranDenda(dendaId: string, siswaId: string, jumlah: number) {
+  const guru = await getCurrentGuru()
+  const denda = await prisma.denda.findUnique({
+    where: { id: dendaId },
+    include: { kelas: { select: { guruId: true } } },
+  })
+  if (!denda || denda.kelas.guruId !== guru.id) throw new Error("Akses ditolak")
+
+  await prisma.pembayaranDenda.upsert({
+    where: { dendaId_siswaId: { dendaId, siswaId } },
+    update: { jumlah, status: "LUNAS", tanggalBayar: new Date() },
+    create: { dendaId, siswaId, jumlah, status: "LUNAS" },
+  })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
+
+// ─── PENGELUARAN ──────────────────────────────────────────────
+
+export async function getPengeluaran(kelasId: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  return prisma.pengeluaranKelas.findMany({
+    where: { kelasId, deletedAt: null },
+    orderBy: { tanggal: "desc" },
+  })
+}
+
+export async function createPengeluaran(data: {
+  kelasId: string; jumlah: number; keterangan: string; tanggal?: string
+}) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: data.kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  await prisma.pengeluaranKelas.create({
+    data: {
+      kelasId: data.kelasId,
+      jumlah: data.jumlah,
+      keterangan: data.keterangan,
+      tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
+    },
+  })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
+
+export async function deletePengeluaran(id: string) {
+  const item = await prisma.pengeluaranKelas.findUnique({
+    where: { id },
+    include: { kelas: { select: { guruId: true } } },
+  })
+  if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
+  await prisma.pengeluaranKelas.update({ where: { id }, data: { deletedAt: new Date() } })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
+
+// ─── SUMMARY KAS ──────────────────────────────────────────────
+
+export async function getSummaryKas(kelasId: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  const [totalIuran, totalDenda, totalPengeluaran] = await Promise.all([
+    prisma.pembayaranIuran.aggregate({
+      where: { iuran: { kelasId, deletedAt: null } },
+      _sum: { jumlah: true },
+    }),
+    prisma.pembayaranDenda.aggregate({
+      where: { denda: { kelasId, deletedAt: null } },
+      _sum: { jumlah: true },
+    }),
+    prisma.pengeluaranKelas.aggregate({
+      where: { kelasId, deletedAt: null },
+      _sum: { jumlah: true },
+    }),
+  ])
+
+  const pemasukanIuran = totalIuran._sum.jumlah || 0
+  const pemasukanDenda = totalDenda._sum.jumlah || 0
+  const totalPemasukan = pemasukanIuran + pemasukanDenda
+  const totalKeluar = totalPengeluaran._sum.jumlah || 0
+  const sisaKas = totalPemasukan - totalKeluar
+
+  return {
+    pemasukanIuran,
+    pemasukanDenda,
+    totalPemasukan,
+    totalPengeluaran: totalKeluar,
+    sisaKas,
+  }
+}

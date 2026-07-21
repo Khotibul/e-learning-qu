@@ -16,11 +16,17 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, ClipboardList, Wallet, Trash2, Plus, Loader2, ShieldCheck } from "lucide-react"
+import {
+  Users, ClipboardList, Wallet, Trash2, Plus, Loader2, ShieldCheck,
+  Banknote, Receipt, TrendingUp, TrendingDown, PiggyBank,
+} from "lucide-react"
 import {
   getWaliKelasInfo, updateSiswaJabatan,
   getJadwalPiket, createJadwalPiket, deleteJadwalPiket,
   getIuran, createIuran, deleteIuran, recordPembayaranIuran,
+  getDenda, createDenda, deleteDenda, recordPembayaranDenda,
+  getPengeluaran, createPengeluaran, deletePengeluaran,
+  getSummaryKas,
 } from "../actions"
 
 const jabatanLabels: Record<string, string> = {
@@ -39,9 +45,13 @@ export default function WaliKelasPage() {
   const [selectedKelas, setSelectedKelas] = useState<any>(null)
   const [jadwalPiket, setJadwalPiket] = useState<any[]>([])
   const [iuranList, setIuranList] = useState<any[]>([])
+  const [dendaList, setDendaList] = useState<any[]>([])
+  const [pengeluaranList, setPengeluaranList] = useState<any[]>([])
+  const [summaryKas, setSummaryKas] = useState<any>(null)
   const [piketDialog, setPiketDialog] = useState(false)
   const [iuranDialog, setIuranDialog] = useState(false)
-  const [bayarDialog, setBayarDialog] = useState<{ iuranId: string; siswaId: string } | null>(null)
+  const [dendaDialog, setDendaDialog] = useState(false)
+  const [pengeluaranDialog, setPengeluaranDialog] = useState(false)
   const [saving, setSaving] = useState(false)
   const [piketSiswaId, setPiketSiswaId] = useState("")
   const [piketHari, setPiketHari] = useState("")
@@ -49,6 +59,12 @@ export default function WaliKelasPage() {
   const [iuranNominal, setIuranNominal] = useState("")
   const [iuranTenggat, setIuranTenggat] = useState("")
   const [iuranDeskripsi, setIuranDeskripsi] = useState("")
+  const [dendaNama, setDendaNama] = useState("")
+  const [dendaNominal, setDendaNominal] = useState("")
+  const [dendaDeskripsi, setDendaDeskripsi] = useState("")
+  const [pengeluaranJumlah, setPengeluaranJumlah] = useState("")
+  const [pengeluaranKeterangan, setPengeluaranKeterangan] = useState("")
+  const [pengeluaranTanggal, setPengeluaranTanggal] = useState("")
 
   const fetchData = async () => {
     try {
@@ -63,12 +79,18 @@ export default function WaliKelasPage() {
   const loadKelas = async (k: any) => {
     setSelectedKelas(k)
     try {
-      const [piket, iuran] = await Promise.all([
+      const [piket, iuran, denda, pengeluaran, summary] = await Promise.all([
         getJadwalPiket(k.id),
         getIuran(k.id),
+        getDenda(k.id),
+        getPengeluaran(k.id),
+        getSummaryKas(k.id),
       ])
       setJadwalPiket(piket as any[])
       setIuranList(iuran as any[])
+      setDendaList(denda as any[])
+      setPengeluaranList(pengeluaran as any[])
+      setSummaryKas(summary as any)
     } catch { toast.error("Gagal memuat detail kelas") }
   }
 
@@ -114,15 +136,59 @@ export default function WaliKelasPage() {
     catch { toast.error("Gagal hapus iuran") }
   }
 
-  const handleBayar = async (iuranId: string, siswaId: string) => {
+  const handleBayarIuran = async (iuranId: string, siswaId: string) => {
     try {
       const iuran = iuranList.find((i) => i.id === iuranId)
       await recordPembayaranIuran(iuranId, siswaId, iuran?.nominal || 0)
       toast.success("Pembayaran dicatat")
-      setBayarDialog(null)
       loadKelas(selectedKelas)
     } catch { toast.error("Gagal") }
   }
+
+  const handleAddDenda = async () => {
+    if (!dendaNama || !dendaNominal) { toast.error("Nama dan nominal harus diisi"); return }
+    setSaving(true)
+    try {
+      await createDenda({ kelasId: selectedKelas.id, nama: dendaNama, nominal: Number(dendaNominal), deskripsi: dendaDeskripsi || undefined })
+      toast.success("Denda ditambahkan")
+      setDendaDialog(false); setDendaNama(""); setDendaNominal(""); setDendaDeskripsi("")
+      loadKelas(selectedKelas)
+    } catch (e: any) { toast.error(e?.message || "Gagal") }
+    finally { setSaving(false) }
+  }
+
+  const handleDeleteDenda = async (id: string) => {
+    try { await deleteDenda(id); loadKelas(selectedKelas) }
+    catch { toast.error("Gagal hapus denda") }
+  }
+
+  const handleBayarDenda = async (dendaId: string, siswaId: string) => {
+    try {
+      const denda = dendaList.find((d) => d.id === dendaId)
+      await recordPembayaranDenda(dendaId, siswaId, denda?.nominal || 0)
+      toast.success("Pembayaran denda dicatat")
+      loadKelas(selectedKelas)
+    } catch { toast.error("Gagal") }
+  }
+
+  const handleAddPengeluaran = async () => {
+    if (!pengeluaranJumlah || !pengeluaranKeterangan) { toast.error("Jumlah dan keterangan harus diisi"); return }
+    setSaving(true)
+    try {
+      await createPengeluaran({ kelasId: selectedKelas.id, jumlah: Number(pengeluaranJumlah), keterangan: pengeluaranKeterangan, tanggal: pengeluaranTanggal || undefined })
+      toast.success("Pengeluaran ditambahkan")
+      setPengeluaranDialog(false); setPengeluaranJumlah(""); setPengeluaranKeterangan(""); setPengeluaranTanggal("")
+      loadKelas(selectedKelas)
+    } catch (e: any) { toast.error(e?.message || "Gagal") }
+    finally { setSaving(false) }
+  }
+
+  const handleDeletePengeluaran = async (id: string) => {
+    try { await deletePengeluaran(id); loadKelas(selectedKelas) }
+    catch { toast.error("Gagal hapus pengeluaran") }
+  }
+
+  const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
 
@@ -158,13 +224,43 @@ export default function WaliKelasPage() {
             <Badge variant="secondary">{selectedKelas._count?.siswas || selectedKelas.siswas?.length || 0} siswa</Badge>
           </div>
 
-          <Tabs defaultValue="struktur">
-            <TabsList>
+          <Tabs defaultValue="kas">
+            <TabsList className="flex-wrap">
+              <TabsTrigger value="kas"><PiggyBank className="h-4 w-4 mr-1" /> Kas</TabsTrigger>
               <TabsTrigger value="struktur"><Users className="h-4 w-4 mr-1" /> Struktur</TabsTrigger>
-              <TabsTrigger value="piket"><ClipboardList className="h-4 w-4 mr-1" /> Jadwal Piket</TabsTrigger>
+              <TabsTrigger value="piket"><ClipboardList className="h-4 w-4 mr-1" /> Piket</TabsTrigger>
               <TabsTrigger value="iuran"><Wallet className="h-4 w-4 mr-1" /> Iuran</TabsTrigger>
+              <TabsTrigger value="denda"><Banknote className="h-4 w-4 mr-1" /> Denda</TabsTrigger>
+              <TabsTrigger value="pengeluaran"><Receipt className="h-4 w-4 mr-1" /> Pengeluaran</TabsTrigger>
             </TabsList>
 
+            {/* KAS */}
+            <TabsContent value="kas" className="space-y-4 mt-4">
+              {summaryKas && (
+                <>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <Card><CardContent className="p-5 text-center"><TrendingUp className="h-6 w-6 mx-auto text-emerald-500 mb-2" />
+                      <p className="text-xs text-muted-foreground">Pemasukan Iuran</p><p className="text-lg font-bold text-emerald-600">{formatRp(summaryKas.pemasukanIuran)}</p></CardContent></Card>
+                    <Card><CardContent className="p-5 text-center"><Banknote className="h-6 w-6 mx-auto text-amber-500 mb-2" />
+                      <p className="text-xs text-muted-foreground">Pemasukan Denda</p><p className="text-lg font-bold text-amber-600">{formatRp(summaryKas.pemasukanDenda)}</p></CardContent></Card>
+                    <Card><CardContent className="p-5 text-center"><TrendingDown className="h-6 w-6 mx-auto text-red-500 mb-2" />
+                      <p className="text-xs text-muted-foreground">Pengeluaran</p><p className="text-lg font-bold text-red-600">{formatRp(summaryKas.totalPengeluaran)}</p></CardContent></Card>
+                    <Card className="border-primary"><CardContent className="p-5 text-center"><PiggyBank className="h-6 w-6 mx-auto text-primary mb-2" />
+                      <p className="text-xs text-muted-foreground">Sisa Kas</p><p className={`text-lg font-bold ${summaryKas.sisaKas >= 0 ? "text-primary" : "text-destructive"}`}>{formatRp(summaryKas.sisaKas)}</p></CardContent></Card>
+                  </div>
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Detail Kas</CardTitle></CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div className="flex justify-between py-1 border-b"><span>Total Pemasukan</span><span className="font-semibold text-emerald-600">{formatRp(summaryKas.totalPemasukan)}</span></div>
+                      <div className="flex justify-between py-1 border-b"><span>Total Pengeluaran</span><span className="font-semibold text-red-600">{formatRp(summaryKas.totalPengeluaran)}</span></div>
+                      <div className="flex justify-between py-1 text-base"><span className="font-bold">Sisa Kas</span><span className={`font-bold ${summaryKas.sisaKas >= 0 ? "text-primary" : "text-destructive"}`}>{formatRp(summaryKas.sisaKas)}</span></div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </TabsContent>
+
+            {/* STRUKTUR */}
             <TabsContent value="struktur" className="space-y-4 mt-4">
               <Card>
                 <CardHeader><CardTitle className="text-lg">Struktur Kelas</CardTitle></CardHeader>
@@ -209,6 +305,7 @@ export default function WaliKelasPage() {
               </Card>
             </TabsContent>
 
+            {/* PIKET */}
             <TabsContent value="piket" className="space-y-4 mt-4">
               <div className="flex justify-end">
                 <Dialog open={piketDialog} onOpenChange={setPiketDialog}>
@@ -272,6 +369,7 @@ export default function WaliKelasPage() {
               </Card>
             </TabsContent>
 
+            {/* IURAN */}
             <TabsContent value="iuran" className="space-y-4 mt-4">
               <div className="flex justify-end">
                 <Dialog open={iuranDialog} onOpenChange={setIuranDialog}>
@@ -304,7 +402,7 @@ export default function WaliKelasPage() {
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div><CardTitle className="text-base">{iuran.nama}</CardTitle>
-                          <p className="text-xs text-muted-foreground">Rp {iuran.nominal.toLocaleString("id-ID")} per siswa
+                          <p className="text-xs text-muted-foreground">{formatRp(iuran.nominal)} per siswa
                             {iuran.tenggat && ` · Tenggat: ${new Date(iuran.tenggat).toLocaleDateString("id-ID")}`}
                           </p>
                         </div>
@@ -325,7 +423,7 @@ export default function WaliKelasPage() {
                         {selectedKelas.siswas?.filter((s: any) => !s.deletedAt && !iuran.pembayaran?.find((p: any) => p.siswaId === s.id)).map((s: any) => (
                           <div key={s.id} className="flex items-center justify-between text-xs rounded-lg px-3 py-1.5 border">
                             <span>{s.nama}</span>
-                            <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => handleBayar(iuran.id, s.id)}>
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => handleBayarIuran(iuran.id, s.id)}>
                               Catat Bayar
                             </Button>
                           </div>
@@ -335,6 +433,121 @@ export default function WaliKelasPage() {
                   </Card>
                 )
               })}
+            </TabsContent>
+
+            {/* DENDA */}
+            <TabsContent value="denda" className="space-y-4 mt-4">
+              <div className="flex justify-end">
+                <Dialog open={dendaDialog} onOpenChange={setDendaDialog}>
+                  <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Tambah Denda</Button></DialogTrigger>
+                  <DialogContent><DialogHeader><DialogTitle>Tambah Denda</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2"><Label>Nama Denda</Label>
+                        <Input value={dendaNama} onChange={(e) => setDendaNama(e.target.value)} placeholder="Contoh: Denda Terlambat" /></div>
+                      <div className="space-y-2"><Label>Nominal (Rp)</Label>
+                        <Input type="number" value={dendaNominal} onChange={(e) => setDendaNominal(e.target.value)} /></div>
+                      <div className="space-y-2"><Label>Deskripsi (opsional)</Label>
+                        <Textarea value={dendaDeskripsi} onChange={(e) => setDendaDeskripsi(e.target.value)} rows={2} /></div>
+                      <Button onClick={handleAddDenda} disabled={saving} className="w-full">
+                        {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Simpan
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              {dendaList.length === 0 ? (
+                <Card><CardContent className="p-8 text-center text-muted-foreground">Belum ada denda</CardContent></Card>
+              ) : dendaList.map((denda) => {
+                const totalSiswa = selectedKelas.siswas?.filter((s: any) => !s.deletedAt).length || 0
+                const sudahBayar = denda._count?.pembayaran || 0
+                return (
+                  <Card key={denda.id}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div><CardTitle className="text-base">{denda.nama}</CardTitle>
+                          <p className="text-xs text-muted-foreground">{formatRp(denda.nominal)} per siswa</p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteDenda(denda.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xs text-muted-foreground mb-2">{sudahBayar}/{totalSiswa} sudah bayar</p>
+                      <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {denda.pembayaran?.map((p: any) => (
+                          <div key={p.id} className="flex items-center justify-between text-xs rounded-lg bg-emerald-50 dark:bg-emerald-950/20 px-3 py-1.5">
+                            <span>{p.siswa.nama}</span>
+                            <Badge variant="secondary" className="text-[10px]">{p.status}</Badge>
+                          </div>
+                        ))}
+                        {selectedKelas.siswas?.filter((s: any) => !s.deletedAt && !denda.pembayaran?.find((p: any) => p.siswaId === s.id)).map((s: any) => (
+                          <div key={s.id} className="flex items-center justify-between text-xs rounded-lg px-3 py-1.5 border">
+                            <span>{s.nama}</span>
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => handleBayarDenda(denda.id, s.id)}>
+                              Catat Bayar
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </TabsContent>
+
+            {/* PENGELUARAN */}
+            <TabsContent value="pengeluaran" className="space-y-4 mt-4">
+              <div className="flex justify-end">
+                <Dialog open={pengeluaranDialog} onOpenChange={setPengeluaranDialog}>
+                  <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Tambah Pengeluaran</Button></DialogTrigger>
+                  <DialogContent><DialogHeader><DialogTitle>Tambah Pengeluaran</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2"><Label>Jumlah (Rp)</Label>
+                        <Input type="number" value={pengeluaranJumlah} onChange={(e) => setPengeluaranJumlah(e.target.value)} /></div>
+                      <div className="space-y-2"><Label>Keterangan</Label>
+                        <Input value={pengeluaranKeterangan} onChange={(e) => setPengeluaranKeterangan(e.target.value)} placeholder="Contoh: Beli alat kebersihan" /></div>
+                      <div className="space-y-2"><Label>Tanggal (opsional)</Label>
+                        <Input type="date" value={pengeluaranTanggal} onChange={(e) => setPengeluaranTanggal(e.target.value)} /></div>
+                      <Button onClick={handleAddPengeluaran} disabled={saving} className="w-full">
+                        {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Simpan
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              {pengeluaranList.length === 0 ? (
+                <Card><CardContent className="p-8 text-center text-muted-foreground">Belum ada pengeluaran</CardContent></Card>
+              ) : (
+                <Card>
+                  <CardContent className="p-0 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead><tr className="border-b bg-muted/50">
+                        <th className="text-left p-3 font-medium">Tanggal</th>
+                        <th className="text-left p-3 font-medium">Keterangan</th>
+                        <th className="text-right p-3 font-medium">Jumlah</th>
+                        <th className="text-right p-3 font-medium w-16">Aksi</th>
+                      </tr></thead>
+                      <tbody>
+                        {pengeluaranList.map((p) => (
+                          <tr key={p.id} className="border-t">
+                            <td className="p-3 text-xs">{new Date(p.tanggal).toLocaleDateString("id-ID")}</td>
+                            <td className="p-3">{p.keterangan}</td>
+                            <td className="p-3 text-right font-medium text-red-600">{formatRp(p.jumlah)}</td>
+                            <td className="p-3 text-right">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeletePengeluaran(p.id)}>
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
         </>
