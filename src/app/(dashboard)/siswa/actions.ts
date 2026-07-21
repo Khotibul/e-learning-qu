@@ -691,13 +691,20 @@ export async function getJadwalPelajaranSiswa() {
     where: { userId: session.user.id },
     select: { kelasId: true },
   })
-  if (!siswa?.kelasId) return []
+  if (!siswa?.kelasId) return null
 
-  return prisma.jadwalPelajaran.findMany({
+  const kelas = await prisma.kelas.findUnique({
+    where: { id: siswa.kelasId },
+    select: { nama: true },
+  })
+
+  const jadwalPelajaran = await prisma.jadwalPelajaran.findMany({
     where: { kelasId: siswa.kelasId, deletedAt: null },
     include: { mataPelajaran: { select: { nama: true } } },
     orderBy: [{ hari: "asc" }, { jamMulai: "asc" }],
   })
+
+  return { kelas, jadwalPelajaran }
 }
 
 // ─── IURAN ────────────────────────────────────────────────────
