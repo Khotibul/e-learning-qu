@@ -663,15 +663,22 @@ export async function getJadwalPiketSiswa() {
 
   const siswa = await prisma.siswa.findUnique({
     where: { userId: session.user.id },
-    select: { kelasId: true },
+    select: { id: true, kelasId: true },
   })
-  if (!siswa?.kelasId) return []
+  if (!siswa?.kelasId) return null
 
-  return prisma.jadwalPiket.findMany({
+  const kelas = await prisma.kelas.findUnique({
+    where: { id: siswa.kelasId },
+    select: { nama: true },
+  })
+
+  const jadwalPiket = await prisma.jadwalPiket.findMany({
     where: { kelasId: siswa.kelasId },
     include: { siswa: { select: { id: true, nama: true } } },
     orderBy: [{ hari: "asc" }, { siswa: { nama: "asc" } }],
   })
+
+  return { kelas, jadwalPiket }
 }
 
 // ─── JADWAL PELAJARAN ────────────────────────────────────────
@@ -954,4 +961,60 @@ export async function getBendaharaSummary() {
   const totalPemasukan = pemasukanIuran + pemasukanDenda
   const totalKeluar = totalPengeluaran._sum.jumlah || 0
   return { pemasukanIuran, pemasukanDenda, totalPemasukan, totalPengeluaran: totalKeluar, sisaKas: totalPemasukan - totalKeluar }
+}
+
+// ─── SEKRETARIS HELPER ─────────────────────────────────────────
+
+async function getCurrentSekretaris() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+  const siswa = await prisma.siswa.findUnique({
+    where: { userId: session.user.id, jabatan: "SEKRETARIS" },
+  })
+  if (!siswa) throw new Error("Hanya sekretaris yang dapat mengakses fitur ini")
+  return siswa
+}
+
+// ─── SEKRETARIS: JADWAL PIKET ──────────────────────────────────
+
+export async function getSekretarisPiket() {
+  const siswa = await getCurrentSekretaris()
+  if (!siswa.kelasId) return []
+  return prisma.jadwalPiket.findMany({
+    where: { kelasId: siswa.kelasId },
+    include: { siswa: { select: { id: true, nama: true } } },
+    orderBy: [{ hari: "asc" }, { siswa: { nama: "asc" } }],
+  })
+}
+
+export async function getSekretarisSiswa() {
+  const siswa = await getCurrentSekretaris()
+  if (!siswa.kelasId) return []
+  return prisma.siswa.findMany({
+    where: { kelasId: siswa.kelasId, deletedAt: null },
+    select: { id: true, nama: true },
+    orderBy: { nama: "asc" },
+  })
+}
+
+export async function createSekretarisPiket(siswaId: string, hari: string) {
+  const siswa = await getCurrentSekretaris()
+  if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  await prisma.jadwalPiket.create({
+    data: { kelasId: siswa.kelasId, siswaId, hari },
+  })
+  revalidatePath("/(dashboard)/siswa/sekretaris")
+  return { success: true }
+}
+
+export async function deleteSekretarisPiket(id: string) {
+  const siswa = await getCurrentSekretaris()
+  const item = await prisma.jadwalPiket.findUnique({
+    where: { id },
+    select: { kelasId: true },
+  })
+  if (!item || item.kelasId !== siswa.kelasId) throw new Error("Akses ditolak")
+  await prisma.jadwalPiket.delete({ where: { id } })
+  revalidatePath("/(dashboard)/siswa/sekretaris")
+  return { success: true }
 }

@@ -72,6 +72,7 @@ export const NAV_ITEMS = {
     { label: "Jadwal Pelajaran", href: "/siswa/jadwal-pelajaran", icon: "Calendar" },
     { label: "Iuran", href: "/siswa/iuran", icon: "Wallet" },
     { label: "Bendahara", href: "/siswa/bendahara", icon: "Wallet" },
+    { label: "Sekretaris", href: "/siswa/sekretaris", icon: "ClipboardList" },
     { label: "Nilai", href: "/siswa/nilai", icon: "Award" },
     { label: "Ranking", href: "/siswa/ranking", icon: "Trophy" },
     { label: "Pengaturan", href: "/siswa/pengaturan", icon: "Settings" },
