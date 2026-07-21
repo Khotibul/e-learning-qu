@@ -1018,3 +1018,49 @@ export async function deleteSekretarisPiket(id: string) {
   revalidatePath("/(dashboard)/siswa/sekretaris")
   return { success: true }
 }
+
+// ─── SEKRETARIS: JADWAL PELAJARAN ─────────────────────────────
+
+export async function getSekretarisJadwalPelajaran() {
+  const siswa = await getCurrentSekretaris()
+  if (!siswa.kelasId) return []
+  return prisma.jadwalPelajaran.findMany({
+    where: { kelasId: siswa.kelasId, deletedAt: null },
+    include: { mataPelajaran: { select: { id: true, nama: true, guru: { select: { nama: true } } } } },
+    orderBy: [{ hari: "asc" }, { jamMulai: "asc" }],
+  })
+}
+
+export async function getSekretarisMapel() {
+  const siswa = await getCurrentSekretaris()
+  if (!siswa.kelasId) return []
+  return prisma.mataPelajaran.findMany({
+    where: { kelasId: siswa.kelasId, deletedAt: null },
+    select: { id: true, kode: true, nama: true },
+    orderBy: { nama: "asc" },
+  })
+}
+
+export async function createSekretarisJadwalPelajaran(data: {
+  mataPelajaranId: string; hari: string; jamMulai: string; jamSelesai: string
+}) {
+  const siswa = await getCurrentSekretaris()
+  if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  await prisma.jadwalPelajaran.create({
+    data: { kelasId: siswa.kelasId, ...data },
+  })
+  revalidatePath("/(dashboard)/siswa/sekretaris")
+  return { success: true }
+}
+
+export async function deleteSekretarisJadwalPelajaran(id: string) {
+  const siswa = await getCurrentSekretaris()
+  const item = await prisma.jadwalPelajaran.findUnique({
+    where: { id },
+    select: { kelasId: true },
+  })
+  if (!item || item.kelasId !== siswa.kelasId) throw new Error("Akses ditolak")
+  await prisma.jadwalPelajaran.delete({ where: { id } })
+  revalidatePath("/(dashboard)/siswa/sekretaris")
+  return { success: true }
+}

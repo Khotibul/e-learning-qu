@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Users, ClipboardList, Wallet, Trash2, Plus, Loader2, ShieldCheck,
-  Banknote, Receipt, TrendingUp, TrendingDown, PiggyBank,
+  Banknote, Receipt, TrendingUp, TrendingDown, PiggyBank, Calendar,
 } from "lucide-react"
 import {
   getWaliKelasInfo, updateSiswaJabatan,
@@ -27,6 +27,7 @@ import {
   getDenda, createDenda, deleteDenda, recordPembayaranDenda,
   getPengeluaran, createPengeluaran, deletePengeluaran,
   getSummaryKas,
+  getJadwalPelajaranGuru, getMapelByKelas, createJadwalPelajaranGuru, deleteJadwalPelajaranGuru,
 } from "../actions"
 
 const jabatanLabels: Record<string, string> = {
@@ -65,6 +66,13 @@ export default function WaliKelasPage() {
   const [pengeluaranJumlah, setPengeluaranJumlah] = useState("")
   const [pengeluaranKeterangan, setPengeluaranKeterangan] = useState("")
   const [pengeluaranTanggal, setPengeluaranTanggal] = useState("")
+  const [jadwalPelajaranList, setJadwalPelajaranList] = useState<any[]>([])
+  const [mapelList, setMapelList] = useState<any[]>([])
+  const [jpDialog, setJpDialog] = useState(false)
+  const [jpMapelId, setJpMapelId] = useState("")
+  const [jpHari, setJpHari] = useState("")
+  const [jpJamMulai, setJpJamMulai] = useState("")
+  const [jpJamSelesai, setJpJamSelesai] = useState("")
 
   const fetchData = async () => {
     try {
@@ -79,18 +87,22 @@ export default function WaliKelasPage() {
   const loadKelas = async (k: any) => {
     setSelectedKelas(k)
     try {
-      const [piket, iuran, denda, pengeluaran, summary] = await Promise.all([
+      const [piket, iuran, denda, pengeluaran, summary, jp, mapel] = await Promise.all([
         getJadwalPiket(k.id),
         getIuran(k.id),
         getDenda(k.id),
         getPengeluaran(k.id),
         getSummaryKas(k.id),
+        getJadwalPelajaranGuru(k.id),
+        getMapelByKelas(k.id),
       ])
       setJadwalPiket(piket as any[])
       setIuranList(iuran as any[])
       setDendaList(denda as any[])
       setPengeluaranList(pengeluaran as any[])
       setSummaryKas(summary as any)
+      setJadwalPelajaranList(jp as any[])
+      setMapelList(mapel as any[])
     } catch { toast.error("Gagal memuat detail kelas") }
   }
 
@@ -188,6 +200,23 @@ export default function WaliKelasPage() {
     catch { toast.error("Gagal hapus pengeluaran") }
   }
 
+  const handleAddJadwalPelajaran = async () => {
+    if (!jpMapelId || !jpHari || !jpJamMulai || !jpJamSelesai) { toast.error("Semua field harus diisi"); return }
+    setSaving(true)
+    try {
+      await createJadwalPelajaranGuru({ kelasId: selectedKelas.id, mataPelajaranId: jpMapelId, hari: jpHari, jamMulai: jpJamMulai, jamSelesai: jpJamSelesai })
+      toast.success("Jadwal pelajaran ditambahkan")
+      setJpDialog(false); setJpMapelId(""); setJpHari(""); setJpJamMulai(""); setJpJamSelesai("")
+      loadKelas(selectedKelas)
+    } catch (e: any) { toast.error(e?.message || "Gagal") }
+    finally { setSaving(false) }
+  }
+
+  const handleDeleteJadwalPelajaran = async (id: string) => {
+    try { await deleteJadwalPelajaranGuru(id); loadKelas(selectedKelas) }
+    catch { toast.error("Gagal hapus jadwal pelajaran") }
+  }
+
   const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
@@ -232,6 +261,7 @@ export default function WaliKelasPage() {
               <TabsTrigger value="iuran"><Wallet className="h-4 w-4 mr-1" /> Iuran</TabsTrigger>
               <TabsTrigger value="denda"><Banknote className="h-4 w-4 mr-1" /> Denda</TabsTrigger>
               <TabsTrigger value="pengeluaran"><Receipt className="h-4 w-4 mr-1" /> Pengeluaran</TabsTrigger>
+              <TabsTrigger value="jadwal"><Calendar className="h-4 w-4 mr-1" /> Jadwal</TabsTrigger>
             </TabsList>
 
             {/* KAS */}
@@ -548,6 +578,68 @@ export default function WaliKelasPage() {
                   </CardContent>
                 </Card>
               )}
+            </TabsContent>
+
+            {/* JADWAL PELAJARAN */}
+            <TabsContent value="jadwal" className="space-y-4 mt-4">
+              <div className="flex justify-end">
+                <Dialog open={jpDialog} onOpenChange={setJpDialog}>
+                  <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Tambah Jadwal</Button></DialogTrigger>
+                  <DialogContent><DialogHeader><DialogTitle>Tambah Jadwal Pelajaran</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2"><Label>Mata Pelajaran</Label>
+                        <Select value={jpMapelId} onValueChange={setJpMapelId}>
+                          <SelectTrigger><SelectValue placeholder="Pilih mapel" /></SelectTrigger>
+                          <SelectContent>{mapelList.map((m) => <SelectItem key={m.id} value={m.id}>{m.nama}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2"><Label>Hari</Label>
+                        <Select value={jpHari} onValueChange={setJpHari}>
+                          <SelectTrigger><SelectValue placeholder="Pilih hari" /></SelectTrigger>
+                          <SelectContent>{hariList.map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2"><Label>Jam Mulai</Label><Input type="time" value={jpJamMulai} onChange={(e) => setJpJamMulai(e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Jam Selesai</Label><Input type="time" value={jpJamSelesai} onChange={(e) => setJpJamSelesai(e.target.value)} /></div>
+                      </div>
+                      <Button onClick={handleAddJadwalPelajaran} disabled={saving} className="w-full">
+                        {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Simpan
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                {hariList.map((hari) => {
+                  const items = jadwalPelajaranList.filter((j) => j.hari === hari)
+                  return (
+                    <Card key={hari} className={items.length === 0 ? "opacity-50" : ""}>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm text-center">{hari}</CardTitle></CardHeader>
+                      <CardContent>
+                        {items.length === 0 ? (
+                          <p className="text-xs text-center text-muted-foreground py-4">Tidak ada</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {items.map((j) => (
+                              <div key={j.id} className="rounded-lg border p-2 text-center relative group">
+                                <Button variant="ghost" size="icon" className="absolute -top-1.5 -right-1.5 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDeleteJadwalPelajaran(j.id)}>
+                                  <Trash2 className="h-3 w-3 text-destructive" />
+                                </Button>
+                                <p className="text-xs font-medium">{j.mataPelajaran?.nama}</p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  {j.jamMulai?.slice(0, 5)} - {j.jamSelesai?.slice(0, 5)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
             </TabsContent>
           </Tabs>
         </>

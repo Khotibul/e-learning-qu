@@ -1312,3 +1312,58 @@ export async function getSummaryKas(kelasId: string) {
     sisaKas,
   }
 }
+
+// ─── JADWAL PELAJARAN (WALI KELAS) ────────────────────────────
+
+export async function getJadwalPelajaranGuru(kelasId: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  return prisma.jadwalPelajaran.findMany({
+    where: { kelasId, deletedAt: null },
+    include: { mataPelajaran: { select: { id: true, nama: true, guru: { select: { nama: true } } } } },
+    orderBy: [{ hari: "asc" }, { jamMulai: "asc" }],
+  })
+}
+
+export async function getMapelByKelas(kelasId: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  return prisma.mataPelajaran.findMany({
+    where: { kelasId, deletedAt: null },
+    select: { id: true, kode: true, nama: true },
+    orderBy: { nama: "asc" },
+  })
+}
+
+export async function createJadwalPelajaranGuru(data: {
+  kelasId: string; mataPelajaranId: string; hari: string; jamMulai: string; jamSelesai: string
+}) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: data.kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  await prisma.jadwalPelajaran.create({ data })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
+
+export async function deleteJadwalPelajaranGuru(id: string) {
+  const item = await prisma.jadwalPelajaran.findUnique({
+    where: { id },
+    include: { kelas: { select: { guruId: true } } },
+  })
+  if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
+  await prisma.jadwalPelajaran.delete({ where: { id } })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
