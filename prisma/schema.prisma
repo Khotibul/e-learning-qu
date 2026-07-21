@@ -109,12 +109,12 @@ model Guru {
   deletedAt DateTime?
 
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mataPelajarans MataPelajaran[]
   kelas          Kelas[]
   soal           Soal[]
   ujian          Ujian[]
   penilaianEssay PenilaianEssay[]
   materis        Materi[]
+  pengajaran     Pengajaran[]
 
   @@map("guru")
 }
@@ -157,7 +157,6 @@ model Kelas {
 
   guru            Guru?             @relation(fields: [guruId], references: [id])
   siswas          Siswa[]
-  mataPelajarans  MataPelajaran[]
   ujians          Ujian[]
   jadwalPelajaran JadwalPelajaran[]
   pengumuman      Pengumuman[]
@@ -166,24 +165,21 @@ model Kelas {
   iuran           Iuran[]
   denda           Denda[]
   pengeluaran     PengeluaranKelas[]
+  pengajaran      Pengajaran[]
 
   @@map("kelas")
 }
 
 model MataPelajaran {
   id         String    @id @default(uuid()) @db.Uuid
-  kode       String    @unique
+  kode       String
   nama       String
   deskripsi  String?
-  guruId     String    @db.Uuid
-  kelasId    String    @db.Uuid
   semesterId String    @db.Uuid
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   deletedAt  DateTime?
 
-  guru            Guru              @relation(fields: [guruId], references: [id])
-  kelas           Kelas             @relation(fields: [kelasId], references: [id])
   semester        Semester          @relation(fields: [semesterId], references: [id])
   soals           Soal[]
   ujians          Ujian[]
@@ -191,8 +187,27 @@ model MataPelajaran {
   nilai           Nilai[]
   Absensi         Absensi[]
   materis         Materi[]
+  pengajaran      Pengajaran[]
 
+  @@unique([kode, semesterId])
   @@map("mata_pelajaran")
+}
+
+model Pengajaran {
+  id              String   @id @default(uuid()) @db.Uuid
+  mataPelajaranId String   @db.Uuid
+  guruId          String   @db.Uuid
+  kelasId         String   @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id], onDelete: Cascade)
+  guru          Guru          @relation(fields: [guruId], references: [id], onDelete: Cascade)
+  kelas         Kelas         @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+
+  @@unique([mataPelajaranId, guruId, kelasId])
+  @@map("pengajaran")
 }
 
 model TahunAjaran {

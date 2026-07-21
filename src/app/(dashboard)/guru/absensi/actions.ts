@@ -29,11 +29,12 @@ export async function getGuruKelasWithSiswa() {
 
 export async function getGuruMapel() {
   const guru = await getCurrentGuru()
-  return prisma.mataPelajaran.findMany({
-    where: { guruId: guru.id, deletedAt: null },
-    include: { kelas: { select: { nama: true } } },
-    orderBy: { nama: "asc" },
+  const pengajarans = await prisma.pengajaran.findMany({
+    where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
+    include: { mataPelajaran: { select: { id: true, nama: true, kode: true } }, kelas: { select: { id: true, nama: true } } },
+    orderBy: { mataPelajaran: { nama: "asc" } },
   })
+  return pengajarans.map((p) => ({ ...p.mataPelajaran, kelas: p.kelas }))
 }
 
 export async function getAbsensiList(kelasId: string, mataPelajaranId: string) {

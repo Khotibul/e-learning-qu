@@ -271,9 +271,15 @@ export async function getMapels(params: { search?: string; page?: number; limit?
       take: limit,
       orderBy: { createdAt: "desc" },
       include: {
-        guru: { select: { nama: true } },
-        kelas: { select: { nama: true } },
         semester: { select: { nama: true, tahunAjaran: { select: { nama: true } } } },
+        pengajaran: {
+          where: { deletedAt: null },
+          include: {
+            guru: { select: { nama: true } },
+            kelas: { select: { nama: true } },
+          },
+        },
+        _count: { select: { pengajaran: true } },
       },
     }),
     prisma.mataPelajaran.count({ where: where as any }),
@@ -286,11 +292,22 @@ export async function createMapel(data: {
   nama: string
   deskripsi?: string
   guruId: string
-  kelasId: string
+  kelasIds: string[]
   semesterId: string
 }) {
   const mapel = await prisma.mataPelajaran.create({
-    data: { ...data, deskripsi: data.deskripsi || null },
+    data: {
+      kode: data.kode,
+      nama: data.nama,
+      deskripsi: data.deskripsi || null,
+      semesterId: data.semesterId,
+      pengajaran: {
+        create: data.kelasIds.map((kelasId) => ({
+          guruId: data.guruId,
+          kelasId,
+        })),
+      },
+    },
   })
   revalidatePath("/(dashboard)/admin/mapel")
   return mapel
@@ -298,11 +315,25 @@ export async function createMapel(data: {
 
 export async function updateMapel(
   id: string,
-  data: { kode?: string; nama?: string; deskripsi?: string; guruId?: string; kelasId?: string; semesterId?: string }
+  data: { kode?: string; nama?: string; deskripsi?: string; semesterId?: string }
 ) {
   const mapel = await prisma.mataPelajaran.update({ where: { id }, data })
   revalidatePath("/(dashboard)/admin/mapel")
   return mapel
+}
+
+export async function addPengajaran(mataPelajaranId: string, guruId: string, kelasId: string) {
+  await prisma.pengajaran.upsert({
+    where: { mataPelajaranId_guruId_kelasId: { mataPelajaranId, guruId, kelasId } },
+    update: { deletedAt: null },
+    create: { mataPelajaranId, guruId, kelasId },
+  })
+  revalidatePath("/(dashboard)/admin/mapel")
+}
+
+export async function removePengajaran(id: string) {
+  await prisma.pengajaran.update({ where: { id }, data: { deletedAt: new Date() } })
+  revalidatePath("/(dashboard)/admin/mapel")
 }
 
 export async function deleteMapel(id: string) {
@@ -499,7 +530,7 @@ export async function getNilais(params: {
   if (mapelId) where.mataPelajaranId = mapelId
   if (semesterId) where.semesterId = semesterId
   if (kelasId && !mapelId) {
-    where.mataPelajaran = { kelasId }
+    where.siswa = { kelasId }
   }
   const [data, total] = await Promise.all([
     prisma.nilai.findMany({
@@ -583,7 +614,7 @@ export async function getTahunAjaranRefs() {
 export async function getMapelRefs() {
   return prisma.mataPelajaran.findMany({
     where: { deletedAt: null },
-    select: { id: true, nama: true, kode: true, kelas: { select: { nama: true } } },
+    select: { id: true, nama: true, kode: true },
     orderBy: { nama: "asc" },
   })
 }

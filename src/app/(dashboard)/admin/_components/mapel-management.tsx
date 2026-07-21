@@ -7,57 +7,40 @@ import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Badge } from "@/components/ui/badge"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
-  Search,
-  Plus,
-  Edit,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
+  Search, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Loader2, X,
 } from "lucide-react"
 import {
-  getMapels,
-  createMapel,
-  updateMapel,
-  deleteMapel,
-  getGuruRefs,
-  getKelasRefs,
-  getSemesterRefs,
+  getMapels, createMapel, updateMapel, deleteMapel,
+  addPengajaran, removePengajaran,
+  getGuruRefs, getKelasRefs, getSemesterRefs,
 } from "../actions"
+
+interface PengajaranItem {
+  id: string
+  guru: { nama: string }
+  kelas: { nama: string }
+}
 
 interface Mapel {
   id: string
   kode: string
   nama: string
   deskripsi: string | null
-  guruId: string
-  kelasId: string
   semesterId: string
-  deletedAt: Date | null
-  guru: { nama: string }
-  kelas: { nama: string }
+  pengajaran: PengajaranItem[]
+  _count: { pengajaran: number }
   semester: { nama: string; tahunAjaran: { nama: string } }
 }
 
@@ -77,7 +60,6 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export function MapelManagement(props: Props) {
   const router = useRouter()
-
   const [data, setData] = useState<Mapel[]>(props.initialData)
   const [total, setTotal] = useState(props.initialTotal)
   const [totalPages, setTotalPages] = useState(props.initialTotalPages)
@@ -87,16 +69,18 @@ export function MapelManagement(props: Props) {
   const [kelasRefs, setKelasRefs] = useState<{ id: string; nama: string; tingkat: number }[]>([])
   const [semesterRefs, setSemesterRefs] = useState<{ id: string; nama: string; tahunAjaran: { nama: string } }[]>([])
   const [loading, setLoading] = useState(false)
-
   const debouncedSearch = useDebounce(search, 500)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [editing, setEditing] = useState<Mapel | null>(null)
   const [formData, setFormData] = useState({
-    kode: "", nama: "", deskripsi: "", guruId: "", kelasId: "", semesterId: "",
+    kode: "", nama: "", deskripsi: "", guruId: "", kelasIds: [] as string[], semesterId: "",
   })
   const [submitting, setSubmitting] = useState(false)
+  const [addPengajaranDialog, setAddPengajaranDialog] = useState<Mapel | null>(null)
+  const [addGuruId, setAddGuruId] = useState("")
+  const [addKelasId, setAddKelasId] = useState("")
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -122,23 +106,32 @@ export function MapelManagement(props: Props) {
     router.replace(`/admin/mapel?${p.toString()}`, { scroll: false })
   }, [debouncedSearch, page, router])
 
+  function toggleKelas(kelasId: string) {
+    setFormData((f) => ({
+      ...f,
+      kelasIds: f.kelasIds.includes(kelasId)
+        ? f.kelasIds.filter((id) => id !== kelasId)
+        : [...f.kelasIds, kelasId],
+    }))
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!formData.kode || !formData.nama || !formData.guruId || !formData.kelasId || !formData.semesterId) {
-      toast.error("Semua field wajib diisi"); return
+    if (!formData.kode || !formData.nama || !formData.guruId || formData.kelasIds.length === 0 || !formData.semesterId) {
+      toast.error("Kode, nama, guru, dan minimal 1 kelas wajib diisi"); return
     }
     setSubmitting(true)
     try {
       if (editing) {
         await updateMapel(editing.id, {
           kode: formData.kode, nama: formData.nama, deskripsi: formData.deskripsi || undefined,
-          guruId: formData.guruId, kelasId: formData.kelasId, semesterId: formData.semesterId,
+          semesterId: formData.semesterId,
         })
         toast.success("Mapel berhasil diperbarui")
       } else {
         await createMapel({
           kode: formData.kode, nama: formData.nama, deskripsi: formData.deskripsi || undefined,
-          guruId: formData.guruId, kelasId: formData.kelasId, semesterId: formData.semesterId,
+          guruId: formData.guruId, kelasIds: formData.kelasIds, semesterId: formData.semesterId,
         })
         toast.success("Mapel berhasil ditambahkan")
       }
@@ -152,9 +145,34 @@ export function MapelManagement(props: Props) {
     catch { toast.error("Terjadi kesalahan") }
   }
 
+  async function handleAddPengajaran() {
+    if (!addPengajaranDialog || !addGuruId || !addKelasId) { toast.error("Guru dan kelas harus dipilih"); return }
+    try {
+      await addPengajaran(addPengajaranDialog.id, addGuruId, addKelasId)
+      toast.success("Pengajaran ditambahkan")
+      setAddPengajaranDialog(null); setAddGuruId(""); setAddKelasId(""); fetchData()
+    } catch { toast.error("Gagal") }
+  }
+
+  async function handleRemovePengajaran(id: string) {
+    try { await removePengajaran(id); fetchData() }
+    catch { toast.error("Gagal") }
+  }
+
   function resetForm() {
     setEditing(null)
-    setFormData({ kode: "", nama: "", deskripsi: "", guruId: "", kelasId: "", semesterId: "" })
+    setFormData({ kode: "", nama: "", deskripsi: "", guruId: "", kelasIds: [], semesterId: "" })
+  }
+
+  function openEdit(item: Mapel) {
+    if (item.pengajaran.length === 0) return
+    setEditing(item)
+    setFormData({
+      kode: item.kode, nama: item.nama, deskripsi: item.deskripsi || "",
+      guruId: item.pengajaran[0].guru.nama, kelasIds: [],
+      semesterId: item.semesterId,
+    })
+    setDialogOpen(true)
   }
 
   return (
@@ -166,7 +184,7 @@ export function MapelManagement(props: Props) {
         </Button>
       </div>
 
-      <div className="w-full sm:max-w-sm">
+      <div className="relative w-full sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Cari mapel..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9" />
       </div>
@@ -199,20 +217,30 @@ export function MapelManagement(props: Props) {
                   <TableCell>{(page - 1) * 10 + idx + 1}</TableCell>
                   <TableCell className="font-mono text-xs">{item.kode}</TableCell>
                   <TableCell className="font-medium">{item.nama}</TableCell>
-                  <TableCell>{item.guru.nama}</TableCell>
-                  <TableCell>{item.kelas.nama}</TableCell>
-                  <TableCell>{item.semester.nama} ({item.semester.tahunAjaran.nama})</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      {[...new Set(item.pengajaran.map((p) => p.guru.nama))].map((g) => (
+                        <span key={g} className="text-sm">{g}</span>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {item.pengajaran.map((p) => (
+                        <Badge key={p.id} variant="secondary" className="text-[10px] whitespace-nowrap">
+                          {p.kelas.nama}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{item.semester.nama} ({item.semester.tahunAjaran.nama})</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => {
-                        setEditing(item)
-                        setFormData({
-                          kode: item.kode, nama: item.nama, deskripsi: item.deskripsi || "",
-                          guruId: item.guruId, kelasId: item.kelasId, semesterId: item.semesterId,
-                        })
-                        setDialogOpen(true)
-                      }} className="p-2 sm:px-3 sm:py-1">
+                      <Button variant="outline" size="sm" onClick={() => openEdit(item)} className="p-2 sm:px-3 sm:py-1">
                         <Edit className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span>
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setAddPengajaranDialog(item)} className="p-2 sm:px-3 sm:py-1">
+                        <Plus className="h-4 w-4" /><span className="hidden sm:inline ml-1">Kelas</span>
                       </Button>
                       <Button variant="destructive" size="sm" onClick={() => setDeleteId(item.id)} className="p-2 sm:px-3 sm:py-1">
                         <Trash2 className="h-4 w-4" /><span className="hidden sm:inline ml-1">Hapus</span>
@@ -264,15 +292,6 @@ export function MapelManagement(props: Props) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Kelas *</label>
-                <Select value={formData.kelasId || "none"} onValueChange={(v) => setFormData((f) => ({ ...f, kelasId: v === "none" ? "" : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Pilih Kelas" /></SelectTrigger>
-                  <SelectContent>
-                    {kelasRefs.map((k) => <SelectItem key={k.id} value={k.id}>{k.nama}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
                 <label className="text-sm font-medium">Semester *</label>
                 <Select value={formData.semesterId || "none"} onValueChange={(v) => setFormData((f) => ({ ...f, semesterId: v === "none" ? "" : v }))}>
                   <SelectTrigger><SelectValue placeholder="Pilih Semester" /></SelectTrigger>
@@ -284,6 +303,17 @@ export function MapelManagement(props: Props) {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Deskripsi</label>
                 <Input value={formData.deskripsi} onChange={(e) => setFormData((f) => ({ ...f, deskripsi: e.target.value }))} placeholder="Deskripsi" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Kelas yang Diajar *</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto rounded-xl border p-3">
+                {kelasRefs.map((k) => (
+                  <label key={k.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-accent rounded-lg p-1.5">
+                    <Checkbox checked={formData.kelasIds.includes(k.id)} onCheckedChange={() => toggleKelas(k.id)} />
+                    {k.nama}
+                  </label>
+                ))}
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-2">
@@ -307,7 +337,43 @@ export function MapelManagement(props: Props) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!addPengajaranDialog} onOpenChange={(o) => { if (!o) { setAddPengajaranDialog(null); setAddGuruId(""); setAddKelasId("") } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Tambah Pengajaran</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {(addPengajaranDialog?.pengajaran?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {addPengajaranDialog!.pengajaran.map((p) => (
+                  <Badge key={p.id} variant="secondary" className="flex items-center gap-1 pr-1 text-xs">
+                    {p.guru.nama} - {p.kelas.nama}
+                    <button onClick={() => handleRemovePengajaran(p.id)} className="ml-0.5 hover:text-destructive"><X className="h-3 w-3" /></button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Guru</label>
+              <Select value={addGuruId} onValueChange={setAddGuruId}>
+                <SelectTrigger><SelectValue placeholder="Pilih guru" /></SelectTrigger>
+                <SelectContent>
+                  {guruRefs.map((g) => <SelectItem key={g.id} value={g.id}>{g.nama}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Kelas</label>
+              <Select value={addKelasId} onValueChange={setAddKelasId}>
+                <SelectTrigger><SelectValue placeholder="Pilih kelas" /></SelectTrigger>
+                <SelectContent>
+                  {kelasRefs.map((k) => <SelectItem key={k.id} value={k.id}>{k.nama}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleAddPengajaran} className="w-full">Tambah</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-

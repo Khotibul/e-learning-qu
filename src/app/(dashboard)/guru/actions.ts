@@ -24,7 +24,7 @@ export async function getGuruDashboardStats() {
   const [kelasCount, mapelCount, siswaCount, ujianAktif, latihanAktif, totalSoal] =
     await Promise.all([
       prisma.kelas.count({ where: { guruId: guru.id, deletedAt: null } }),
-      prisma.mataPelajaran.count({ where: { guruId: guru.id, deletedAt: null } }),
+      prisma.pengajaran.count({ where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } } }),
       prisma.siswa.count({
         where: { kelas: { guruId: guru.id, deletedAt: null }, deletedAt: null },
       }),
@@ -595,12 +595,8 @@ export async function gradeEssay(
 export async function getGuruAnalytics() {
   const guru = await getCurrentGuru()
 
-  const [kelas, mapels, ujians] = await Promise.all([
+  const [kelas, ujians] = await Promise.all([
     prisma.kelas.findMany({
-      where: { guruId: guru.id, deletedAt: null },
-      select: { id: true, nama: true },
-    }),
-    prisma.mataPelajaran.findMany({
       where: { guruId: guru.id, deletedAt: null },
       select: { id: true, nama: true },
     }),
@@ -609,6 +605,11 @@ export async function getGuruAnalytics() {
       select: { id: true, nama: true, nilaiMinimum: true },
     }),
   ])
+  const pengajarans = await prisma.pengajaran.findMany({
+    where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
+    include: { mataPelajaran: { select: { id: true, nama: true } } },
+  })
+  const mapels = pengajarans.map((p) => p.mataPelajaran)
 
   const ujianIds = ujians.map((u) => u.id)
 
@@ -681,12 +682,12 @@ export async function getGuruMurids(params: {
   const guru = await getCurrentGuru()
   const { search, page = 1, limit = 10, kelasId } = params
 
-  const mapels = await prisma.mataPelajaran.findMany({
-    where: { guruId: guru.id, deletedAt: null },
-    select: { kelasId: true },
+  const mapels = await prisma.pengajaran.findMany({
+    where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
+    select: { kelas: { select: { id: true, nama: true } } },
     distinct: ["kelasId"],
   })
-  let allowedKelasIds = mapels.map((m) => m.kelasId)
+  let allowedKelasIds = mapels.map((p) => p.kelas.id)
   if (kelasId) {
     allowedKelasIds = allowedKelasIds.filter((id) => id === kelasId)
   }
@@ -759,12 +760,12 @@ export async function getGuruPendingMurids(params: {
 
 export async function getGuruKelasForMurid() {
   const guru = await getCurrentGuru()
-  const mapels = await prisma.mataPelajaran.findMany({
-    where: { guruId: guru.id, deletedAt: null },
-    select: { kelasId: true },
+  const mapels = await prisma.pengajaran.findMany({
+    where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
+    select: { kelas: { select: { id: true, nama: true } } },
     distinct: ["kelasId"],
   })
-  const kelasIds = mapels.map((m) => m.kelasId)
+  const kelasIds = mapels.map((p) => p.kelas.id)
   if (kelasIds.length === 0) return []
   return prisma.kelas.findMany({
     where: { id: { in: kelasIds }, deletedAt: null },
@@ -785,11 +786,11 @@ export async function createGuruMurid(data: {
 }) {
   const guru = await getCurrentGuru()
 
-  const mapels = await prisma.mataPelajaran.findMany({
-    where: { guruId: guru.id, deletedAt: null, kelasId: data.kelasId },
-    select: { id: true },
+  const pengajarans = await prisma.pengajaran.findMany({
+    where: { guruId: guru.id, kelasId: data.kelasId, deletedAt: null, mataPelajaran: { deletedAt: null } },
+    include: { mataPelajaran: { select: { id: true } } },
   })
-  if (mapels.length === 0) throw new Error("Anda tidak mengajar di kelas ini")
+  if (pengajarans.length === 0) throw new Error("Anda tidak mengajar di kelas ini")
 
   const existing = await prisma.user.findUnique({ where: { email: data.email } })
   if (existing) throw new Error("Email sudah terdaftar")
@@ -827,11 +828,11 @@ export async function updateGuruMurid(
 
   const targetKelasId = data.kelasId || siswa.kelasId
   if (targetKelasId) {
-    const mapels = await prisma.mataPelajaran.findMany({
-      where: { guruId: guru.id, deletedAt: null, kelasId: targetKelasId },
-      select: { id: true },
+    const pengajarans = await prisma.pengajaran.findMany({
+      where: { guruId: guru.id, kelasId: targetKelasId, deletedAt: null, mataPelajaran: { deletedAt: null } },
+      include: { mataPelajaran: { select: { id: true } } },
     })
-    if (mapels.length === 0) throw new Error("Anda tidak mengajar di kelas ini")
+    if (pengajarans.length === 0) throw new Error("Anda tidak mengajar di kelas ini")
   }
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -853,11 +854,11 @@ export async function deleteGuruMurid(id: string) {
   const siswa = await prisma.siswa.findUnique({ where: { id }, select: { kelasId: true } })
   if (!siswa) throw new Error("Murid tidak ditemukan")
   if (siswa.kelasId) {
-    const mapels = await prisma.mataPelajaran.findMany({
-      where: { guruId: guru.id, deletedAt: null, kelasId: siswa.kelasId },
-      select: { id: true },
+    const pengajarans = await prisma.pengajaran.findMany({
+      where: { guruId: guru.id, kelasId: siswa.kelasId, deletedAt: null, mataPelajaran: { deletedAt: null } },
+      include: { mataPelajaran: { select: { id: true } } },
     })
-    if (mapels.length === 0) throw new Error("Anda tidak memiliki akses ke murid ini")
+    if (pengajarans.length === 0) throw new Error("Anda tidak memiliki akses ke murid ini")
   }
   await prisma.siswa.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/guru/murid")
@@ -867,21 +868,21 @@ export async function deleteGuruMurid(id: string) {
 
 export async function getGuruMapelRefs() {
   const guru = await getCurrentGuru()
-  return prisma.mataPelajaran.findMany({
-    where: { guruId: guru.id, deletedAt: null },
-    select: { id: true, nama: true, kode: true, kelas: { select: { id: true, nama: true } } },
-    orderBy: { nama: "asc" },
+  const pengajarans = await prisma.pengajaran.findMany({
+    where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
+    include: { mataPelajaran: { select: { id: true, nama: true, kode: true } }, kelas: { select: { id: true, nama: true } } },
   })
+  return pengajarans.map((p) => ({ ...p.mataPelajaran, kelas: p.kelas }))
 }
 
 export async function getGuruKelasRefs() {
   const guru = await getCurrentGuru()
-  const mapels = await prisma.mataPelajaran.findMany({
-    where: { guruId: guru.id, deletedAt: null },
-    select: { kelasId: true },
+  const mapels = await prisma.pengajaran.findMany({
+    where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
+    select: { kelas: { select: { id: true, nama: true } } },
     distinct: ["kelasId"],
   })
-  const kelasIds = mapels.map((m) => m.kelasId)
+  const kelasIds = mapels.map((p) => p.kelas.id)
   if (kelasIds.length === 0) return []
   return prisma.kelas.findMany({
     where: { id: { in: kelasIds }, deletedAt: null },
@@ -969,7 +970,7 @@ export async function getGuruMateris() {
   const guru = await getCurrentGuru()
   const data = await prisma.materi.findMany({
     where: { guruId: guru.id, deletedAt: null },
-    include: { mataPelajaran: { select: { id: true, nama: true, kelas: { select: { nama: true } } } } },
+    include: { mataPelajaran: { select: { id: true, nama: true } } },
     orderBy: { createdAt: "desc" },
   })
   return data
@@ -977,11 +978,11 @@ export async function getGuruMateris() {
 
 export async function getGuruMapelsWithMateri() {
   const guru = await getCurrentGuru()
-  return prisma.mataPelajaran.findMany({
-    where: { guruId: guru.id, deletedAt: null },
-    select: { id: true, nama: true, kode: true, kelas: { select: { id: true, nama: true } } },
-    orderBy: { nama: "asc" },
+  const pengajarans = await prisma.pengajaran.findMany({
+    where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
+    include: { mataPelajaran: { select: { id: true, nama: true, kode: true } }, kelas: { select: { id: true, nama: true } } },
   })
+  return pengajarans.map((p) => ({ ...p.mataPelajaran, kelas: p.kelas }))
 }
 
 export async function createMateri(data: {
@@ -1324,7 +1325,7 @@ export async function getJadwalPelajaranGuru(kelasId: string) {
 
   return prisma.jadwalPelajaran.findMany({
     where: { kelasId, deletedAt: null },
-    include: { mataPelajaran: { select: { id: true, nama: true, guru: { select: { nama: true } } } } },
+    include: { mataPelajaran: { select: { id: true, nama: true } } },
     orderBy: [{ hari: "asc" }, { jamMulai: "asc" }],
   })
 }
@@ -1336,11 +1337,11 @@ export async function getMapelByKelas(kelasId: string) {
   })
   if (!kelas) throw new Error("Akses ditolak")
 
-  return prisma.mataPelajaran.findMany({
-    where: { kelasId, deletedAt: null },
-    select: { id: true, kode: true, nama: true },
-    orderBy: { nama: "asc" },
+  const pengajarans = await prisma.pengajaran.findMany({
+    where: { kelasId, deletedAt: null, mataPelajaran: { deletedAt: null } },
+    include: { mataPelajaran: { select: { id: true, kode: true, nama: true } } },
   })
+  return pengajarans.map((p) => p.mataPelajaran)
 }
 
 export async function createJadwalPelajaranGuru(data: {

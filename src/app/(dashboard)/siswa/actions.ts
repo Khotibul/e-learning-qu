@@ -600,11 +600,11 @@ export async function getSiswaMateris() {
   })
   if (!siswa?.kelasId) return []
 
-  const mapels = await prisma.mataPelajaran.findMany({
-    where: { kelasId: siswa.kelasId, deletedAt: null },
-    select: { id: true, nama: true, kode: true },
-    orderBy: { nama: "asc" },
+  const pengajarans = await prisma.pengajaran.findMany({
+    where: { kelasId: siswa.kelasId, deletedAt: null, mataPelajaran: { deletedAt: null } },
+    include: { mataPelajaran: { select: { id: true, nama: true, kode: true } } },
   })
+  const mapels = [...new Map(pengajarans.map((p) => [p.mataPelajaran.id, p.mataPelajaran])).values()]
 
   const mapelIds = mapels.map((m) => m.id)
   const materis = await prisma.materi.findMany({
@@ -695,7 +695,7 @@ export async function getJadwalPelajaranSiswa() {
 
   return prisma.jadwalPelajaran.findMany({
     where: { kelasId: siswa.kelasId, deletedAt: null },
-    include: { mataPelajaran: { select: { nama: true, guru: { select: { nama: true } } } } },
+    include: { mataPelajaran: { select: { nama: true } } },
     orderBy: [{ hari: "asc" }, { jamMulai: "asc" }],
   })
 }
@@ -1036,7 +1036,7 @@ export async function getSekretarisJadwalPelajaran() {
   if (!siswa.kelasId) return []
   return prisma.jadwalPelajaran.findMany({
     where: { kelasId: siswa.kelasId, deletedAt: null },
-    include: { mataPelajaran: { select: { id: true, nama: true, guru: { select: { nama: true } } } } },
+    include: { mataPelajaran: { select: { id: true, nama: true } } },
     orderBy: [{ hari: "asc" }, { jamMulai: "asc" }],
   })
 }
@@ -1044,11 +1044,11 @@ export async function getSekretarisJadwalPelajaran() {
 export async function getSekretarisMapel() {
   const siswa = await getCurrentSekretaris()
   if (!siswa.kelasId) return []
-  return prisma.mataPelajaran.findMany({
-    where: { kelasId: siswa.kelasId, deletedAt: null },
-    select: { id: true, kode: true, nama: true },
-    orderBy: { nama: "asc" },
+  const pengajarans = await prisma.pengajaran.findMany({
+    where: { kelasId: siswa.kelasId, deletedAt: null, mataPelajaran: { deletedAt: null } },
+    include: { mataPelajaran: { select: { id: true, kode: true, nama: true } } },
   })
+  return [...new Map(pengajarans.map((p) => [p.mataPelajaran.id, p.mataPelajaran])).values()]
 }
 
 export async function createSekretarisJadwalPelajaran(data: {
