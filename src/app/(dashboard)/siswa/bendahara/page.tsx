@@ -9,22 +9,19 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
-import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Wallet, Banknote, Receipt, Trash2, Plus, Loader2, ShieldCheck, PiggyBank,
-  TrendingUp, TrendingDown, Users,
+  TrendingUp, TrendingDown,
 } from "lucide-react"
 import {
   getBendaharaIuran, createBendaharaIuran, deleteBendaharaIuran, recordBendaharaPembayaranIuran,
   getBendaharaDenda, createBendaharaDenda, deleteBendaharaDenda, recordBendaharaPembayaranDenda,
   getBendaharaPengeluaran, createBendaharaPengeluaran, deleteBendaharaPengeluaran,
-  getBendaharaSummary,
+  getBendaharaSummary, getBendaharaSiswa,
 } from "../actions"
 
 const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`
@@ -36,11 +33,11 @@ export default function BendaharaPage() {
   const [dendaList, setDendaList] = useState<any[]>([])
   const [pengeluaranList, setPengeluaranList] = useState<any[]>([])
   const [summary, setSummary] = useState<any>(null)
+  const [siswaList, setSiswaList] = useState<any[]>([])
   const [iuranDialog, setIuranDialog] = useState(false)
   const [dendaDialog, setDendaDialog] = useState(false)
   const [pengeluaranDialog, setPengeluaranDialog] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [kelasData, setKelasData] = useState<any>(null)
   const [iuranNama, setIuranNama] = useState("")
   const [iuranNominal, setIuranNominal] = useState("")
   const [iuranTenggat, setIuranTenggat] = useState("")
@@ -55,16 +52,18 @@ export default function BendaharaPage() {
   const fetchAll = async () => {
     setLoading(true)
     try {
-      const [iuran, denda, pengeluaran, summ] = await Promise.all([
+      const [iuran, denda, pengeluaran, summ, siswa] = await Promise.all([
         getBendaharaIuran().catch(() => { setIsBendahara(false); return [] }),
         getBendaharaDenda().catch(() => []),
         getBendaharaPengeluaran().catch(() => []),
         getBendaharaSummary().catch(() => null),
+        getBendaharaSiswa().catch(() => []),
       ])
       setIuranList(iuran as any[])
       setDendaList(denda as any[])
       setPengeluaranList(pengeluaran as any[])
       setSummary(summ as any)
+      setSiswaList(siswa as any[])
     } catch { toast.error("Gagal memuat data") }
     finally { setLoading(false) }
   }
@@ -204,23 +203,25 @@ export default function BendaharaPage() {
               </DialogContent>
             </Dialog>
           </div>
+
           {iuranList.length === 0 ? (
             <Card><CardContent className="p-8 text-center text-muted-foreground">Belum ada iuran</CardContent></Card>
           ) : iuranList.map((iuran) => {
-            const totalSiswa = iuran._count?.pembayaran !== undefined ? null : 0
             const sudahBayar = iuran._count?.pembayaran || 0
             return (
               <Card key={iuran.id}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div><CardTitle className="text-base">{iuran.nama}</CardTitle>
-                      <p className="text-xs text-muted-foreground">{formatRp(iuran.nominal)} per siswa{iuran.tenggat && ` · Tenggat: ${new Date(iuran.tenggat).toLocaleDateString("id-ID")}`}</p>
+                      <p className="text-xs text-muted-foreground">{formatRp(iuran.nominal)} per siswa
+                        {iuran.tenggat && ` · Tenggat: ${new Date(iuran.tenggat).toLocaleDateString("id-ID")}`}
+                      </p>
                     </div>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteIuran(iuran.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-xs text-muted-foreground mb-2">{sudahBayar}/{iuran.pembayaran?.length || 0} siswa sudah bayar</p>
+                  <p className="text-xs text-muted-foreground mb-2">{sudahBayar}/{siswaList.length} sudah bayar</p>
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     {iuran.pembayaran?.map((p: any) => (
                       <div key={p.id} className="flex items-center justify-between text-xs rounded-lg bg-emerald-50 dark:bg-emerald-950/20 px-3 py-1.5">
@@ -228,9 +229,14 @@ export default function BendaharaPage() {
                         <Badge variant="secondary" className="text-[10px]">{p.status}</Badge>
                       </div>
                     ))}
-                    {iuran.pembayaran?.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-2">Belum ada yang bayar</p>
-                    )}
+                    {siswaList.filter((s) => !iuran.pembayaran?.find((p: any) => p.siswaId === s.id)).map((s) => (
+                      <div key={s.id} className="flex items-center justify-between text-xs rounded-lg px-3 py-1.5 border">
+                        <span>{s.nama}</span>
+                        <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => handleBayarIuran(iuran.id, s.id)}>
+                          Catat Bayar
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -252,6 +258,7 @@ export default function BendaharaPage() {
               </DialogContent>
             </Dialog>
           </div>
+
           {dendaList.length === 0 ? (
             <Card><CardContent className="p-8 text-center text-muted-foreground">Belum ada denda</CardContent></Card>
           ) : dendaList.map((denda) => (
@@ -259,13 +266,15 @@ export default function BendaharaPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div><CardTitle className="text-base">{denda.nama}</CardTitle>
-                    <p className="text-xs text-muted-foreground">{formatRp(denda.nominal)} per siswa{denda.deskripsi && ` · ${denda.deskripsi}`}</p>
+                    <p className="text-xs text-muted-foreground">{formatRp(denda.nominal)} per siswa
+                      {denda.deskripsi && ` · ${denda.deskripsi}`}
+                    </p>
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteDenda(denda.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-muted-foreground mb-2">{denda._count?.pembayaran || 0}/{denda.pembayaran?.length || 0} siswa sudah bayar</p>
+                <p className="text-xs text-muted-foreground mb-2">{denda._count?.pembayaran || 0}/{siswaList.length} sudah bayar</p>
                 <div className="space-y-1 max-h-48 overflow-y-auto">
                   {denda.pembayaran?.map((p: any) => (
                     <div key={p.id} className="flex items-center justify-between text-xs rounded-lg bg-emerald-50 dark:bg-emerald-950/20 px-3 py-1.5">
@@ -273,9 +282,14 @@ export default function BendaharaPage() {
                       <Badge variant="secondary" className="text-[10px]">{p.status}</Badge>
                     </div>
                   ))}
-                  {denda.pembayaran?.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-2">Belum ada yang bayar</p>
-                  )}
+                  {siswaList.filter((s) => !denda.pembayaran?.find((p: any) => p.siswaId === s.id)).map((s) => (
+                    <div key={s.id} className="flex items-center justify-between text-xs rounded-lg px-3 py-1.5 border">
+                      <span>{s.nama}</span>
+                      <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => handleBayarDenda(denda.id, s.id)}>
+                        Catat Bayar
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -296,6 +310,7 @@ export default function BendaharaPage() {
               </DialogContent>
             </Dialog>
           </div>
+
           {pengeluaranList.length === 0 ? (
             <Card><CardContent className="p-8 text-center text-muted-foreground">Belum ada pengeluaran</CardContent></Card>
           ) : (

@@ -963,6 +963,16 @@ export async function getBendaharaSummary() {
   return { pemasukanIuran, pemasukanDenda, totalPemasukan, totalPengeluaran: totalKeluar, sisaKas: totalPemasukan - totalKeluar }
 }
 
+export async function getBendaharaSiswa() {
+  const siswa = await getCurrentBendahara()
+  if (!siswa.kelasId) return []
+  return prisma.siswa.findMany({
+    where: { kelasId: siswa.kelasId, deletedAt: null },
+    select: { id: true, nama: true },
+    orderBy: { nama: "asc" },
+  })
+}
+
 // ─── SEKRETARIS HELPER ─────────────────────────────────────────
 
 async function getCurrentSekretaris() {
