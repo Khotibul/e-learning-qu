@@ -142,6 +142,7 @@ model Siswa {
   jadwalPiket      JadwalPiket[]
   pembayaranIuran  PembayaranIuran[]
   pembayaranDenda  PembayaranDenda[]
+  pelanggaran      Pelanggaran[]
 
   @@map("siswa")
 }
@@ -166,6 +167,7 @@ model Kelas {
   denda           Denda[]
   pengeluaran     PengeluaranKelas[]
   pengajaran      Pengajaran[]
+  pelanggaran     Pelanggaran[]
 
   @@map("kelas")
 }
@@ -658,4 +660,23 @@ model AuditLog {
   user User @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")
+}
+
+model Pelanggaran {
+  id        String   @id @default(uuid()) @db.Uuid
+  siswaId   String   @db.Uuid
+  kelasId   String   @db.Uuid
+  jenis     String
+  deskripsi String?
+  poin      Int?
+  tindakan  String?
+  tanggal   DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  kelas Kelas @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+
+  @@map("pelanggaran")
 }

@@ -1368,3 +1368,128 @@ export async function deleteJadwalPelajaranGuru(id: string) {
   revalidatePath("/(dashboard)/guru/wali-kelas")
   return { success: true }
 }
+
+// ─── PELANGGARAN ──────────────────────────────────────────────
+
+export async function getPelanggaran(kelasId: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  return prisma.pelanggaran.findMany({
+    where: { kelasId, deletedAt: null },
+    include: { siswa: { select: { id: true, nama: true } } },
+    orderBy: { tanggal: "desc" },
+  })
+}
+
+export async function createPelanggaran(data: {
+  kelasId: string; siswaId: string; jenis: string; deskripsi?: string; poin?: number; tindakan?: string; tanggal?: string
+}) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: data.kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  await prisma.pelanggaran.create({
+    data: {
+      kelasId: data.kelasId,
+      siswaId: data.siswaId,
+      jenis: data.jenis,
+      deskripsi: data.deskripsi || null,
+      poin: data.poin || null,
+      tindakan: data.tindakan || null,
+      tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
+    },
+  })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
+
+export async function deletePelanggaran(id: string) {
+  const item = await prisma.pelanggaran.findUnique({
+    where: { id },
+    include: { kelas: { select: { guruId: true } } },
+  })
+  if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
+  await prisma.pelanggaran.update({ where: { id }, data: { deletedAt: new Date() } })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
+
+// ─── ABSENSI HARIAN (WALI KELAS) ─────────────────────────────
+
+export async function getAbsensiHarian(kelasId: string, tanggal: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  const date = new Date(tanggal)
+  return prisma.absensi.findMany({
+    where: { kelasId, tanggal: date },
+    include: {
+      mataPelajaran: { select: { id: true, nama: true } },
+      siswa: {
+        include: { siswa: { select: { id: true, nama: true, nis: true } } },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  })
+}
+
+export async function getJadwalByHari(kelasId: string, hari: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  return prisma.jadwalPelajaran.findMany({
+    where: { kelasId, hari, deletedAt: null },
+    include: { mataPelajaran: { select: { id: true, nama: true } } },
+    orderBy: { jamMulai: "asc" },
+  })
+}
+
+export async function saveAbsensiHarian(
+  kelasId: string,
+  mataPelajaranId: string,
+  tanggal: string,
+  siswaStatus: { siswaId: string; status: string; keterangan?: string }[]
+) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Akses ditolak")
+
+  const date = new Date(tanggal)
+  const existing = await prisma.absensi.findFirst({
+    where: { kelasId, mataPelajaranId, tanggal: date },
+  })
+
+  let absensiId: string
+  if (existing) {
+    absensiId = existing.id
+    await prisma.absensiSiswa.deleteMany({ where: { absensiId: existing.id } })
+  } else {
+    const absensi = await prisma.absensi.create({
+      data: { kelasId, mataPelajaranId, tanggal: date },
+    })
+    absensiId = absensi.id
+  }
+
+  for (const ss of siswaStatus) {
+    await prisma.absensiSiswa.create({
+      data: { absensiId, siswaId: ss.siswaId, status: ss.status as any, keterangan: ss.keterangan || null },
+    })
+  }
+
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
