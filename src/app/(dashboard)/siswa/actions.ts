@@ -646,7 +646,7 @@ export async function getStrukturKelas() {
     include: {
       guru: { select: { nama: true } },
       siswas: {
-        where: { deletedAt: null, jabatan: { not: null } },
+        where: { deletedAt: null },
         select: { id: true, nama: true, jabatan: true },
         orderBy: { nama: "asc" },
       },

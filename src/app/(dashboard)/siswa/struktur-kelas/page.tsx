@@ -39,7 +39,7 @@ export default function StrukturKelasPage() {
           Struktur Kelas
         </h1>
         <p className="text-muted-foreground mt-1">
-          {data.kelas?.nama} — Wali Kelas: <span className="font-medium">{data.kelas?.guru?.nama || "-"}</span>
+          {data.nama} — Wali Kelas: <span className="font-medium">{data.guru?.nama || "-"}</span>
         </p>
       </div>
 
