@@ -27,14 +27,29 @@ export async function getGuruKelasWithSiswa() {
   return kelasList
 }
 
-export async function getGuruMapel() {
+export async function getGuruJadwalByDate(tanggal: string) {
   const guru = await getCurrentGuru()
-  const pengajarans = await prisma.pengajaran.findMany({
-    where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
-    include: { mataPelajaran: { select: { id: true, nama: true, kode: true } }, kelas: { select: { id: true, nama: true } } },
-    orderBy: { mataPelajaran: { nama: "asc" } },
+  const dayName = new Date(tanggal + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long" })
+  const hari = dayName.charAt(0).toUpperCase() + dayName.slice(1)
+
+  const kelasList = await prisma.kelas.findMany({
+    where: { guruId: guru.id, deletedAt: null },
+    select: { id: true, nama: true },
   })
-  return pengajarans.map((p) => ({ ...p.mataPelajaran, kelas: p.kelas }))
+  const kelasIds = kelasList.map((k) => k.id)
+
+  if (kelasIds.length === 0) return []
+
+  const jadwal = await prisma.jadwalPelajaran.findMany({
+    where: { kelasId: { in: kelasIds }, hari, deletedAt: null },
+    include: {
+      mataPelajaran: { select: { id: true, nama: true, kode: true } },
+      kelas: { select: { id: true, nama: true } },
+    },
+    orderBy: [{ kelas: { nama: "asc" } }, { jamMulai: "asc" }],
+  })
+
+  return jadwal.map((j) => ({ ...j, _key: j.id }))
 }
 
 export async function getAbsensiList(kelasId: string, mataPelajaranId: string) {
@@ -90,6 +105,21 @@ export async function saveAbsensi(
 
   revalidatePath("/guru/absensi")
   return { success: true }
+}
+
+export async function getAbsensiByKelasAndDate(kelasId: string, tanggal: string) {
+  const guru = await getCurrentGuru()
+  const date = new Date(tanggal)
+  return prisma.absensi.findMany({
+    where: { kelasId, tanggal: date, kelas: { guruId: guru.id } },
+    include: {
+      mataPelajaran: { select: { id: true, nama: true } },
+      siswa: {
+        include: { siswa: { select: { id: true, nama: true, nis: true } } },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  })
 }
 
 

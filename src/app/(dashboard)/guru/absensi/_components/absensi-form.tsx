@@ -1,166 +1,141 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import {
-  CheckCircle2, XCircle, Camera, Save, Calendar, RotateCcw, Loader2,
+  Save, Loader2, Calendar,
 } from "lucide-react"
-import { saveAbsensi } from "../actions"
+import { getGuruJadwalByDate, getAbsensiByKelasAndDate, saveAbsensi } from "../actions"
 
 interface SiswaItem {
-  id: string
-  nis: string | null
-  nama: string
+  id: string; nis: string | null; nama: string
 }
 
-interface KelasWithSiswa {
-  id: string
-  nama: string
-  siswas: SiswaItem[]
+interface JadwalItem {
+  _key: string; id: string
+  mataPelajaran: { id: string; nama: string; kode: string }
+  kelas: { id: string; nama: string }
+  jamMulai: string | null; jamSelesai: string | null
 }
 
-interface MapelRef {
-  id: string
-  nama: string
-  kode: string
-  kelas: { nama: string }
+interface AbsensiSiswaRecord {
+  siswaId: string; status: string
 }
 
-interface AbsensiClientProps {
-  kelasList: KelasWithSiswa[]
-  mapels: MapelRef[]
+interface AbsensiRecord {
+  mataPelajaranId: string
+  siswa: AbsensiSiswaRecord[]
 }
 
-type StatusSiswa = "HADIR" | "TIDAK_HADIR" | "IZIN" | "SAKIT" | "ALPA"
+export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: string; siswas: SiswaItem[] }[] }) {
+  const [tanggal, setTanggal] = useState(new Date().toISOString().slice(0, 10))
+  const [jadwalList, setJadwalList] = useState<JadwalItem[]>([])
+  const [absensiData, setAbsensiData] = useState<AbsensiRecord[]>([])
+  const [absensiForm, setAbsensiForm] = useState<Record<string, Record<string, string>>>({})
+  const [saving, setSaving] = useState<string | null>(null)
+  const [loadingJadwal, setLoadingJadwal] = useState(false)
 
-const statusColors: Record<StatusSiswa, string> = {
-  HADIR: "bg-emerald-500 hover:bg-emerald-600",
-  TIDAK_HADIR: "bg-red-500 hover:bg-red-600",
-  IZIN: "bg-amber-500 hover:bg-amber-600",
-  SAKIT: "bg-orange-500 hover:bg-orange-600",
-  ALPA: "bg-gray-500 hover:bg-gray-600",
-}
+  const kelasMap = useMemo(() => {
+    const m: Record<string, { nama: string; siswas: SiswaItem[] }> = {}
+    kelasList.forEach((k) => { m[k.id] = { nama: k.nama, siswas: k.siswas } })
+    return m
+  }, [kelasList])
 
-export function AbsensiClient({ kelasList, mapels }: AbsensiClientProps) {
-  const [kelasId, setKelasId] = useState("")
-  const [mataPelajaranId, setMataPelajaranId] = useState("")
-  const [tanggal, setTanggal] = useState(new Date().toISOString().split("T")[0])
-  const [siswaStatus, setSiswaStatus] = useState<Record<string, StatusSiswa>>({})
-  const [saving, setSaving] = useState(false)
-  const [ocrLoading, setOcrLoading] = useState(false)
-  const [ocrDialog, setOcrDialog] = useState(false)
-  const [ocrResult, setOcrResult] = useState<{ nama: string; hadir: boolean }[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const groupedJadwal = useMemo(() => {
+    const groups: Record<string, JadwalItem[]> = {}
+    jadwalList.forEach((j) => {
+      if (!groups[j.kelas.id]) groups[j.kelas.id] = []
+      groups[j.kelas.id].push(j)
+    })
+    return groups
+  }, [jadwalList])
 
-  const selectedKelas = kelasList.find((k) => k.id === kelasId)
-  const siswas = selectedKelas?.siswas ?? []
+  useEffect(() => {
+    loadJadwal()
+  }, [tanggal])
 
-  const resetKelas = () => {
-    setKelasId("")
-    setMataPelajaranId("")
-    setSiswaStatus({})
+  const loadJadwal = async () => {
+    setLoadingJadwal(true)
+    try {
+      const jadwal = await getGuruJadwalByDate(tanggal)
+      setJadwalList(jadwal as any)
+
+      const absensiMap: Record<string, AbsensiRecord[]> = {}
+      const allAbsensi: AbsensiRecord[] = []
+      for (const j of jadwal as any[]) {
+        const key = `${j.kelas.id}-${j.mataPelajaran.id}`
+        if (!absensiMap[key]) {
+          const data = await getAbsensiByKelasAndDate(j.kelas.id, tanggal)
+          absensiMap[key] = data as any
+          allAbsensi.push(...(data as any))
+        }
+      }
+      setAbsensiData(allAbsensi)
+    } catch {
+      toast.error("Gagal memuat jadwal")
+    } finally {
+      setLoadingJadwal(false)
+    }
   }
 
-  const selectAll = (status: StatusSiswa) => {
-    const newStatus: Record<string, StatusSiswa> = {}
-    siswas.forEach((s) => { newStatus[s.id] = status })
-    setSiswaStatus(newStatus)
-  }
+  useEffect(() => {
+    if (jadwalList.length === 0 || Object.keys(kelasMap).length === 0) return
+    const newForm: Record<string, Record<string, string>> = {}
+    jadwalList.forEach((jd) => {
+      const kelasInfo = kelasMap[jd.kelas.id]
+      if (!kelasInfo) return
+      const existingAbsensi = absensiData.find((a: any) => a.mataPelajaranId === jd.mataPelajaran.id && a.kelasId === jd.kelas.id)
+      const lessonForm: Record<string, string> = {}
+      kelasInfo.siswas.forEach((s) => {
+        const record = existingAbsensi?.siswa?.find((as: any) => as.siswaId === s.id)
+        lessonForm[s.id] = record?.status || "HADIR"
+      })
+      newForm[jd._key] = lessonForm
+    })
+    setAbsensiForm((prev) => {
+      const merged = { ...prev }
+      Object.keys(newForm).forEach((k) => { if (!merged[k]) merged[k] = newForm[k] })
+      return merged
+    })
+  }, [absensiData, jadwalList, kelasMap])
 
-  const toggleSiswa = (id: string) => {
-    setSiswaStatus((prev) => ({
+  const handleStatusChange = (jadwalKey: string, siswaId: string, status: string) => {
+    setAbsensiForm((prev) => ({
       ...prev,
-      [id]: prev[id] === "HADIR" ? "TIDAK_HADIR" : "HADIR",
+      [jadwalKey]: { ...(prev[jadwalKey] || {}), [siswaId]: status },
     }))
   }
 
-  const setSiswa = (id: string, status: StatusSiswa) => {
-    setSiswaStatus((prev) => ({ ...prev, [id]: status }))
+  const handleMarkAll = (jadwalKey: string, status: string, siswas: SiswaItem[]) => {
+    const form: Record<string, string> = {}
+    siswas.forEach((s) => { form[s.id] = status })
+    setAbsensiForm((prev) => ({ ...prev, [jadwalKey]: form }))
   }
 
-  const hadirCount = Object.values(siswaStatus).filter((s) => s === "HADIR").length
-  const tidakHadirCount = Object.values(siswaStatus).filter(
-    (s) => s !== "HADIR"
-  ).length
-  const totalSet = Object.keys(siswaStatus).length
-
-  const handleOcr = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setOcrLoading(true)
+  const handleSave = async (jd: JadwalItem) => {
+    setSaving(jd._key)
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-
-      const res = await fetch("/api/absensi/ocr", {
-        method: "POST",
-        body: formData,
-      })
-      if (!res.ok) throw new Error("OCR gagal")
-
-      const data = await res.json()
-      setOcrResult(data.siswa || [])
-
-      // Auto-match names
-      const matched: Record<string, StatusSiswa> = {}
-      for (const item of data.siswa || []) {
-        const found = siswas.find(
-          (s) => s.nama.toLowerCase().includes(item.nama.toLowerCase()) ||
-                 item.nama.toLowerCase().includes(s.nama.toLowerCase())
-        )
-        if (found) {
-          matched[found.id] = item.hadir ? "HADIR" : "TIDAK_HADIR"
-        }
-      }
-      if (Object.keys(matched).length > 0) {
-        setSiswaStatus((prev) => ({ ...prev, ...matched }))
-        toast.success(`${Object.keys(matched).length} siswa dicocokkan dari OCR`)
-      } else {
-        toast.error("Tidak ada nama yang cocok dengan daftar siswa")
-      }
-      setOcrDialog(true)
+      const form = absensiForm[jd._key] || {}
+      const siswaStatus = Object.entries(form).map(([siswaId, status]) => ({ siswaId, status }))
+      await saveAbsensi(jd.kelas.id, jd.mataPelajaran.id, tanggal, siswaStatus)
+      toast.success(`Absensi ${jd.kelas.nama} - ${jd.mataPelajaran.nama} disimpan`)
     } catch {
-      toast.error("Gagal memproses OCR")
+      toast.error("Gagal menyimpan")
     } finally {
-      setOcrLoading(false)
-      if (fileInputRef.current) fileInputRef.current.value = ""
+      setSaving(null)
     }
   }
 
-  const handleSave = async () => {
-    if (!kelasId) { toast.error("Pilih kelas"); return }
-    if (!mataPelajaranId) { toast.error("Pilih mata pelajaran"); return }
-    if (!tanggal) { toast.error("Pilih tanggal"); return }
-
-    const entries = Object.entries(siswaStatus)
-    if (entries.length === 0) { toast.error("Belum ada siswa diisi"); return }
-
-    setSaving(true)
-    try {
-      const result = await saveAbsensi(
-        kelasId,
-        mataPelajaranId,
-        tanggal,
-        entries.map(([siswaId, status]) => ({ siswaId, status }))
-      )
-      if (result.success) {
-        toast.success("Absensi berhasil disimpan")
-      }
-    } catch {
-      toast.error("Gagal menyimpan absensi")
-    } finally {
-      setSaving(false)
-    }
+  if (loadingJadwal) {
+    return <div className="flex min-h-[40vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
   }
 
   return (
@@ -168,169 +143,112 @@ export function AbsensiClient({ kelasList, mapels }: AbsensiClientProps) {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Absensi</h1>
-          <p className="text-muted-foreground mt-1">
-            Catat kehadiran siswa setiap pertemuan
-          </p>
+          <p className="text-muted-foreground mt-1">Catat kehadiran siswa per jam pelajaran</p>
         </div>
-        <div className="flex items-center gap-2">
-          {kelasId && (
-            <Button variant="ghost" size="sm" onClick={resetKelas}>
-              <RotateCcw className="h-4 w-4 mr-1" /> Ganti Kelas
-            </Button>
-          )}
-          <Button onClick={handleSave} disabled={saving || !kelasId}>
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? "Menyimpan..." : "Simpan Absensi"}
-          </Button>
+        <div className="w-full sm:w-56">
+          <Label className="text-xs text-muted-foreground mb-1 block">Pilih Tanggal</Label>
+          <Input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className="w-full" />
         </div>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle>Informasi</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Kelas</Label>
-              <Select value={kelasId} onValueChange={setKelasId}>
-                <SelectTrigger><SelectValue placeholder="Pilih kelas" /></SelectTrigger>
-                <SelectContent>
-                  {kelasList.map((k) => (
-                    <SelectItem key={k.id} value={k.id}>
-                      {k.nama} ({k.siswas.length} siswa)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Mata Pelajaran</Label>
-              <Select value={mataPelajaranId} onValueChange={setMataPelajaranId}>
-                <SelectTrigger><SelectValue placeholder="Pilih mapel" /></SelectTrigger>
-                <SelectContent>
-                  {mapels.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.nama} ({m.kelas.nama})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Tanggal</Label>
-              <Input
-                type="date"
-                value={tanggal}
-                onChange={(e) => setTanggal(e.target.value)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {kelasId && (
-        <>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                Daftar Siswa
-                {totalSet > 0 && (
-                  <Badge variant="secondary" className="ml-2">
-                    {hadirCount} hadir / {tidakHadirCount} tidak hadir
-                  </Badge>
-                )}
-              </CardTitle>
-              <div className="flex items-center gap-2 flex-wrap">
-                {kelasId && (
-                  <>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      ref={fileInputRef}
-                      onChange={handleOcr}
-                      className="hidden"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={ocrLoading}
-                    >
-                      {ocrLoading ? (
-                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                      ) : (
-                        <Camera className="h-4 w-4 mr-1" />
-                      )}
-                      {ocrLoading ? "Memproses..." : "Foto Absensi"}
-                    </Button>
-                    <Separator orientation="vertical" className="h-6" />
-                    <Button variant="ghost" size="sm" onClick={() => selectAll("HADIR")}>
-                      Semua Hadir
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => selectAll("TIDAK_HADIR")}>
-                      Semua Tidak Hadir
-                    </Button>
-                  </>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {siswas.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Tidak ada siswa di kelas ini
-                </p>
-              ) : (
-                <div className="space-y-1">
-                  {siswas.map((siswa) => {
-                    const status = siswaStatus[siswa.id] || "HADIR"
-                    const isHadir = status === "HADIR"
-                    return (
-                      <div
-                        key={siswa.id}
-                        className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors hover:bg-muted/30"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <button
-                            type="button"
-                            onClick={() => toggleSiswa(siswa.id)}
-                            className="shrink-0"
-                          >
-                            {isHadir ? (
-                              <CheckCircle2 className="h-6 w-6 text-emerald-500" />
-                            ) : (
-                              <XCircle className="h-6 w-6 text-red-500" />
-                            )}
-                          </button>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{siswa.nama}</p>
-                            {siswa.nis && (
-                              <p className="text-xs text-muted-foreground">NIS: {siswa.nis}</p>
-                            )}
+      {jadwalList.length === 0 ? (
+        <Card><CardContent className="p-12 text-center text-muted-foreground">
+          <Calendar className="h-12 w-12 mx-auto mb-4 opacity-30" />
+          <p className="text-lg font-medium">Tidak ada jadwal pelajaran hari ini</p>
+          <p className="text-sm mt-1">Pilih tanggal lain atau hubungi admin jika ada jadwal yang belum terdaftar.</p>
+        </CardContent></Card>
+      ) : (
+        Object.entries(groupedJadwal).map(([kelasId, items]) => {
+          const kelasInfo = kelasMap[kelasId]
+          if (!kelasInfo) return null
+          return (
+            <div key={kelasId} className="space-y-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                {kelasInfo.nama}
+                <Badge variant="secondary" className="text-xs">{kelasInfo.siswas.length} siswa</Badge>
+              </h2>
+              {items.map((jd) => {
+                const form = absensiForm[jd._key] || {}
+                const activeSiswa = kelasInfo.siswas || []
+                const values = Object.values(form)
+                const statusCount = {
+                  HADIR: values.filter((s) => s === "HADIR").length,
+                  SAKIT: values.filter((s) => s === "SAKIT").length,
+                  IZIN: values.filter((s) => s === "IZIN").length,
+                  ALPA: values.filter((s) => s === "ALPA").length,
+                }
+                return (
+                  <Card key={jd._key}>
+                    <CardHeader className="pb-2 sm:pb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <CardTitle className="text-sm sm:text-base">{jd.mataPelajaran.nama}</CardTitle>
+                          {jd.jamMulai && jd.jamSelesai && (
+                            <p className="text-xs text-muted-foreground">{jd.jamMulai.slice(0, 5)} - {jd.jamSelesai.slice(0, 5)}</p>
+                          )}
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700">{statusCount.HADIR} Hadir</Badge>
+                            <Badge className="text-[10px] bg-yellow-100 text-yellow-700">{statusCount.SAKIT} Sakit</Badge>
+                            <Badge className="text-[10px] bg-blue-100 text-blue-700">{statusCount.IZIN} Izin</Badge>
+                            <Badge className="text-[10px] bg-red-100 text-red-700">{statusCount.ALPA} Alpa</Badge>
                           </div>
                         </div>
-                        <div className="flex gap-1">
-                          {(["HADIR", "IZIN", "SAKIT", "ALPA", "TIDAK_HADIR"] as StatusSiswa[]).map(
-                            (s) => (
-                              <button
-                                key={s}
-                                type="button"
-                                onClick={() => setSiswa(siswa.id, s)}
-                                className={`px-2 py-1 rounded-lg text-[10px] font-medium text-white transition-opacity ${
-                                  statusColors[s]
-                                } ${status === s ? "opacity-100 ring-2 ring-offset-1 ring-black/20" : "opacity-40"}`}
-                              >
-                                {s === "HADIR" ? "H" : s === "TIDAK_HADIR" ? "TH" : s === "IZIN" ? "I" : s === "SAKIT" ? "S" : "A"}
-                              </button>
-                            )
-                          )}
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleMarkAll(jd._key, "HADIR", activeSiswa)}>
+                            Semua Hadir
+                          </Button>
+                          <Button size="sm" className="h-8 text-xs sm:text-sm" onClick={() => handleSave(jd)} disabled={saving === jd._key}>
+                            {saving === jd._key && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                            Simpan
+                          </Button>
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead><tr className="border-b bg-muted/50">
+                            <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm w-8 sm:w-12">No</th>
+                            <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm">Nama</th>
+                            <th className="text-center p-2 sm:p-3 font-medium text-xs sm:text-sm w-28 sm:w-32">Status</th>
+                          </tr></thead>
+                          <tbody>
+                            {activeSiswa.length === 0 ? (
+                              <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">Tidak ada siswa</td></tr>
+                            ) : (
+                              activeSiswa.map((s, i) => (
+                                <tr key={s.id} className="border-t">
+                                  <td className="p-2 sm:p-3 text-xs text-muted-foreground">{i + 1}</td>
+                                  <td className="p-2 sm:p-3 text-xs sm:text-sm font-medium truncate max-w-[140px] sm:max-w-none">{s.nama}</td>
+                                  <td className="p-2 sm:p-3 text-center">
+                                    <Select
+                                      value={form[s.id] || "HADIR"}
+                                      onValueChange={(v) => handleStatusChange(jd._key, s.id, v)}
+                                    >
+                                      <SelectTrigger className="h-9 sm:h-8 w-full min-w-[80px] sm:w-28 text-xs mx-auto">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="HADIR" className="text-emerald-600 font-medium">HADIR</SelectItem>
+                                        <SelectItem value="SAKIT" className="text-yellow-600 font-medium">SAKIT</SelectItem>
+                                        <SelectItem value="IZIN" className="text-blue-600 font-medium">IZIN</SelectItem>
+                                        <SelectItem value="ALPA" className="text-red-600 font-medium">ALPA</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )
+        })
       )}
     </div>
   )

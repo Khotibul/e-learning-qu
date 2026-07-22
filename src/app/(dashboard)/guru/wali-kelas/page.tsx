@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Users, ClipboardList, Wallet, Trash2, Plus, Loader2, ShieldCheck,
   Banknote, Receipt, TrendingUp, TrendingDown, PiggyBank, Calendar,
-  Gavel, ClipboardCheck,
+  Gavel, ClipboardCheck, ExternalLink,
 } from "lucide-react"
 import {
   getWaliKelasInfo, updateSiswaJabatan,
@@ -31,7 +31,6 @@ import {
   getSummaryKas,
   getJadwalPelajaranGuru, getMapelByKelas, createJadwalPelajaranGuru, deleteJadwalPelajaranGuru,
   getPelanggaran, createPelanggaran, deletePelanggaran,
-  getAbsensiHarian, getJadwalByHari, saveAbsensiHarian,
 } from "../actions"
 
 const jabatanLabels: Record<string, string> = {
@@ -87,12 +86,6 @@ export default function WaliKelasPage() {
   const [pelanggaranTindakan, setPelanggaranTindakan] = useState("")
   const [pelanggaranTanggal, setPelanggaranTanggal] = useState("")
   const [pelanggaranFilterSiswa, setPelanggaranFilterSiswa] = useState("")
-
-  const [absensiTanggal, setAbsensiTanggal] = useState(() => new Date().toISOString().slice(0, 10))
-  const [jadwalHariIni, setJadwalHariIni] = useState<any[]>([])
-  const [absensiData, setAbsensiData] = useState<any[]>([])
-  const [absensiForm, setAbsensiForm] = useState<Record<string, Record<string, string>>>({})
-  const [absensiSaving, setAbsensiSaving] = useState(false)
 
   const fetchData = async () => {
     try {
@@ -276,73 +269,11 @@ export default function WaliKelasPage() {
     catch { toast.error("Gagal hapus pelanggaran") }
   }
 
-  const loadAbsensi = async (tanggal: string) => {
-    if (!selectedKelas) return
-    try {
-      const dayName = new Date(tanggal + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long" })
-      const hari = dayName.charAt(0).toUpperCase() + dayName.slice(1)
-      const [jadwal, existing] = await Promise.all([
-        getJadwalByHari(selectedKelas.id, hari),
-        getAbsensiHarian(selectedKelas.id, tanggal),
-      ])
-      setJadwalHariIni(jadwal as any[])
-      setAbsensiData(existing as any[])
-    } catch { toast.error("Gagal memuat absensi") }
-  }
-
   useEffect(() => {
     if (selectedKelas) {
       loadPelanggaran()
-      loadAbsensi(absensiTanggal)
     }
   }, [selectedKelas])
-
-  useEffect(() => {
-    if (selectedKelas) loadAbsensi(absensiTanggal)
-  }, [absensiTanggal])
-
-  const initAbsensiForm = (mataPelajaranId: string) => {
-    if (!selectedKelas?.siswas) return
-    const existingAbsensi = absensiData.find((a) => a.mataPelajaranId === mataPelajaranId)
-    const form: Record<string, string> = {}
-    const activeSiswa = selectedKelas.siswas.filter((s: any) => !s.deletedAt)
-    activeSiswa.forEach((s: any) => {
-      const record = existingAbsensi?.siswa?.find((as: any) => as.siswaId === s.id)
-      form[s.id] = record?.status || "HADIR"
-    })
-    return form
-  }
-
-  const getAbsensiFormForLesson = (mataPelajaranId: string) => {
-    if (!absensiForm[mataPelajaranId]) {
-      const form = initAbsensiForm(mataPelajaranId)
-      if (form) {
-        setAbsensiForm((prev) => ({ ...prev, [mataPelajaranId]: form }))
-      }
-      return form || {}
-    }
-    return absensiForm[mataPelajaranId]
-  }
-
-  const handleAbsensiStatusChange = (mataPelajaranId: string, siswaId: string, status: string) => {
-    setAbsensiForm((prev) => ({
-      ...prev,
-      [mataPelajaranId]: { ...(prev[mataPelajaranId] || {}), [siswaId]: status },
-    }))
-  }
-
-  const handleSaveAbsensi = async (mataPelajaranId: string) => {
-    if (!selectedKelas) return
-    setAbsensiSaving(true)
-    try {
-      const form = absensiForm[mataPelajaranId] || {}
-      const siswaStatus = Object.entries(form).map(([siswaId, status]) => ({ siswaId, status }))
-      await saveAbsensiHarian(selectedKelas.id, mataPelajaranId, absensiTanggal, siswaStatus)
-      toast.success("Absensi disimpan")
-      loadAbsensi(absensiTanggal)
-    } catch (e: any) { toast.error(e?.message || "Gagal") }
-    finally { setAbsensiSaving(false) }
-  }
 
   const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`
 
@@ -381,17 +312,17 @@ export default function WaliKelasPage() {
           </div>
 
           <Tabs defaultValue="kas">
-            <div className="overflow-x-auto pb-px">
+            <div className="sticky top-0 z-10 bg-background pb-px -mx-4 sm:-mx-6 px-4 sm:px-6 overflow-x-auto">
               <TabsList className="flex-nowrap w-max min-w-full">
-                <TabsTrigger value="kas"><PiggyBank className="h-4 w-4 mr-1" /> Kas</TabsTrigger>
-                <TabsTrigger value="struktur"><Users className="h-4 w-4 mr-1" /> Struktur</TabsTrigger>
-                <TabsTrigger value="piket"><ClipboardList className="h-4 w-4 mr-1" /> Piket</TabsTrigger>
-                <TabsTrigger value="iuran"><Wallet className="h-4 w-4 mr-1" /> Iuran</TabsTrigger>
-                <TabsTrigger value="denda"><Banknote className="h-4 w-4 mr-1" /> Denda</TabsTrigger>
-                <TabsTrigger value="pengeluaran"><Receipt className="h-4 w-4 mr-1" /> Pengeluaran</TabsTrigger>
-                <TabsTrigger value="jadwal"><Calendar className="h-4 w-4 mr-1" /> Jadwal</TabsTrigger>
-                <TabsTrigger value="pelanggaran"><Gavel className="h-4 w-4 mr-1" /> Pelanggaran</TabsTrigger>
-                <TabsTrigger value="absensi"><ClipboardCheck className="h-4 w-4 mr-1" /> Absensi</TabsTrigger>
+                <TabsTrigger value="kas" className="px-3 py-1.5 text-xs sm:text-sm"><PiggyBank className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Kas</TabsTrigger>
+                <TabsTrigger value="struktur" className="px-3 py-1.5 text-xs sm:text-sm"><Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Struktur</TabsTrigger>
+                <TabsTrigger value="piket" className="px-3 py-1.5 text-xs sm:text-sm"><ClipboardList className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Piket</TabsTrigger>
+                <TabsTrigger value="iuran" className="px-3 py-1.5 text-xs sm:text-sm"><Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Iuran</TabsTrigger>
+                <TabsTrigger value="denda" className="px-3 py-1.5 text-xs sm:text-sm"><Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Denda</TabsTrigger>
+                <TabsTrigger value="pengeluaran" className="px-3 py-1.5 text-xs sm:text-sm"><Receipt className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Pengeluaran</TabsTrigger>
+                <TabsTrigger value="jadwal" className="px-3 py-1.5 text-xs sm:text-sm"><Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Jadwal</TabsTrigger>
+                <TabsTrigger value="pelanggaran" className="px-3 py-1.5 text-xs sm:text-sm"><Gavel className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Pelanggaran</TabsTrigger>
+                <TabsTrigger value="absensi" className="px-3 py-1.5 text-xs sm:text-sm"><ClipboardCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Absensi</TabsTrigger>
               </TabsList>
             </div>
 
@@ -583,8 +514,8 @@ export default function WaliKelasPage() {
                         ))}
                         {selectedKelas.siswas?.filter((s: any) => !s.deletedAt && !iuran.pembayaran?.find((p: any) => p.siswaId === s.id)).map((s: any) => (
                           <div key={s.id} className="flex items-center justify-between text-xs rounded-lg px-3 py-1.5 border">
-                            <span>{s.nama}</span>
-                            <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => handleBayarIuran(iuran.id, s.id)}>
+                            <span className="truncate mr-1">{s.nama}</span>
+                            <Button variant="outline" size="sm" className="h-7 sm:h-6 text-[10px] px-2 shrink-0" onClick={() => handleBayarIuran(iuran.id, s.id)}>
                               Catat Bayar
                             </Button>
                           </div>
@@ -645,8 +576,8 @@ export default function WaliKelasPage() {
                         ))}
                         {selectedKelas.siswas?.filter((s: any) => !s.deletedAt && !denda.pembayaran?.find((p: any) => p.siswaId === s.id)).map((s: any) => (
                           <div key={s.id} className="flex items-center justify-between text-xs rounded-lg px-3 py-1.5 border">
-                            <span>{s.nama}</span>
-                            <Button variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => handleBayarDenda(denda.id, s.id)}>
+                            <span className="truncate mr-1">{s.nama}</span>
+                            <Button variant="outline" size="sm" className="h-7 sm:h-6 text-[10px] px-2 shrink-0" onClick={() => handleBayarDenda(denda.id, s.id)}>
                               Catat Bayar
                             </Button>
                           </div>
@@ -863,74 +794,20 @@ export default function WaliKelasPage() {
 
             {/* ABSENSI */}
             <TabsContent value="absensi" className="space-y-4 mt-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <div className="w-full sm:w-56">
-                  <Label className="text-xs text-muted-foreground mb-1 block">Tanggal</Label>
-                  <Input type="date" value={absensiTanggal} onChange={(e) => setAbsensiTanggal(e.target.value)} />
-                </div>
-              </div>
-
-              {jadwalHariIni.length === 0 ? (
-                <Card><CardContent className="p-8 text-center text-muted-foreground">Tidak ada jadwal pelajaran hari ini</CardContent></Card>
-              ) : (
-                jadwalHariIni.map((jd: any) => {
-                  const form = getAbsensiFormForLesson(jd.id)
-                  const activeSiswa = selectedKelas.siswas?.filter((s: any) => !s.deletedAt) || []
-                  return (
-                    <Card key={jd.id}>
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <CardTitle className="text-base">{jd.mataPelajaran?.nama}</CardTitle>
-                            {jd.jamMulai && jd.jamSelesai && (
-                              <p className="text-xs text-muted-foreground">{jd.jamMulai.slice(0, 5)} - {jd.jamSelesai.slice(0, 5)}</p>
-                            )}
-                          </div>
-                          <Button size="sm" className="p-2 sm:px-3 sm:py-1" onClick={() => handleSaveAbsensi(jd.id)} disabled={absensiSaving}>
-                            {absensiSaving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                            Simpan
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-0 overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead><tr className="border-b bg-muted/50">
-                            <th className="text-left p-2 sm:p-3 font-medium">No</th>
-                            <th className="text-left p-2 sm:p-3 font-medium">Nama</th>
-                            <th className="text-center p-2 sm:p-3 font-medium w-32">Status</th>
-                          </tr></thead>
-                          <tbody>
-                            {activeSiswa.length === 0 ? (
-                              <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">Tidak ada siswa</td></tr>
-                            ) : (
-                              activeSiswa.map((s: any, i: number) => (
-                                <tr key={s.id} className="border-t">
-                                  <td className="p-2 sm:p-3 text-xs text-muted-foreground">{i + 1}</td>
-                                  <td className="p-2 sm:p-3 font-medium">{s.nama}</td>
-                                  <td className="p-2 sm:p-3 text-center">
-                                    <Select
-                                      value={form[s.id] || "HADIR"}
-                                      onValueChange={(v) => handleAbsensiStatusChange(jd.id, s.id, v)}
-                                    >
-                                      <SelectTrigger className="h-8 w-28 text-xs mx-auto"><SelectValue /></SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="HADIR">HADIR</SelectItem>
-                                        <SelectItem value="SAKIT">SAKIT</SelectItem>
-                                        <SelectItem value="IZIN">IZIN</SelectItem>
-                                        <SelectItem value="ALPA">ALPA</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </td>
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </CardContent>
-                    </Card>
-                  )
-                })
-              )}
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <ClipboardCheck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium">Absensi per Jam Pelajaran</p>
+                  <p className="text-sm text-muted-foreground mt-1 mb-4">
+                    Kelola absensi harian untuk setiap jam pelajaran di halaman Absensi.
+                  </p>
+                  <Button asChild>
+                    <a href="/guru/absensi">
+                      <ExternalLink className="h-4 w-4 mr-2" /> Buka Halaman Absensi
+                    </a>
+                  </Button>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </>
