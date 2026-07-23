@@ -180,7 +180,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
         let isCorrect = false
         if (us.soal.jenisSoal === "PILIHAN_GANDA" || us.soal.jenisSoal === "TRUE_FALSE") {
-          isCorrect = jawab === jawabanBenar
+          isCorrect = jawab.trim() === jawabanBenar.trim()
         } else if (us.soal.jenisSoal === "ISIAN_SINGKAT") {
           isCorrect = jawab.toLowerCase().trim() === jawabanBenar.toLowerCase().trim()
         } else {

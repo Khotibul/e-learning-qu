@@ -143,6 +143,18 @@ export default function UjianPengerjaanPage() {
       if (!res.ok) throw new Error("Gagal memulai ujian")
       const data = await res.json()
 
+      if (data.savedAnswers && Object.keys(data.savedAnswers).length > 0) {
+        for (const [soalId, jawaban] of Object.entries(data.savedAnswers)) {
+          setAnswer(soalId, jawaban as string)
+        }
+        if (Array.isArray(data.savedRagu)) {
+          for (const soalId of data.savedRagu) {
+            if (!raguRagu.includes(soalId)) toggleRaguRagu(soalId)
+          }
+        }
+        toast.success("Jawaban sebelumnya dipulihkan")
+      }
+
       setShowKonfirmasi(false)
       setHasStarted(true)
 
@@ -160,7 +172,7 @@ export default function UjianPengerjaanPage() {
     } catch {
       toast.error("Gagal memulai ujian")
     }
-  }, [ujianId, ujianData, setWaktuTersisa])
+  }, [ujianId, ujianData, setWaktuTersisa, setAnswer, raguRagu, toggleRaguRagu])
 
   const autoSave = useCallback(async () => {
     if (!ujianId || Object.keys(answers).length === 0) return

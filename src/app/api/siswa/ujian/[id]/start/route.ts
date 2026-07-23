@@ -36,11 +36,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Ujian tidak aktif" }, { status: 400 })
     }
 
-    const existing = await prisma.jawabanUjian.findFirst({
+    const existing = await prisma.jawabanUjian.findMany({
       where: { ujianId: id, siswaId: siswa.id },
+      select: { soalId: true, jawaban: true, raguRagu: true },
     })
 
-    if (!existing) {
+    if (existing.length === 0) {
       await prisma.jawabanUjian.createMany({
         data: ujian.ujianSoal.map((us) => ({
           ujianId: id,
@@ -50,7 +51,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       })
     }
 
-    return NextResponse.json({ success: true })
+    const savedAnswers: Record<string, string> = {}
+    const savedRagu: string[] = []
+    for (const j of existing) {
+      if (j.jawaban) {
+        let val = j.jawaban
+        try { const p = JSON.parse(val); if (Array.isArray(p)) val = "" } catch {}
+        if (val) savedAnswers[j.soalId] = val
+      }
+      if (j.raguRagu) savedRagu.push(j.soalId)
+    }
+
+    return NextResponse.json({ success: true, savedAnswers, savedRagu })
   } catch (error) {
     console.error("Error starting ujian:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
