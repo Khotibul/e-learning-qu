@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Plus, Edit, Trash2, Copy, ClipboardList, Play, Square } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Copy, ClipboardList, Play, Square, RotateCcw, Loader2 } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getUjians, deleteUjian, duplicateUjian, startUjian, stopUjian } from "../../actions"
+import { getUjians, deleteUjian, duplicateUjian, startUjian, stopUjian, resetUjian } from "../../actions"
 import Link from "next/link"
 import { formatDate } from "@/lib/utils"
 
@@ -100,25 +100,47 @@ export function UjianManagementClient() {
     }
   }
 
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
   const handleStart = async (id: string, nama: string) => {
     if (!confirm(`Mulai ujian "${nama}"? Siswa akan bisa mengakses ujian ini.`)) return
+    setActionLoading(id)
     try {
       await startUjian(id)
       toast.success("Ujian berhasil dimulai")
       fetchData()
-    } catch {
-      toast.error("Gagal memulai ujian")
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal memulai ujian")
+    } finally {
+      setActionLoading(null)
     }
   }
 
   const handleStop = async (id: string, nama: string) => {
     if (!confirm(`Hentikan ujian "${nama}"? Siswa tidak akan bisa mengakses ujian ini lagi.`)) return
+    setActionLoading(id)
     try {
       await stopUjian(id)
       toast.success("Ujian berhasil dihentikan")
       fetchData()
-    } catch {
-      toast.error("Gagal menghentikan ujian")
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal menghentikan ujian")
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleReset = async (id: string, nama: string) => {
+    if (!confirm(`Reset ujian "${nama}" ke Draft? Siswa harus menunggu ujian dimulai ulang.`)) return
+    setActionLoading(id)
+    try {
+      await resetUjian(id)
+      toast.success("Ujian direset ke Draft")
+      fetchData()
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal mereset ujian")
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -221,15 +243,25 @@ export function UjianManagementClient() {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
-                        {ujian.mode === "manual" && ujian.status === "DRAFT" && (
-                          <Button variant="ghost" size="icon" onClick={() => handleStart(ujian.id, ujian.nama)} className="text-green-600" title="Mulai Ujian">
-                            <Play className="h-4 w-4" />
+                        {ujian.status === "DRAFT" && (
+                          <Button variant="ghost" size="icon" onClick={() => handleStart(ujian.id, ujian.nama)} disabled={actionLoading === ujian.id} className="text-green-600" title="Mulai Ujian">
+                            {actionLoading === ujian.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                           </Button>
                         )}
-                        {ujian.mode === "manual" && ujian.status === "AKTIF" && (
-                          <Button variant="ghost" size="icon" onClick={() => handleStop(ujian.id, ujian.nama)} className="text-destructive" title="Hentikan Ujian">
-                            <Square className="h-4 w-4" />
+                        {ujian.status === "AKTIF" && (
+                          <Button variant="ghost" size="icon" onClick={() => handleStop(ujian.id, ujian.nama)} disabled={actionLoading === ujian.id} className="text-destructive" title="Hentikan Ujian">
+                            {actionLoading === ujian.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
                           </Button>
+                        )}
+                        {ujian.status === "SELESAI" && (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => handleStart(ujian.id, ujian.nama)} disabled={actionLoading === ujian.id} className="text-green-600" title="Mulai Ulang Ujian">
+                              {actionLoading === ujian.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleReset(ujian.id, ujian.nama)} disabled={actionLoading === ujian.id} title="Reset ke Draft">
+                              {actionLoading === ujian.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                            </Button>
+                          </>
                         )}
                         <Button variant="ghost" size="icon" onClick={() => handleDuplicate(ujian.id)} title="Duplikat">
                           <Copy className="h-4 w-4" />

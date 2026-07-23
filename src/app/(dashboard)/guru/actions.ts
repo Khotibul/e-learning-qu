@@ -259,6 +259,25 @@ export async function getUjians(params: {
   if (search) where.nama = { contains: search, mode: "insensitive" }
   if (status) where.status = status
 
+  // ── Auto‑transition otomatis exams that have reached their schedule ──
+  const now = new Date()
+  await prisma.ujian.updateMany({
+    where: {
+      guruId: guru.id, deletedAt: null,
+      mode: "otomatis", status: "DRAFT",
+      jamMulai: { lte: now },
+    },
+    data: { status: "AKTIF" },
+  })
+  await prisma.ujian.updateMany({
+    where: {
+      guruId: guru.id, deletedAt: null,
+      mode: "otomatis", status: "AKTIF",
+      jamSelesai: { lte: now },
+    },
+    data: { status: "SELESAI" },
+  })
+
   const [data, total] = await Promise.all([
     prisma.ujian.findMany({
       where: where as any,
@@ -505,7 +524,9 @@ export async function startUjian(id: string) {
     where: { id, guruId: guru.id, deletedAt: null },
   })
   if (!ujian) throw new Error("Ujian tidak ditemukan")
-  if (ujian.status !== "DRAFT") throw new Error("Hanya ujian dengan status Draft yang bisa dimulai")
+  if (ujian.status !== "DRAFT" && ujian.status !== "SELESAI") {
+    throw new Error("Hanya ujian dengan status Draft atau Selesai yang bisa dimulai ulang")
+  }
 
   await prisma.ujian.updateMany({
     where: { id, guruId: guru.id, deletedAt: null },
@@ -525,6 +546,21 @@ export async function stopUjian(id: string) {
   await prisma.ujian.updateMany({
     where: { id, guruId: guru.id, deletedAt: null },
     data: { status: "SELESAI" },
+  })
+  revalidatePath("/(dashboard)/guru/ujian")
+}
+
+export async function resetUjian(id: string) {
+  const guru = await getCurrentGuru()
+  const ujian = await prisma.ujian.findFirst({
+    where: { id, guruId: guru.id, deletedAt: null },
+  })
+  if (!ujian) throw new Error("Ujian tidak ditemukan")
+  if (ujian.status !== "SELESAI") throw new Error("Hanya ujian Selesai yang bisa direset ke Draft")
+
+  await prisma.ujian.updateMany({
+    where: { id, guruId: guru.id, deletedAt: null },
+    data: { status: "DRAFT" },
   })
   revalidatePath("/(dashboard)/guru/ujian")
 }

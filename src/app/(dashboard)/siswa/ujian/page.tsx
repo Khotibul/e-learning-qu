@@ -23,6 +23,28 @@ export default async function UjianListPage({ searchParams }: PageProps) {
   })
   if (!siswa?.kelasId) redirect("/siswa")
 
+  const now = new Date()
+
+  // ── Auto‑transition otomatis exams that have reached their schedule ──
+  await prisma.ujian.updateMany({
+    where: {
+      kelasId: siswa.kelasId, deletedAt: null,
+      isLatihan: false,
+      mode: "otomatis", status: "DRAFT",
+      jamMulai: { lte: now },
+    },
+    data: { status: "AKTIF" },
+  })
+  await prisma.ujian.updateMany({
+    where: {
+      kelasId: siswa.kelasId, deletedAt: null,
+      isLatihan: false,
+      mode: "otomatis", status: "AKTIF",
+      jamSelesai: { lte: now },
+    },
+    data: { status: "SELESAI" },
+  })
+
   const where: any = {
     kelasId: siswa.kelasId,
     isLatihan: false,

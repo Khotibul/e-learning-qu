@@ -202,17 +202,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const nilaiAkhir = totalPoin > 0 ? Math.round((perolehPoin / totalPoin) * 100) : 0
     const jumlahBenar = hasilSoal.filter((h) => h.isCorrect).length
 
-    await prisma.nilai.create({
-      data: {
-        siswaId: siswa.id,
-        ujianId: ujian.id,
-        mataPelajaranId: ujian.mataPelajaranId,
-        semesterId: ujian.semesterId,
-        nilai: nilaiAkhir,
-        jenis: ujian.isLatihan ? "LATIHAN" : "UJIAN",
-        keterangan: `Nilai ${ujian.nama}`,
-      },
+    const nilaiExists = await prisma.nilai.findFirst({
+      where: { siswaId: siswa.id, ujianId: ujian.id },
     })
+    if (nilaiExists) {
+      await prisma.nilai.update({
+        where: { id: nilaiExists.id },
+        data: {
+          nilai: nilaiAkhir,
+          keterangan: `Nilai ${ujian.nama}`,
+        },
+      })
+    } else {
+      await prisma.nilai.create({
+        data: {
+          siswaId: siswa.id,
+          ujianId: ujian.id,
+          mataPelajaranId: ujian.mataPelajaranId,
+          semesterId: ujian.semesterId,
+          nilai: nilaiAkhir,
+          jenis: ujian.isLatihan ? "LATIHAN" : "UJIAN",
+          keterangan: `Nilai ${ujian.nama}`,
+        },
+      })
+    }
 
     return NextResponse.json({
       nilai: nilaiAkhir,

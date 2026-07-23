@@ -32,6 +32,34 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Ujian not found" }, { status: 404 })
     }
 
+    const now = new Date()
+
+    // ── Auto‑transition for otomatis mode ──
+    if (ujian.mode === "otomatis") {
+      const jamMulai = new Date(ujian.jamMulai)
+      const jamSelesai = new Date(ujian.jamSelesai)
+
+      if (ujian.status === "DRAFT" && now >= jamMulai) {
+        await prisma.ujian.update({
+          where: { id: ujian.id },
+          data: { status: "AKTIF" },
+        })
+        ujian.status = "AKTIF"
+      }
+
+      if (ujian.status === "AKTIF" && now >= jamSelesai) {
+        await prisma.ujian.update({
+          where: { id: ujian.id },
+          data: { status: "SELESAI" },
+        })
+        ujian.status = "SELESAI"
+      }
+
+      if (ujian.status === "DRAFT" && now < jamMulai) {
+        return NextResponse.json({ error: "Ujian belum dimulai" }, { status: 400 })
+      }
+    }
+
     if (ujian.status !== "AKTIF") {
       return NextResponse.json({ error: "Ujian tidak aktif" }, { status: 400 })
     }

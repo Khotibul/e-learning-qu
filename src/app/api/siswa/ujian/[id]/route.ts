@@ -28,6 +28,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: "Ujian not found" }, { status: 404 })
     }
 
+    // ── Auto‑transition for otomatis mode ──
+    if (ujian.mode === "otomatis") {
+      const now = new Date()
+      if (ujian.status === "DRAFT" && now >= new Date(ujian.jamMulai)) {
+        await prisma.ujian.update({
+          where: { id: ujian.id },
+          data: { status: "AKTIF" },
+        })
+        ujian.status = "AKTIF"
+      }
+      if (ujian.status === "AKTIF" && now >= new Date(ujian.jamSelesai)) {
+        await prisma.ujian.update({
+          where: { id: ujian.id },
+          data: { status: "SELESAI" },
+        })
+        ujian.status = "SELESAI"
+      }
+    }
+
     const subSoalItem = (s: any) => {
       if (!s) return []
       const arr = Array.isArray(s) ? s : []
