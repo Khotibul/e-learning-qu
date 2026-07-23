@@ -240,8 +240,13 @@ export default function UjianPengerjaanPage() {
       setShowFullscreenExitWarning(false)
       toast.success("Kembali ke mode layar penuh")
     } catch {
-      toast.error("Gagal masuk layar penuh. Klik tombol untuk mencoba lagi atau kumpulkan ujian.")
+      toast.error("Gagal masuk layar penuh. Periksa izin browser Anda.")
     }
+  }, [])
+
+  const handleDismissFullscreenWarning = useCallback(() => {
+    setShowFullscreenExitWarning(false)
+    toast.error("Mode layar penuh dinonaktifkan. Ujian tetap berjalan tanpa layar penuh.")
   }, [])
 
   useEffect(() => {
@@ -308,8 +313,13 @@ export default function UjianPengerjaanPage() {
     }
 
     const handleFullscreenChange = () => {
-      if (ujianData?.fullscreen && hasStarted && !submitted && !document.fullscreenElement) {
-        setShowFullscreenExitWarning(true)
+      if (ujianData?.fullscreen && hasStarted && !submitted) {
+        if (!document.fullscreenElement) {
+          setShowFullscreenExitWarning(true)
+          setIsFullscreen(false)
+        } else {
+          setIsFullscreen(true)
+        }
       }
     }
 
@@ -505,6 +515,13 @@ export default function UjianPengerjaanPage() {
                 Kembali ke Fullscreen
               </Button>
               <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleDismissFullscreenWarning}
+              >
+                Lanjutkan Tanpa Fullscreen
+              </Button>
+              <Button
                 variant="destructive"
                 className="flex-1"
                 onClick={() => {
@@ -565,6 +582,7 @@ export default function UjianPengerjaanPage() {
             <Card className="p-6">
               {currentSoal ? (
                 <SoalDisplay
+                  key={currentSoal.id}
                   soal={currentSoal}
                   jawaban={answers[currentSoal.id] || ""}
                   onJawab={(jawaban) => setAnswer(currentSoal.id, jawaban)}
