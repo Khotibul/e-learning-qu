@@ -79,19 +79,22 @@ export function SoalDisplay({ soal, jawaban, onJawab, isRaguRagu }: SoalDisplayP
 
       {soal.jenisSoal === "PILIHAN_GANDA" && soal.pilihanGanda && (
         <RadioGroup value={jawaban} onValueChange={onJawab} className="space-y-3">
-          {soal.pilihanGanda.map((opt) => (
-            <div key={opt.label}>
-              <Label
-                htmlFor={opt.label}
-                className={`flex items-center gap-3 rounded-lg border p-4 cursor-pointer transition-all hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/5 ${
-                  jawaban === opt.label ? "border-primary bg-primary/5" : ""
-                }`}
-              >
-                <RadioGroupItem value={opt.label} id={opt.label} />
-                <span className="text-sm font-medium">{opt.label}. {opt.text}</span>
-              </Label>
-            </div>
-          ))}
+          {soal.pilihanGanda.map((opt) => {
+            const optId = `${soal.id}-${opt.label}`
+            return (
+              <div key={opt.label}>
+                <Label
+                  htmlFor={optId}
+                  className={`flex items-center gap-3 rounded-lg border p-4 cursor-pointer transition-all hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/5 ${
+                    jawaban === opt.label ? "border-primary bg-primary/5" : ""
+                  }`}
+                >
+                  <RadioGroupItem value={opt.label} id={optId} />
+                  <span className="text-sm font-medium">{opt.label}. {opt.text}</span>
+                </Label>
+              </div>
+            )
+          })}
         </RadioGroup>
       )}
 

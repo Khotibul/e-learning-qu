@@ -101,6 +101,7 @@ export default function UjianPengerjaanPage() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [tabSwitchCount, setTabSwitchCount] = useState(0)
   const [showAntiCheatWarning, setShowAntiCheatWarning] = useState(false)
+  const [showFullscreenExitWarning, setShowFullscreenExitWarning] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null)
@@ -232,6 +233,17 @@ export default function UjianPengerjaanPage() {
     }
   }, [])
 
+  const handleRetryFullscreen = useCallback(async () => {
+    try {
+      await document.documentElement.requestFullscreen()
+      setIsFullscreen(true)
+      setShowFullscreenExitWarning(false)
+      toast.success("Kembali ke mode layar penuh")
+    } catch {
+      toast.error("Gagal masuk layar penuh. Klik tombol untuk mencoba lagi atau kumpulkan ujian.")
+    }
+  }, [])
+
   useEffect(() => {
     if (!hasStarted || submitted) return
 
@@ -297,7 +309,7 @@ export default function UjianPengerjaanPage() {
 
     const handleFullscreenChange = () => {
       if (ujianData?.fullscreen && hasStarted && !submitted && !document.fullscreenElement) {
-        toast.error("Anda keluar dari mode layar penuh!")
+        setShowFullscreenExitWarning(true)
       }
     }
 
@@ -464,6 +476,47 @@ export default function UjianPengerjaanPage() {
               <AlertTriangle className="h-4 w-4" />
               Jangan tinggalkan halaman ujian!
             </p>
+          </Card>
+        </div>
+      )}
+
+      {showFullscreenExitWarning && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <Card className="w-full max-w-md p-6 space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="rounded-full bg-destructive/10 p-3 shrink-0">
+                <AlertTriangle className="h-6 w-6 text-destructive" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-semibold text-lg">Mode Layar Penuh Diaktifkan</h3>
+                <p className="text-sm text-muted-foreground">
+                  Anda telah keluar dari mode layar penuh. Ujian ini mewajibkan mode layar penuh.
+                  Kembali ke layar penuh untuk melanjutkan, atau kumpulkan ujian sekarang.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="default"
+                className="flex-1"
+                onClick={handleRetryFullscreen}
+              >
+                <Monitor className="h-4 w-4 mr-2" />
+                Kembali ke Fullscreen
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={() => {
+                  setShowFullscreenExitWarning(false)
+                  setShowConfirmSubmit(true)
+                }}
+                disabled={isSubmitting}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Kumpulkan Ujian
+              </Button>
+            </div>
           </Card>
         </div>
       )}
