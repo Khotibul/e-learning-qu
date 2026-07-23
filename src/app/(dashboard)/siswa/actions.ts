@@ -717,7 +717,12 @@ export async function getIuranSiswa() {
     where: { userId: session.user.id },
     select: { id: true, kelasId: true },
   })
-  if (!siswa?.kelasId) return []
+  if (!siswa?.kelasId) return null
+
+  const kelas = await prisma.kelas.findUnique({
+    where: { id: siswa.kelasId },
+    select: { nama: true },
+  })
 
   const iuran = await prisma.iuran.findMany({
     where: { kelasId: siswa.kelasId, deletedAt: null },
@@ -729,15 +734,19 @@ export async function getIuranSiswa() {
     orderBy: { createdAt: "desc" },
   })
 
-  return iuran.map((i) => ({
-    id: i.id,
-    nama: i.nama,
-    nominal: i.nominal,
-    tenggat: i.tenggat,
-    deskripsi: i.deskripsi,
-    status: i.pembayaran.length > 0 ? i.pembayaran[0].status : "BELUM",
-    pembayaranId: i.pembayaran.length > 0 ? i.pembayaran[0].id : null,
-  }))
+  return {
+    kelas,
+    siswaId: siswa.id,
+    iuran: iuran.map((i) => ({
+      ...i,
+      pembayaran: i.pembayaran.map((p) => ({
+        id: p.id,
+        siswaId: p.siswaId,
+        status: p.status,
+        dibayarPada: p.tanggalBayar,
+      })),
+    })),
+  }
 }
 
 export async function bayarIuran(iuranId: string) {
