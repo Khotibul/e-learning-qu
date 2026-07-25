@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { Search, Download, FileSpreadsheet, FileText, GraduationCap, CheckCircle, XCircle } from "lucide-react"
+import { Search, Download, FileSpreadsheet, FileText, GraduationCap, CheckCircle, XCircle, Trophy } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -48,8 +48,9 @@ export function NilaiGradingClient() {
   const [tab, setTab] = useState<TabType>("ujian")
   const [ujians, setUjians] = useState<UjianRef[]>([])
   const [selectedUjianId, setSelectedUjianId] = useState("")
-  const [ujianDetail, setUjianDetail] = useState<{ nama: string; mataPelajaran: { nama: string }; kelas: { nama: string } } | null>(null)
+  const [ujianDetail, setUjianDetail] = useState<{ nama: string; mataPelajaran: { nama: string }; kelas: { nama: string }; nilaiMinimum?: number } | null>(null)
   const [jawabans, setJawabans] = useState<JawabanItem[]>([])
+  const [nilaiMap, setNilaiMap] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
   const [loadingUjians, setLoadingUjians] = useState(true)
 
@@ -81,8 +82,9 @@ export function NilaiGradingClient() {
     setLoading(true)
     try {
       const result = await getNilaiByUjian(selectedUjianId)
-      setUjianDetail(result.ujian as any)
+      setUjianDetail({ ...result.ujian, nilaiMinimum: result.nilaiMinimum } as any)
       setJawabans(result.jawabans as any)
+      setNilaiMap(result.nilaiMap ?? {})
 
       const ev: Record<string, { nilai: string; komentar: string }> = {}
       result.jawabans.forEach((j: any) => {
@@ -243,10 +245,11 @@ export function NilaiGradingClient() {
             <CardTitle className="text-lg">{ujianDetail.nama}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4 text-sm">
+            <div className="flex flex-wrap gap-4 text-sm">
               <span>Mapel: <strong>{ujianDetail.mataPelajaran.nama}</strong></span>
               <span>Kelas: <strong>{ujianDetail.kelas.nama}</strong></span>
               <span>Siswa: <strong>{siswaEntries.length}</strong></span>
+              <span>Nilai Minimum: <strong>{ujianDetail.nilaiMinimum ?? 0}</strong></span>
             </div>
           </CardContent>
         </Card>
@@ -268,6 +271,76 @@ export function NilaiGradingClient() {
             </div>
           ) : (
             <div className="space-y-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Rekap Nilai</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>No</TableHead>
+                        <TableHead>Nama</TableHead>
+                        <TableHead>NIS</TableHead>
+                        <TableHead className="text-center">Nilai</TableHead>
+                        <TableHead className="text-center">PG Benar</TableHead>
+                        <TableHead className="text-center">Essay</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {siswaEntries
+                        .sort(([, a], [, b]) => {
+                          const sa = nilaiMap[a.siswa.id] ?? -1
+                          const sb = nilaiMap[b.siswa.id] ?? -1
+                          return sb - sa
+                        })
+                        .map(([sid, group], idx) => {
+                          const essayJ = group.jawabans.filter((j) => j.soal.jenisSoal === "ESSAY")
+                          const ungraded = essayJ.filter((j) => !j.penilaianEssay?.nilai && j.penilaianEssay?.nilai !== 0)
+                          const autoGraded = group.jawabans.filter((j) => j.soal.jenisSoal !== "ESSAY")
+                          const correct = autoGraded.filter((j) => j.isCorrect === true).length
+                          const score = nilaiMap[sid]
+                          const nMin = ujianDetail?.nilaiMinimum ?? 0
+                          return (
+                            <TableRow key={sid}>
+                              <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                              <TableCell className="font-medium">{group.siswa.nama}</TableCell>
+                              <TableCell>{group.siswa.nis || "-"}</TableCell>
+                              <TableCell className="text-center">
+                                {score !== undefined ? (
+                                  <span className={`font-bold ${score >= nMin ? "text-green-600" : "text-red-600"}`}>
+                                    {score}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center text-sm">
+                                {correct}/{autoGraded.length}
+                              </TableCell>
+                              <TableCell className="text-center text-sm">
+                                {essayJ.length > 0
+                                  ? `${essayJ.length - ungraded.length}/${essayJ.length}`
+                                  : "-"}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {score !== undefined ? (
+                                  <Badge variant={score >= nMin ? "default" : "destructive"} className="text-[10px]">
+                                    {score >= nMin ? "LULUS" : "TL"}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[10px]">-</Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
               {siswaEntries.map(([siswaId, group]) => (
                 <Card key={siswaId}>
                   <CardHeader className="pb-3">
@@ -276,22 +349,40 @@ export function NilaiGradingClient() {
                         <CardTitle className="text-base">{group.siswa.nama}</CardTitle>
                         <p className="text-sm text-muted-foreground">NIS: {group.siswa.nis || "-"}</p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col items-end gap-1">
                         {(() => {
                           const essayJawabans = group.jawabans.filter((j) => j.soal.jenisSoal === "ESSAY")
                           const ungraded = essayJawabans.filter((j) => !j.penilaianEssay?.nilai && j.penilaianEssay?.nilai !== 0)
                           const autoGraded = group.jawabans.filter((j) => j.soal.jenisSoal !== "ESSAY")
                           const correct = autoGraded.filter((j) => j.isCorrect === true).length
-                          const totalSoal = group.jawabans.length
+                          const soalCount = group.jawabans.length
+                          const finalScore = nilaiMap[siswaId]
+                          const nilaiMin = ujianDetail?.nilaiMinimum ?? 0
                           return (
-                            <div className="text-right">
-                              <p className="text-sm">
-                                PG: {correct}/{autoGraded.length} benar
-                              </p>
+                            <>
+                              {finalScore !== undefined ? (
+                                <div className="flex items-center gap-1.5">
+                                  <Trophy className="h-4 w-4 text-yellow-500" />
+                                  <span className={`text-lg font-bold ${finalScore >= nilaiMin ? "text-green-600" : "text-red-600"}`}>
+                                    {finalScore}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">/ 100</span>
+                                  <Badge variant={finalScore >= nilaiMin ? "default" : "destructive"} className="text-[10px]">
+                                    {finalScore >= nilaiMin ? "LULUS" : "TIDAK LULUS"}
+                                  </Badge>
+                                </div>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px]">Belum dinilai</Badge>
+                              )}
+                              {finalScore === undefined || ungraded.length > 0 ? (
+                                <p className="text-xs text-muted-foreground">
+                                  PG: {correct}/{autoGraded.length} benar
+                                </p>
+                              ) : null}
                               {ungraded.length > 0 && (
                                 <Badge variant="warning">{ungraded.length} essay belum dinilai</Badge>
                               )}
-                            </div>
+                            </>
                           )
                         })()}
                       </div>

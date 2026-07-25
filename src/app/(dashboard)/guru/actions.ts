@@ -610,7 +610,13 @@ export async function getNilaiByUjian(ujianId: string) {
     orderBy: [{ siswa: { nama: "asc" } }, { soal: { id: "asc" } }],
   })
 
-  return { ujian, jawabans }
+  const nilaiRecords = await prisma.nilai.findMany({
+    where: { ujianId, deletedAt: null },
+    select: { siswaId: true, nilai: true },
+  })
+  const nilaiMap = Object.fromEntries(nilaiRecords.map((n) => [n.siswaId, n.nilai]))
+
+  return { ujian, jawabans, nilaiMap, nilaiMinimum: ujian.nilaiMinimum }
 }
 
 export async function gradeEssay(
