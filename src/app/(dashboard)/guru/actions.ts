@@ -1455,3 +1455,102 @@ export async function deletePelanggaran(id: string) {
   revalidatePath("/(dashboard)/guru/wali-kelas")
   return { success: true }
 }
+
+// ─── REKAP ABSENSI ───────────────────────────────────────────
+
+export async function getRekapAbsensi(kelasId: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findUnique({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null },
+    include: {
+      siswas: { where: { deletedAt: null }, orderBy: { nama: "asc" } },
+    },
+  })
+  if (!kelas) throw new Error("Kelas tidak ditemukan")
+
+  const absensiList = await prisma.absensi.findMany({
+    where: { kelasId },
+    include: {
+      mataPelajaran: { select: { nama: true } },
+      siswa: true,
+    },
+    orderBy: { tanggal: "desc" },
+  })
+
+  const totalPertemuan = absensiList.length
+
+  const rekap = kelas.siswas.map((siswa) => {
+    let totalHadir = 0, totalSakit = 0, totalIzin = 0, totalAlpa = 0, totalTidakHadir = 0
+    let tercatat = 0
+
+    for (const absensi of absensiList) {
+      const entry = absensi.siswa.find((s) => s.siswaId === siswa.id)
+      if (!entry) continue
+      tercatat++
+      switch (entry.status) {
+        case "HADIR": totalHadir++; break
+        case "SAKIT": totalSakit++; break
+        case "IZIN": totalIzin++; break
+        case "ALPA": totalAlpa++; break
+        case "TIDAK_HADIR": totalTidakHadir++; break
+      }
+    }
+
+    const persentase = tercatat > 0 ? Math.round((totalHadir / tercatat) * 100) : 0
+
+    return {
+      id: siswa.id,
+      nama: siswa.nama,
+      nis: siswa.nis,
+      jabatan: siswa.jabatan,
+      totalHadir,
+      totalSakit,
+      totalIzin,
+      totalAlpa,
+      totalTidakHadir,
+      tercatat,
+      persentase,
+    }
+  })
+
+  return {
+    totalPertemuan,
+    siswa: rekap,
+  }
+}
+
+export async function getDetailAbsensiSiswa(kelasId: string, siswaId: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findUnique({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null },
+  })
+  if (!kelas) throw new Error("Kelas tidak ditemukan")
+
+  const absensiList = await prisma.absensi.findMany({
+    where: { kelasId },
+    include: {
+      mataPelajaran: { select: { nama: true } },
+      siswa: {
+        where: { siswaId },
+      },
+    },
+    orderBy: { tanggal: "desc" },
+  })
+
+  const siswa = await prisma.siswa.findUnique({
+    where: { id: siswaId },
+    select: { id: true, nama: true, nis: true, jabatan: true },
+  })
+  if (!siswa) throw new Error("Siswa tidak ditemukan")
+
+  const detail = absensiList
+    .filter((a) => a.siswa.length > 0)
+    .map((a) => ({
+      tanggal: a.tanggal,
+      mataPelajaran: a.mataPelajaran.nama,
+      status: a.siswa[0].status,
+      keterangan: a.siswa[0].keterangan,
+    }))
+
+  return { siswa, detail }
+}

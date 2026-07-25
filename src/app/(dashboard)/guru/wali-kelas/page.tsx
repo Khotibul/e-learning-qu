@@ -31,6 +31,7 @@ import {
   getSummaryKas,
   getJadwalPelajaranGuru, getMapelByKelas, createJadwalPelajaranGuru, deleteJadwalPelajaranGuru,
   getPelanggaran, createPelanggaran, deletePelanggaran,
+  getRekapAbsensi, getDetailAbsensiSiswa,
 } from "../actions"
 
 const jabatanLabels: Record<string, string> = {
@@ -87,6 +88,10 @@ export default function WaliKelasPage() {
   const [pelanggaranTanggal, setPelanggaranTanggal] = useState("")
   const [pelanggaranFilterSiswa, setPelanggaranFilterSiswa] = useState("")
 
+  const [rekapAbsensi, setRekapAbsensi] = useState<any>(null)
+  const [detailAbsensi, setDetailAbsensi] = useState<any>(null)
+  const [detailAbsensiOpen, setDetailAbsensiOpen] = useState(false)
+
   const fetchData = async () => {
     try {
       const k = await getWaliKelasInfo()
@@ -100,7 +105,7 @@ export default function WaliKelasPage() {
   const loadKelas = async (k: any) => {
     setSelectedKelas(k)
     try {
-      const [piket, iuran, denda, pengeluaran, summary, jp, mapel] = await Promise.all([
+      const [piket, iuran, denda, pengeluaran, summary, jp, mapel, rekap] = await Promise.all([
         getJadwalPiket(k.id),
         getIuran(k.id),
         getDenda(k.id),
@@ -108,6 +113,7 @@ export default function WaliKelasPage() {
         getSummaryKas(k.id),
         getJadwalPelajaranGuru(k.id),
         getMapelByKelas(k.id),
+        getRekapAbsensi(k.id),
       ])
       setJadwalPiket(piket as any[])
       setIuranList(iuran as any[])
@@ -116,6 +122,7 @@ export default function WaliKelasPage() {
       setSummaryKas(summary as any)
       setJadwalPelajaranList(jp as any[])
       setMapelList(mapel as any[])
+      setRekapAbsensi(rekap as any)
     } catch { toast.error("Gagal memuat detail kelas") }
   }
 
@@ -794,20 +801,235 @@ export default function WaliKelasPage() {
 
             {/* ABSENSI */}
             <TabsContent value="absensi" className="space-y-4 mt-4">
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <ClipboardCheck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-lg font-medium">Absensi per Jam Pelajaran</p>
-                  <p className="text-sm text-muted-foreground mt-1 mb-4">
-                    Kelola absensi harian untuk setiap jam pelajaran di halaman Absensi.
-                  </p>
-                  <Button asChild>
-                    <a href="/guru/absensi">
-                      <ExternalLink className="h-4 w-4 mr-2" /> Buka Halaman Absensi
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
+              {rekapAbsensi ? (
+                <>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Total <span className="font-semibold text-foreground">{rekapAbsensi.totalPertemuan}</span> pertemuan
+                      </p>
+                    </div>
+                    <Button asChild variant="outline" size="sm">
+                      <a href="/guru/absensi">
+                        <ExternalLink className="h-4 w-4 mr-1.5" /> Input Absensi Harian
+                      </a>
+                    </Button>
+                  </div>
+
+                  {/* Summary Cards */}
+                  <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+                    <Card className="border-green-200 dark:border-green-800">
+                      <CardContent className="p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Rata-rata Hadir</p>
+                        <p className="text-lg font-bold text-green-600">
+                          {rekapAbsensi.totalPertemuan > 0
+                            ? Math.round(rekapAbsensi.siswa.reduce((s: any, a: any) => s + a.persentase, 0) / rekapAbsensi.siswa.length)
+                            : 0}%
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-blue-200 dark:border-blue-800">
+                      <CardContent className="p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Total Sakit</p>
+                        <p className="text-lg font-bold text-blue-600">
+                          {rekapAbsensi.siswa.reduce((s: any, a: any) => s + a.totalSakit, 0)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-amber-200 dark:border-amber-800">
+                      <CardContent className="p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Total Izin</p>
+                        <p className="text-lg font-bold text-amber-600">
+                          {rekapAbsensi.siswa.reduce((s: any, a: any) => s + a.totalIzin, 0)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-red-200 dark:border-red-800">
+                      <CardContent className="p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Total Alpa</p>
+                        <p className="text-lg font-bold text-red-600">
+                          {rekapAbsensi.siswa.reduce((s: any, a: any) => s + a.totalAlpa + a.totalTidakHadir, 0)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-purple-200 dark:border-purple-800">
+                      <CardContent className="p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Siswa &lt; 75%</p>
+                        <p className="text-lg font-bold text-purple-600">
+                          {rekapAbsensi.siswa.filter((s: any) => s.persentase < 75).length}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Per-student Table */}
+                  <Card>
+                    <CardContent className="p-0 overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/50">
+                            <th className="text-left p-3 font-medium">No</th>
+                            <th className="text-left p-3 font-medium">Nama</th>
+                            <th className="text-center p-3 font-medium">Hadir</th>
+                            <th className="text-center p-3 font-medium">Sakit</th>
+                            <th className="text-center p-3 font-medium">Izin</th>
+                            <th className="text-center p-3 font-medium">Alpa</th>
+                            <th className="text-center p-3 font-medium">Kehadiran</th>
+                            <th className="text-center p-3 font-medium w-20">Detail</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rekapAbsensi.siswa.length === 0 ? (
+                            <tr>
+                              <td colSpan={8} className="p-6 text-center text-muted-foreground">
+                                Belum ada data absensi
+                              </td>
+                            </tr>
+                          ) : (
+                            rekapAbsensi.siswa.map((s: any, i: number) => {
+                              const color =
+                                s.persentase >= 90 ? "text-green-600" :
+                                s.persentase >= 75 ? "text-amber-600" :
+                                "text-red-600"
+                              return (
+                                <tr key={s.id} className="border-t hover:bg-muted/30">
+                                  <td className="p-3 text-muted-foreground text-xs">{i + 1}</td>
+                                  <td className="p-3 font-medium">{s.nama}</td>
+                                  <td className="p-3 text-center text-green-600 font-medium">{s.totalHadir}</td>
+                                  <td className="p-3 text-center text-blue-600">{s.totalSakit}</td>
+                                  <td className="p-3 text-center text-amber-600">{s.totalIzin}</td>
+                                  <td className="p-3 text-center text-red-600">{s.totalAlpa + s.totalTidakHadir}</td>
+                                  <td className="p-3">
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                                        <div
+                                          className={`h-full rounded-full transition-all ${
+                                            s.persentase >= 90 ? "bg-green-500" :
+                                            s.persentase >= 75 ? "bg-amber-500" :
+                                            "bg-red-500"
+                                          }`}
+                                          style={{ width: `${s.persentase}%` }}
+                                        />
+                                      </div>
+                                      <span className={`text-xs font-semibold w-10 text-right ${color}`}>
+                                        {s.persentase}%
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="p-3 text-center">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 text-xs"
+                                      onClick={async () => {
+                                        try {
+                                          const d = await getDetailAbsensiSiswa(selectedKelas.id, s.id)
+                                          setDetailAbsensi(d as any)
+                                          setDetailAbsensiOpen(true)
+                                        } catch {
+                                          toast.error("Gagal memuat detail absensi")
+                                        }
+                                      }}
+                                    >
+                                      Detail
+                                    </Button>
+                                  </td>
+                                </tr>
+                              )
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Detail Dialog */}
+              <Dialog open={detailAbsensiOpen} onOpenChange={setDetailAbsensiOpen}>
+                <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <ClipboardCheck className="h-5 w-5 text-primary" />
+                      Detail Absensi: {detailAbsensi?.siswa?.nama}
+                    </DialogTitle>
+                  </DialogHeader>
+                  {detailAbsensi && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-5 gap-2 text-center text-xs">
+                        <div className="rounded-lg bg-green-50 dark:bg-green-950/20 p-2">
+                          <p className="text-green-700 font-bold text-sm">
+                            {detailAbsensi.detail.filter((d: any) => d.status === "HADIR").length}
+                          </p>
+                          <p className="text-green-600">Hadir</p>
+                        </div>
+                        <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 p-2">
+                          <p className="text-blue-700 font-bold text-sm">
+                            {detailAbsensi.detail.filter((d: any) => d.status === "SAKIT").length}
+                          </p>
+                          <p className="text-blue-600">Sakit</p>
+                        </div>
+                        <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 p-2">
+                          <p className="text-amber-700 font-bold text-sm">
+                            {detailAbsensi.detail.filter((d: any) => d.status === "IZIN").length}
+                          </p>
+                          <p className="text-amber-600">Izin</p>
+                        </div>
+                        <div className="rounded-lg bg-red-50 dark:bg-red-950/20 p-2">
+                          <p className="text-red-700 font-bold text-sm">
+                            {detailAbsensi.detail.filter((d: any) => d.status === "ALPA" || d.status === "TIDAK_HADIR").length}
+                          </p>
+                          <p className="text-red-600">Alpa</p>
+                        </div>
+                        <div className="rounded-lg bg-purple-50 dark:bg-purple-950/20 p-2">
+                          <p className="text-purple-700 font-bold text-sm">{detailAbsensi.detail.length}</p>
+                          <p className="text-purple-600">Total</p>
+                        </div>
+                      </div>
+
+                      {detailAbsensi.detail.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-6">Belum ada data absensi</p>
+                      ) : (
+                        <div className="space-y-1 max-h-64 overflow-y-auto border rounded-lg">
+                          {detailAbsensi.detail.map((d: any, i: number) => {
+                            const statusColor: Record<string, string> = {
+                              HADIR: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                              SAKIT: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                              IZIN: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+                              ALPA: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                              TIDAK_HADIR: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                            }
+                            return (
+                              <div key={i} className="flex items-center justify-between px-4 py-2 border-b last:border-b-0 text-sm">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xs text-muted-foreground w-24 shrink-0">
+                                    {new Date(d.tanggal).toLocaleDateString("id-ID")}
+                                  </span>
+                                  <span className="text-xs">{d.mataPelajaran}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusColor[d.status] || ""}`}>
+                                    {d.status === "TIDAK_HADIR" ? "Alpa" : d.status}
+                                  </span>
+                                  {d.keterangan && (
+                                    <span className="text-[10px] text-muted-foreground italic">{d.keterangan}</span>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
             </TabsContent>
           </Tabs>
         </>
