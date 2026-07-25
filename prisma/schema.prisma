@@ -311,6 +311,7 @@ model Ujian {
   fullscreen      Boolean     @default(true)
   disableCopy     Boolean     @default(true)
   disablePaste    Boolean     @default(true)
+  bisaRetake      Boolean     @default(false)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   deletedAt       DateTime?

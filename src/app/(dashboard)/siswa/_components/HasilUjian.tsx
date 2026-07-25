@@ -22,9 +22,11 @@ interface HasilUjianProps {
   jumlahSoal: number
   jumlahBenar: number
   hasilSoal: HasilSoal[]
+  bisaRetake?: boolean
+  ujianId?: string
 }
 
-export function HasilUjian({ nilai, totalPoin, perolehPoin, jumlahSoal, jumlahBenar, hasilSoal }: HasilUjianProps) {
+export function HasilUjian({ nilai, totalPoin, perolehPoin, jumlahSoal, jumlahBenar, hasilSoal, bisaRetake, ujianId }: HasilUjianProps) {
   const grade = calculateGrade(nilai)
   const warnaGrade = (() => {
     if (nilai >= 90) return "text-emerald-500"
@@ -115,7 +117,7 @@ export function HasilUjian({ nilai, totalPoin, perolehPoin, jumlahSoal, jumlahBe
           </CardContent>
         </Card>
 
-        <div className="flex justify-center gap-4">
+        <div className="flex justify-center gap-4 flex-wrap">
           <Link href="/siswa">
             <Button variant="outline">
               <Home className="h-4 w-4" />
@@ -128,6 +130,14 @@ export function HasilUjian({ nilai, totalPoin, perolehPoin, jumlahSoal, jumlahBe
               Lihat Nilai
             </Button>
           </Link>
+          {bisaRetake && ujianId && (
+            <Link href={`/siswa/ujian/${ujianId}`}>
+              <Button variant="default">
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Kerjakan Lagi
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </div>

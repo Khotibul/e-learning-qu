@@ -64,6 +64,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Ujian tidak aktif" }, { status: 400 })
     }
 
+    // ── Retake: clear old answers if bisaRetake is enabled ──
+    if (ujian.bisaRetake) {
+      await prisma.jawabanUjian.deleteMany({
+        where: { ujianId: id, siswaId: siswa.id },
+      })
+      await prisma.nilai.deleteMany({
+        where: { ujianId: id, siswaId: siswa.id },
+      })
+    }
+
     const existing = await prisma.jawabanUjian.findMany({
       where: { ujianId: id, siswaId: siswa.id },
       select: { soalId: true, jawaban: true, raguRagu: true },

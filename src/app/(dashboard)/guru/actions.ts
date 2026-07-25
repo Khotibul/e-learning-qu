@@ -341,6 +341,7 @@ export async function createUjian(data: {
   fullscreen: boolean
   disableCopy: boolean
   disablePaste: boolean
+  bisaRetake?: boolean
   status?: string
   soalIds?: string[]
 }) {
@@ -372,6 +373,7 @@ export async function createUjian(data: {
       fullscreen: data.fullscreen,
       disableCopy: data.disableCopy,
       disablePaste: data.disablePaste,
+      bisaRetake: data.bisaRetake ?? false,
       status: (data.status as any) || "DRAFT",
     },
   })
@@ -412,6 +414,7 @@ export async function updateUjian(
     fullscreen?: boolean
     disableCopy?: boolean
     disablePaste?: boolean
+    bisaRetake?: boolean
     status?: string
     soalIds?: string[]
   }
@@ -442,6 +445,7 @@ export async function updateUjian(
   if (data.fullscreen !== undefined) updateData.fullscreen = data.fullscreen
   if (data.disableCopy !== undefined) updateData.disableCopy = data.disableCopy
   if (data.disablePaste !== undefined) updateData.disablePaste = data.disablePaste
+  if (data.bisaRetake !== undefined) updateData.bisaRetake = data.bisaRetake
   if (data.status !== undefined) updateData.status = data.status as any
 
   await prisma.ujian.updateMany({

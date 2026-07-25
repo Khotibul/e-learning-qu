@@ -13,9 +13,10 @@ interface LatihanCardProps {
   jumlahSoal: number
   durasi: number
   sudahDikerjakan: boolean
+  bisaRetake?: boolean
 }
 
-export function LatihanCard({ id, nama, mapel, jumlahSoal, durasi, sudahDikerjakan }: LatihanCardProps) {
+export function LatihanCard({ id, nama, mapel, jumlahSoal, durasi, sudahDikerjakan, bisaRetake }: LatihanCardProps) {
   return (
     <Card className="transition-all hover:shadow-md">
       <CardHeader className="pb-3">
@@ -27,12 +28,17 @@ export function LatihanCard({ id, nama, mapel, jumlahSoal, durasi, sudahDikerjak
               {mapel}
             </div>
           </div>
-          {sudahDikerjakan && (
-            <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Selesai
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {sudahDikerjakan && (
+              <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Selesai
+              </Badge>
+            )}
+            {bisaRetake && (
+              <Badge variant="secondary" className="text-[10px]">Retake</Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pb-3">
@@ -48,15 +54,15 @@ export function LatihanCard({ id, nama, mapel, jumlahSoal, durasi, sudahDikerjak
         </div>
       </CardContent>
       <CardFooter>
-        {sudahDikerjakan ? (
+        {sudahDikerjakan && !bisaRetake ? (
           <Button variant="outline" className="w-full" disabled>
             Sudah Dikerjakan
           </Button>
         ) : (
           <Link href={`/siswa/ujian/${id}`}>
             <Button className="w-full">
-              Kerjakan
-              <ArrowRight className="h-4 w-4" />
+              {sudahDikerjakan ? "Kerjakan Lagi" : "Kerjakan"}
+              <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </Link>
         )}

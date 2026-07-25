@@ -89,6 +89,7 @@ export default function UjianPengerjaanPage() {
     randomJawaban: boolean
     nilaiMinimum: number
     status: string
+    bisaRetake: boolean
     soal: SoalData[]
   } | null>(null)
 
@@ -387,7 +388,7 @@ export default function UjianPengerjaanPage() {
   }
 
   if (hasil) {
-    return <HasilUjian {...hasil} />
+    return <HasilUjian {...hasil} bisaRetake={ujianData?.bisaRetake} ujianId={ujianId} />
   }
 
   if (!ujianData) {

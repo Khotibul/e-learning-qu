@@ -79,6 +79,7 @@ interface UjianData {
   fullscreen: boolean
   disableCopy: boolean
   disablePaste: boolean
+  bisaRetake: boolean
   ujianSoal: { soal: BankSoalRef & { mataPelajaran: { nama: string } }; nomor: number }[]
 }
 
@@ -128,6 +129,7 @@ export function UjianFormClient({
   const [fullscreen, setFullscreen] = useState(ujian?.fullscreen ?? true)
   const [disableCopy, setDisableCopy] = useState(ujian?.disableCopy ?? true)
   const [disablePaste, setDisablePaste] = useState(ujian?.disablePaste ?? true)
+  const [bisaRetake, setBisaRetake] = useState(ujian?.bisaRetake ?? false)
   const [selectedSoalIds, setSelectedSoalIds] = useState<string[]>(
     ujian?.ujianSoal.map((us) => us.soal.id) ?? []
   )
@@ -206,6 +208,7 @@ export function UjianFormClient({
         fullscreen,
         disableCopy,
         disablePaste,
+        bisaRetake,
         soalIds: selectedSoalIds,
         status: isNew ? "DRAFT" : undefined,
       }
@@ -385,6 +388,7 @@ export function UjianFormClient({
                 { label: "Fullscreen", value: fullscreen, set: setFullscreen },
                 { label: "Nonaktifkan Copy", value: disableCopy, set: setDisableCopy },
                 { label: "Nonaktifkan Paste", value: disablePaste, set: setDisablePaste },
+                { label: "Bisa Retake", value: bisaRetake, set: setBisaRetake },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between rounded-xl border p-3">
                   <span className="text-sm font-medium">{item.label}</span>

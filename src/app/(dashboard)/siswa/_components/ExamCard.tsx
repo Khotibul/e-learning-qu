@@ -18,6 +18,7 @@ interface ExamCardProps {
   sudahDikerjakan: boolean
   jumlahSoal: number
   nilaiMinimum?: number
+  bisaRetake?: boolean
 }
 
 const statusColor: Record<string, "success" | "warning" | "secondary" | "destructive"> = {
@@ -32,7 +33,7 @@ const statusLabel: Record<string, string> = {
   SELESAI: "Selesai",
 }
 
-export function ExamCard({ id, nama, mapel, kelas, tanggal, durasi, status, sudahDikerjakan, jumlahSoal, nilaiMinimum }: ExamCardProps) {
+export function ExamCard({ id, nama, mapel, kelas, tanggal, durasi, status, sudahDikerjakan, jumlahSoal, nilaiMinimum, bisaRetake }: ExamCardProps) {
   return (
     <Card className="transition-all hover:shadow-md">
       <CardHeader className="pb-3">
@@ -52,6 +53,9 @@ export function ExamCard({ id, nama, mapel, kelas, tanggal, durasi, status, suda
               </Badge>
             )}
             <Badge variant={statusColor[status] ?? "secondary"}>{statusLabel[status] ?? status}</Badge>
+            {bisaRetake && (
+              <Badge variant="secondary" className="text-[10px]">Retake</Badge>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -80,13 +84,13 @@ export function ExamCard({ id, nama, mapel, kelas, tanggal, durasi, status, suda
         )}
       </CardContent>
       <CardFooter>
-        {sudahDikerjakan ? (
+        {sudahDikerjakan && !bisaRetake ? (
           <Button variant="outline" className="w-full" disabled>
             Sudah Dikerjakan
           </Button>
-        ) : status === "AKTIF" ? (
+        ) : status === "AKTIF" || (sudahDikerjakan && bisaRetake && status === "AKTIF") ? (
           <Link href={`/siswa/ujian/${id}`}>
-            <Button className="w-full">Kerjakan</Button>
+            <Button className="w-full">{sudahDikerjakan ? "Kerjakan Lagi" : "Kerjakan"}</Button>
           </Link>
         ) : (
           <Button variant="outline" className="w-full" disabled>

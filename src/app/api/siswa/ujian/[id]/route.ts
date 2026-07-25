@@ -104,6 +104,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       randomJawaban: ujian.randomJawaban,
       nilaiMinimum: ujian.nilaiMinimum,
       status: ujian.status,
+      bisaRetake: ujian.bisaRetake,
       soal,
       parentMap,
     }

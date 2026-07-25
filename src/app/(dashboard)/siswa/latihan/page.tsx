@@ -24,7 +24,12 @@ export default async function LatihanListPage() {
       status: "AKTIF",
       deletedAt: null,
     },
-    include: {
+    select: {
+      id: true,
+      nama: true,
+      durasi: true,
+      jumlahSoal: true,
+      bisaRetake: true,
       mataPelajaran: { select: { nama: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -62,6 +67,7 @@ export default async function LatihanListPage() {
               jumlahSoal={latihan.jumlahSoal}
               durasi={latihan.durasi}
               sudahDikerjakan={sudahDikerjakanSet.has(latihan.id)}
+              bisaRetake={latihan.bisaRetake}
             />
           ))}
         </div>

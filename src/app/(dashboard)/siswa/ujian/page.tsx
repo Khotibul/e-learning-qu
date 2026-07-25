@@ -56,7 +56,15 @@ export default async function UjianListPage({ searchParams }: PageProps) {
 
   const ujians = await prisma.ujian.findMany({
     where,
-    include: {
+    select: {
+      id: true,
+      nama: true,
+      durasi: true,
+      tanggal: true,
+      jumlahSoal: true,
+      status: true,
+      nilaiMinimum: true,
+      bisaRetake: true,
       mataPelajaran: { select: { nama: true } },
       kelas: { select: { nama: true } },
       semester: { select: { nama: true } },
@@ -125,6 +133,7 @@ export default async function UjianListPage({ searchParams }: PageProps) {
               sudahDikerjakan={sudahDikerjakanSet.has(ujian.id)}
               jumlahSoal={ujian.jumlahSoal}
               nilaiMinimum={ujian.nilaiMinimum}
+              bisaRetake={ujian.bisaRetake}
             />
           ))}
         </div>
