@@ -580,6 +580,15 @@ export async function getNilaiUjians() {
   })
 }
 
+export async function getNilaiLatihans() {
+  const guru = await getCurrentGuru()
+  return prisma.ujian.findMany({
+    where: { guruId: guru.id, deletedAt: null, isLatihan: true },
+    select: { id: true, nama: true, status: true },
+    orderBy: { createdAt: "desc" },
+  })
+}
+
 export async function getNilaiByUjian(ujianId: string) {
   const guru = await getCurrentGuru()
   const ujian = await prisma.ujian.findFirst({

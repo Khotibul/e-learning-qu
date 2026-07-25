@@ -15,7 +15,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
-import { getNilaiUjians, getNilaiByUjian, gradeEssay } from "../../actions"
+import { getNilaiUjians, getNilaiLatihans, getNilaiByUjian, gradeEssay } from "../../actions"
 
 const jenisSoalLabels: Record<string, string> = {
   PILIHAN_GANDA: "PG",
@@ -42,7 +42,10 @@ interface JawabanItem {
   penilaianEssay: { nilai: number; komentar: string | null } | null
 }
 
+type TabType = "ujian" | "latihan"
+
 export function NilaiGradingClient() {
+  const [tab, setTab] = useState<TabType>("ujian")
   const [ujians, setUjians] = useState<UjianRef[]>([])
   const [selectedUjianId, setSelectedUjianId] = useState("")
   const [ujianDetail, setUjianDetail] = useState<{ nama: string; mataPelajaran: { nama: string }; kelas: { nama: string } } | null>(null)
@@ -53,12 +56,25 @@ export function NilaiGradingClient() {
   const [essayValues, setEssayValues] = useState<Record<string, { nilai: string; komentar: string }>>({})
   const [searchSiswa, setSearchSiswa] = useState("")
 
-  useEffect(() => {
-    getNilaiUjians()
-      .then((data) => setUjians(data as any))
-      .catch(() => toast.error("Gagal memuat daftar ujian"))
-      .finally(() => setLoadingUjians(false))
+  const loadUjians = useCallback(async (currentTab: TabType) => {
+    setLoadingUjians(true)
+    setSelectedUjianId("")
+    setUjianDetail(null)
+    setJawabans([])
+    try {
+      const fn = currentTab === "latihan" ? getNilaiLatihans : getNilaiUjians
+      const data = await fn()
+      setUjians(data as any)
+    } catch {
+      toast.error("Gagal memuat daftar")
+    } finally {
+      setLoadingUjians(false)
+    }
   }, [])
+
+  useEffect(() => {
+    loadUjians(tab)
+  }, [tab, loadUjians])
 
   const fetchNilai = useCallback(async () => {
     if (!selectedUjianId) return
@@ -140,7 +156,25 @@ export function NilaiGradingClient() {
             <GraduationCap className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
             Penilaian
           </h1>
-          <p className="text-muted-foreground mt-1">Nilai ujian siswa</p>
+          <p className="text-muted-foreground mt-1">Nilai ujian dan latihan siswa</p>
+        </div>
+        <div className="flex gap-1 bg-muted p-1 rounded-lg">
+          <button
+            onClick={() => setTab("ujian")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              tab === "ujian" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Ujian
+          </button>
+          <button
+            onClick={() => setTab("latihan")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              tab === "latihan" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Latihan
+          </button>
         </div>
         {selectedUjianId && (
           <div className="flex gap-2">
@@ -168,13 +202,13 @@ export function NilaiGradingClient() {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Pilih Ujian</CardTitle>
+          <CardTitle className="text-lg">Pilih {tab === "latihan" ? "Latihan" : "Ujian"}</CardTitle>
         </CardHeader>
         <CardContent>
           {loadingUjians ? (
             <Skeleton className="h-10 w-64" />
           ) : ujians.length === 0 ? (
-            <p className="text-muted-foreground">Belum ada ujian yang tersedia</p>
+            <p className="text-muted-foreground">Belum ada {tab === "latihan" ? "latihan" : "ujian"} yang tersedia</p>
           ) : (
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <Select value={selectedUjianId} onValueChange={setSelectedUjianId}>
