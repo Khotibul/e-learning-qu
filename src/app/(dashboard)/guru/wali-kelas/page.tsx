@@ -20,16 +20,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Users, ClipboardList, Wallet, Trash2, Plus, Loader2, ShieldCheck,
   Banknote, Receipt, TrendingUp, TrendingDown, PiggyBank, Calendar,
-  Gavel, ClipboardCheck, ExternalLink,
+  Gavel, ClipboardCheck, ExternalLink, Check, X, Pencil,
 } from "lucide-react"
 import {
   getWaliKelasInfo, updateSiswaJabatan,
   getJadwalPiket, createJadwalPiket, deleteJadwalPiket,
   getIuran, createIuran, deleteIuran, recordPembayaranIuran,
+  confirmPembayaranIuran, rejectPembayaranIuran,
   getDenda, createDenda, deleteDenda, recordPembayaranDenda,
   getPengeluaran, createPengeluaran, deletePengeluaran,
   getSummaryKas,
-  getJadwalPelajaranGuru, getMapelByKelas, createJadwalPelajaranGuru, deleteJadwalPelajaranGuru,
+  getJadwalPelajaranGuru, getMapelByKelas, createJadwalPelajaranGuru, updateJadwalPelajaranGuru, deleteJadwalPelajaranGuru,
   getPelanggaran, createPelanggaran, deletePelanggaran,
   getRekapAbsensi, getDetailAbsensiSiswa,
 } from "../actions"
@@ -77,6 +78,7 @@ export default function WaliKelasPage() {
   const [jpHari, setJpHari] = useState("")
   const [jpJamMulai, setJpJamMulai] = useState("")
   const [jpJamSelesai, setJpJamSelesai] = useState("")
+  const [editingJp, setEditingJp] = useState<any>(null)
 
   const [pelanggaranList, setPelanggaranList] = useState<any[]>([])
   const [pelanggaranDialog, setPelanggaranDialog] = useState(false)
@@ -170,11 +172,26 @@ export default function WaliKelasPage() {
 
   const handleBayarIuran = async (iuranId: string, siswaId: string) => {
     try {
-      const iuran = iuranList.find((i) => i.id === iuranId)
-      await recordPembayaranIuran(iuranId, siswaId, iuran?.nominal || 0)
+      await recordPembayaranIuran(iuranId, siswaId)
       toast.success("Pembayaran dicatat")
       loadKelas(selectedKelas)
     } catch { toast.error("Gagal") }
+  }
+
+  const handleConfirmIuran = async (iuranId: string, siswaId: string) => {
+    try {
+      await confirmPembayaranIuran(iuranId, siswaId)
+      toast.success("Pembayaran dikonfirmasi")
+      loadKelas(selectedKelas)
+    } catch { toast.error("Gagal konfirmasi") }
+  }
+
+  const handleRejectIuran = async (iuranId: string, siswaId: string) => {
+    try {
+      await rejectPembayaranIuran(iuranId, siswaId)
+      toast.success("Pengajuan ditolak")
+      loadKelas(selectedKelas)
+    } catch { toast.error("Gagal menolak pengajuan") }
   }
 
   const handleAddDenda = async () => {
@@ -226,10 +243,37 @@ export default function WaliKelasPage() {
     try {
       await createJadwalPelajaranGuru({ kelasId: selectedKelas.id, mataPelajaranId: jpMapelId, hari: jpHari, jamMulai: jpJamMulai, jamSelesai: jpJamSelesai })
       toast.success("Jadwal pelajaran ditambahkan")
-      setJpDialog(false); setJpMapelId(""); setJpHari(""); setJpJamMulai(""); setJpJamSelesai("")
+      setJpDialog(false); setJpMapelId(""); setJpHari(""); setJpJamMulai(""); setJpJamSelesai(""); setEditingJp(null)
       loadKelas(selectedKelas)
     } catch (e: any) { toast.error(e?.message || "Gagal") }
     finally { setSaving(false) }
+  }
+
+  const handleEditJadwalPelajaran = async () => {
+    if (!editingJp || !jpMapelId || !jpHari || !jpJamMulai || !jpJamSelesai) { toast.error("Semua field harus diisi"); return }
+    setSaving(true)
+    try {
+      await updateJadwalPelajaranGuru(editingJp.id, { mataPelajaranId: jpMapelId, hari: jpHari, jamMulai: jpJamMulai, jamSelesai: jpJamSelesai })
+      toast.success("Jadwal pelajaran diperbarui")
+      setJpDialog(false); setJpMapelId(""); setJpHari(""); setJpJamMulai(""); setJpJamSelesai(""); setEditingJp(null)
+      loadKelas(selectedKelas)
+    } catch (e: any) { toast.error(e?.message || "Gagal") }
+    finally { setSaving(false) }
+  }
+
+  const openAddJp = () => {
+    setEditingJp(null)
+    setJpMapelId(""); setJpHari(""); setJpJamMulai(""); setJpJamSelesai("")
+    setJpDialog(true)
+  }
+
+  const openEditJp = (j: any) => {
+    setEditingJp(j)
+    setJpMapelId(j.mataPelajaranId || "")
+    setJpHari(j.hari)
+    setJpJamMulai(j.jamMulai?.slice(0, 5) || "")
+    setJpJamSelesai(j.jamSelesai?.slice(0, 5) || "")
+    setJpDialog(true)
   }
 
   const handleDeleteJadwalPelajaran = async (id: string) => {
@@ -495,7 +539,8 @@ export default function WaliKelasPage() {
                 <Card><CardContent className="p-8 text-center text-muted-foreground">Belum ada iuran</CardContent></Card>
               ) : iuranList.map((iuran) => {
                 const totalSiswa = selectedKelas.siswas?.filter((s: any) => !s.deletedAt).length || 0
-                const sudahBayar = iuran._count?.pembayaran || 0
+                const lunasCount = iuran.pembayaran?.filter((p: any) => p.status === "LUNAS").length || 0
+                const menungguCount = iuran.pembayaran?.filter((p: any) => p.status === "MENUNGGU").length || 0
                 return (
                   <Card key={iuran.id}>
                     <CardHeader className="pb-3">
@@ -511,12 +556,39 @@ export default function WaliKelasPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-xs text-muted-foreground mb-2">{sudahBayar}/{totalSiswa} sudah bayar</p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {lunasCount}/{totalSiswa} sudah bayar
+                        {menungguCount > 0 && <span className="text-amber-600 dark:text-amber-400"> · {menungguCount} menunggu konfirmasi</span>}
+                      </p>
                       <div className="space-y-1 max-h-48 overflow-y-auto">
                         {iuran.pembayaran?.map((p: any) => (
-                          <div key={p.id} className="flex items-center justify-between text-xs rounded-lg bg-emerald-50 dark:bg-emerald-950/20 px-3 py-1.5">
-                            <span>{p.siswa.nama}</span>
-                            <Badge variant="secondary" className="text-[10px]">{p.status}</Badge>
+                          <div
+                            key={p.id}
+                            className={`flex items-center justify-between gap-2 text-xs rounded-lg px-3 py-1.5 ${
+                              p.status === "MENUNGGU"
+                                ? "bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800"
+                                : "bg-emerald-50 dark:bg-emerald-950/20"
+                            }`}
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate">{p.siswa.nama}</span>
+                              {p.keterangan && (
+                                <span className="block text-[10px] text-muted-foreground truncate">{p.keterangan}</span>
+                              )}
+                            </span>
+                            {p.status === "MENUNGGU" ? (
+                              <span className="flex items-center gap-1 shrink-0">
+                                <Badge variant="warning" className="text-[10px]">Menunggu</Badge>
+                                <Button variant="outline" size="sm" className="h-6 text-[10px] px-2 text-emerald-600" onClick={() => handleConfirmIuran(iuran.id, p.siswaId)}>
+                                  <Check className="h-3 w-3 mr-1" /> Konfirmasi
+                                </Button>
+                                <Button variant="outline" size="sm" className="h-6 text-[10px] px-2 text-red-600" onClick={() => handleRejectIuran(iuran.id, p.siswaId)}>
+                                  <X className="h-3 w-3 mr-1" /> Tolak
+                                </Button>
+                              </span>
+                            ) : (
+                              <Badge variant="secondary" className="text-[10px] shrink-0">Lunas</Badge>
+                            )}
                           </div>
                         ))}
                         {selectedKelas.siswas?.filter((s: any) => !s.deletedAt && !iuran.pembayaran?.find((p: any) => p.siswaId === s.id)).map((s: any) => (
@@ -653,8 +725,8 @@ export default function WaliKelasPage() {
             <TabsContent value="jadwal" className="space-y-4 mt-4">
               <div className="flex justify-end">
                 <Dialog open={jpDialog} onOpenChange={setJpDialog}>
-                  <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Tambah Jadwal</Button></DialogTrigger>
-                  <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>Tambah Jadwal Pelajaran</DialogTitle></DialogHeader>
+                  <DialogTrigger asChild><Button size="sm" onClick={openAddJp}><Plus className="h-4 w-4 mr-1" /> Tambah Jadwal</Button></DialogTrigger>
+                  <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>{editingJp ? "Edit Jadwal Pelajaran" : "Tambah Jadwal Pelajaran"}</DialogTitle></DialogHeader>
                     <div className="space-y-4">
                       <div className="space-y-2"><Label>Mata Pelajaran</Label>
                         <Select value={jpMapelId} onValueChange={setJpMapelId}>
@@ -672,8 +744,8 @@ export default function WaliKelasPage() {
                         <div className="space-y-2"><Label>Jam Mulai</Label><Input type="time" value={jpJamMulai} onChange={(e) => setJpJamMulai(e.target.value)} /></div>
                         <div className="space-y-2"><Label>Jam Selesai</Label><Input type="time" value={jpJamSelesai} onChange={(e) => setJpJamSelesai(e.target.value)} /></div>
                       </div>
-                      <Button onClick={handleAddJadwalPelajaran} disabled={saving} className="w-full">
-                        {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Simpan
+                      <Button onClick={editingJp ? handleEditJadwalPelajaran : handleAddJadwalPelajaran} disabled={saving} className="w-full">
+                        {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} {editingJp ? "Perbarui" : "Simpan"}
                       </Button>
                     </div>
                   </DialogContent>
@@ -682,7 +754,9 @@ export default function WaliKelasPage() {
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 {hariList.map((hari) => {
-                  const items = jadwalPelajaranList.filter((j) => j.hari === hari)
+                  const items = jadwalPelajaranList
+                    .filter((j) => j.hari === hari)
+                    .sort((a: any, b: any) => (a.jamMulai || "").localeCompare(b.jamMulai || ""))
                   return (
                     <Card key={hari} className={items.length === 0 ? "opacity-50" : ""}>
                       <CardHeader className="pb-2"><CardTitle className="text-sm text-center">{hari}</CardTitle></CardHeader>
@@ -693,9 +767,14 @@ export default function WaliKelasPage() {
                           <div className="space-y-2">
                             {items.map((j) => (
                               <div key={j.id} className="rounded-lg border p-2 text-center relative group">
-                                <Button variant="ghost" size="icon" className="absolute -top-1.5 -right-1.5 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDeleteJadwalPelajaran(j.id)}>
-                                  <Trash2 className="h-3 w-3 text-destructive" />
-                                </Button>
+                                <div className="absolute -top-1.5 -right-1.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => openEditJp(j)}>
+                                    <Pencil className="h-3 w-3 text-primary" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => handleDeleteJadwalPelajaran(j.id)}>
+                                    <Trash2 className="h-3 w-3 text-destructive" />
+                                  </Button>
+                                </div>
                                 <p className="text-xs font-medium">{j.mataPelajaran?.nama}</p>
                                 <p className="text-[10px] text-muted-foreground mt-0.5">
                                   {j.jamMulai?.slice(0, 5)} - {j.jamSelesai?.slice(0, 5)}

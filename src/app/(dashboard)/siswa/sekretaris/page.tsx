@@ -14,12 +14,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ClipboardList, Calendar, Plus, Trash2, Loader2, ShieldCheck } from "lucide-react"
+import { ClipboardList, Calendar, Plus, Trash2, Loader2, ShieldCheck, Pencil } from "lucide-react"
 import {
   getSekretarisPiket, getSekretarisSiswa,
   createSekretarisPiket, deleteSekretarisPiket,
   getSekretarisJadwalPelajaran, getSekretarisMapel,
-  createSekretarisJadwalPelajaran, deleteSekretarisJadwalPelajaran,
+  createSekretarisJadwalPelajaran, updateSekretarisJadwalPelajaran, deleteSekretarisJadwalPelajaran,
 } from "../actions"
 
 const hariList = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
@@ -40,6 +40,7 @@ export default function SekretarisPage() {
   const [jpHari, setJpHari] = useState("")
   const [jpJamMulai, setJpJamMulai] = useState("")
   const [jpJamSelesai, setJpJamSelesai] = useState("")
+  const [editingJp, setEditingJp] = useState<any>(null)
 
   const fetchAll = async () => {
     setLoading(true)
@@ -83,10 +84,37 @@ export default function SekretarisPage() {
     try {
       await createSekretarisJadwalPelajaran({ mataPelajaranId: jpMapelId, hari: jpHari, jamMulai: jpJamMulai, jamSelesai: jpJamSelesai })
       toast.success("Jadwal pelajaran ditambahkan")
-      setJpDialog(false); setJpMapelId(""); setJpHari(""); setJpJamMulai(""); setJpJamSelesai("")
+      setJpDialog(false); setJpMapelId(""); setJpHari(""); setJpJamMulai(""); setJpJamSelesai(""); setEditingJp(null)
       fetchAll()
     } catch (e: any) { toast.error(e?.message || "Gagal") }
     finally { setSaving(false) }
+  }
+
+  const handleEditJp = async () => {
+    if (!editingJp || !jpMapelId || !jpHari || !jpJamMulai || !jpJamSelesai) { toast.error("Semua field harus diisi"); return }
+    setSaving(true)
+    try {
+      await updateSekretarisJadwalPelajaran(editingJp.id, { mataPelajaranId: jpMapelId, hari: jpHari, jamMulai: jpJamMulai, jamSelesai: jpJamSelesai })
+      toast.success("Jadwal pelajaran diperbarui")
+      setJpDialog(false); setJpMapelId(""); setJpHari(""); setJpJamMulai(""); setJpJamSelesai(""); setEditingJp(null)
+      fetchAll()
+    } catch (e: any) { toast.error(e?.message || "Gagal") }
+    finally { setSaving(false) }
+  }
+
+  const openAddJp = () => {
+    setEditingJp(null)
+    setJpMapelId(""); setJpHari(""); setJpJamMulai(""); setJpJamSelesai("")
+    setJpDialog(true)
+  }
+
+  const openEditJp = (j: any) => {
+    setEditingJp(j)
+    setJpMapelId(j.mataPelajaranId || "")
+    setJpHari(j.hari)
+    setJpJamMulai(j.jamMulai?.slice(0, 5) || "")
+    setJpJamSelesai(j.jamSelesai?.slice(0, 5) || "")
+    setJpDialog(true)
   }
 
   const handleDeleteJp = async (id: string) => {
@@ -187,8 +215,8 @@ export default function SekretarisPage() {
         <TabsContent value="jadwal" className="space-y-4 mt-4">
           <div className="flex justify-end">
             <Dialog open={jpDialog} onOpenChange={setJpDialog}>
-              <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Tambah Jadwal</Button></DialogTrigger>
-              <DialogContent><DialogHeader><DialogTitle>Tambah Jadwal Pelajaran</DialogTitle></DialogHeader>
+              <DialogTrigger asChild><Button size="sm" onClick={openAddJp}><Plus className="h-4 w-4 mr-1" /> Tambah Jadwal</Button></DialogTrigger>
+              <DialogContent><DialogHeader><DialogTitle>{editingJp ? "Edit Jadwal Pelajaran" : "Tambah Jadwal Pelajaran"}</DialogTitle></DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2"><Label>Mata Pelajaran</Label>
                     <Select value={jpMapelId} onValueChange={setJpMapelId}>
@@ -206,8 +234,8 @@ export default function SekretarisPage() {
                     <div className="space-y-2"><Label>Jam Mulai</Label><Input type="time" value={jpJamMulai} onChange={(e) => setJpJamMulai(e.target.value)} /></div>
                     <div className="space-y-2"><Label>Jam Selesai</Label><Input type="time" value={jpJamSelesai} onChange={(e) => setJpJamSelesai(e.target.value)} /></div>
                   </div>
-                  <Button onClick={handleAddJp} disabled={saving} className="w-full">
-                    {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Simpan
+                  <Button onClick={editingJp ? handleEditJp : handleAddJp} disabled={saving} className="w-full">
+                    {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} {editingJp ? "Perbarui" : "Simpan"}
                   </Button>
                 </div>
               </DialogContent>
@@ -227,9 +255,14 @@ export default function SekretarisPage() {
                       <div className="space-y-2">
                         {items.map((j) => (
                           <div key={j.id} className="rounded-lg border p-2 text-center relative group">
-                            <Button variant="ghost" size="icon" className="absolute -top-1.5 -right-1.5 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDeleteJp(j.id)}>
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
+                            <div className="absolute -top-1.5 -right-1.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => openEditJp(j)}>
+                                <Pencil className="h-3 w-3 text-primary" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => handleDeleteJp(j.id)}>
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
                             <p className="text-xs font-medium">{j.mataPelajaran?.nama}</p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">
                               {j.jamMulai?.slice(0, 5)} - {j.jamSelesai?.slice(0, 5)}

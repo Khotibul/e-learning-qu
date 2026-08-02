@@ -15,10 +15,11 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Wallet, Banknote, Receipt, Trash2, Plus, Loader2, ShieldCheck, PiggyBank,
-  TrendingUp, TrendingDown,
+  TrendingUp, TrendingDown, Check, X,
 } from "lucide-react"
 import {
   getBendaharaIuran, createBendaharaIuran, deleteBendaharaIuran, recordBendaharaPembayaranIuran,
+  confirmBendaharaPembayaranIuran, rejectBendaharaPembayaranIuran,
   getBendaharaDenda, createBendaharaDenda, deleteBendaharaDenda, recordBendaharaPembayaranDenda,
   getBendaharaPengeluaran, createBendaharaPengeluaran, deleteBendaharaPengeluaran,
   getBendaharaSummary, getBendaharaSiswa,
@@ -89,10 +90,23 @@ export default function BendaharaPage() {
 
   const handleBayarIuran = async (iuranId: string, siswaId: string) => {
     try {
-      const item = iuranList.find((i) => i.id === iuranId)
-      await recordBendaharaPembayaranIuran(iuranId, siswaId, item?.nominal || 0)
+      await recordBendaharaPembayaranIuran(iuranId, siswaId)
       toast.success("Pembayaran dicatat"); fetchAll()
     } catch { toast.error("Gagal") }
+  }
+
+  const handleConfirmIuran = async (iuranId: string, siswaId: string) => {
+    try {
+      await confirmBendaharaPembayaranIuran(iuranId, siswaId)
+      toast.success("Pembayaran dikonfirmasi"); fetchAll()
+    } catch { toast.error("Gagal konfirmasi") }
+  }
+
+  const handleRejectIuran = async (iuranId: string, siswaId: string) => {
+    try {
+      await rejectBendaharaPembayaranIuran(iuranId, siswaId)
+      toast.success("Pengajuan ditolak"); fetchAll()
+    } catch { toast.error("Gagal menolak pengajuan") }
   }
 
   const handleAddDenda = async () => {
@@ -207,7 +221,8 @@ export default function BendaharaPage() {
           {iuranList.length === 0 ? (
             <Card><CardContent className="p-8 text-center text-muted-foreground">Belum ada iuran</CardContent></Card>
           ) : iuranList.map((iuran) => {
-            const sudahBayar = iuran._count?.pembayaran || 0
+            const lunasCount = iuran.pembayaran?.filter((p: any) => p.status === "LUNAS").length || 0
+            const menungguCount = iuran.pembayaran?.filter((p: any) => p.status === "MENUNGGU").length || 0
             return (
               <Card key={iuran.id}>
                 <CardHeader className="pb-3">
@@ -221,12 +236,39 @@ export default function BendaharaPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-xs text-muted-foreground mb-2">{sudahBayar}/{siswaList.length} sudah bayar</p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {lunasCount}/{siswaList.length} sudah bayar
+                    {menungguCount > 0 && <span className="text-amber-600 dark:text-amber-400"> · {menungguCount} menunggu konfirmasi</span>}
+                  </p>
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     {iuran.pembayaran?.map((p: any) => (
-                      <div key={p.id} className="flex items-center justify-between text-xs rounded-lg bg-emerald-50 dark:bg-emerald-950/20 px-3 py-1.5">
-                        <span>{p.siswa.nama}</span>
-                        <Badge variant="secondary" className="text-[10px]">{p.status}</Badge>
+                      <div
+                        key={p.id}
+                        className={`flex items-center justify-between gap-2 text-xs rounded-lg px-3 py-1.5 ${
+                          p.status === "MENUNGGU"
+                            ? "bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800"
+                            : "bg-emerald-50 dark:bg-emerald-950/20"
+                        }`}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate">{p.siswa.nama}</span>
+                          {p.keterangan && (
+                            <span className="block text-[10px] text-muted-foreground truncate">{p.keterangan}</span>
+                          )}
+                        </span>
+                        {p.status === "MENUNGGU" ? (
+                          <span className="flex items-center gap-1 shrink-0">
+                            <Badge variant="warning" className="text-[10px]">Menunggu</Badge>
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] px-2 text-emerald-600" onClick={() => handleConfirmIuran(iuran.id, p.siswaId)}>
+                              <Check className="h-3 w-3 mr-1" /> Konfirmasi
+                            </Button>
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] px-2 text-red-600" onClick={() => handleRejectIuran(iuran.id, p.siswaId)}>
+                              <X className="h-3 w-3 mr-1" /> Tolak
+                            </Button>
+                          </span>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] shrink-0">Lunas</Badge>
+                        )}
                       </div>
                     ))}
                     {siswaList.filter((s) => !iuran.pembayaran?.find((p: any) => p.siswaId === s.id)).map((s) => (

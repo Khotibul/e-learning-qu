@@ -1177,7 +1177,7 @@ export async function createIuran(data: { kelasId: string; nama: string; nominal
       kelasId: data.kelasId,
       nama: data.nama,
       nominal: data.nominal,
-      tenggat: data.tenggat ? new Date(data.tenggat) : null,
+      tenggat: data.tenggat ? new Date(`${data.tenggat}T23:59:59`) : null,
       deskripsi: data.deskripsi || null,
     },
   })
@@ -1196,7 +1196,7 @@ export async function deleteIuran(id: string) {
   return { success: true }
 }
 
-export async function recordPembayaranIuran(iuranId: string, siswaId: string, jumlah: number) {
+export async function recordPembayaranIuran(iuranId: string, siswaId: string) {
   const guru = await getCurrentGuru()
   const iuran = await prisma.iuran.findUnique({
     where: { id: iuranId },
@@ -1204,11 +1204,51 @@ export async function recordPembayaranIuran(iuranId: string, siswaId: string, ju
   })
   if (!iuran || iuran.kelas.guruId !== guru.id) throw new Error("Akses ditolak")
 
+  const target = await prisma.siswa.findFirst({
+    where: { id: siswaId, kelasId: iuran.kelasId, deletedAt: null },
+    select: { id: true },
+  })
+  if (!target) throw new Error("Siswa tidak ditemukan di kelas ini")
+
   await prisma.pembayaranIuran.upsert({
     where: { iuranId_siswaId: { iuranId, siswaId } },
-    update: { jumlah, status: "LUNAS", tanggalBayar: new Date() },
-    create: { iuranId, siswaId, jumlah, status: "LUNAS" },
+    update: { jumlah: iuran.nominal, status: "LUNAS", tanggalBayar: new Date() },
+    create: { iuranId, siswaId, jumlah: iuran.nominal, status: "LUNAS" },
   })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
+
+export async function confirmPembayaranIuran(iuranId: string, siswaId: string) {
+  const guru = await getCurrentGuru()
+  const iuran = await prisma.iuran.findUnique({
+    where: { id: iuranId },
+    include: { kelas: { select: { guruId: true } } },
+  })
+  if (!iuran || iuran.kelas.guruId !== guru.id) throw new Error("Akses ditolak")
+
+  const existing = await prisma.pembayaranIuran.findUnique({
+    where: { iuranId_siswaId: { iuranId, siswaId } },
+  })
+  if (!existing) throw new Error("Belum ada pengajuan pembayaran")
+
+  await prisma.pembayaranIuran.update({
+    where: { id: existing.id },
+    data: { status: "LUNAS", jumlah: iuran.nominal, tanggalBayar: new Date() },
+  })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
+
+export async function rejectPembayaranIuran(iuranId: string, siswaId: string) {
+  const guru = await getCurrentGuru()
+  const iuran = await prisma.iuran.findUnique({
+    where: { id: iuranId },
+    include: { kelas: { select: { guruId: true } } },
+  })
+  if (!iuran || iuran.kelas.guruId !== guru.id) throw new Error("Akses ditolak")
+
+  await prisma.pembayaranIuran.deleteMany({ where: { iuranId, siswaId } })
   revalidatePath("/(dashboard)/guru/wali-kelas")
   return { success: true }
 }
@@ -1341,7 +1381,7 @@ export async function getSummaryKas(kelasId: string) {
 
   const [totalIuran, totalDenda, totalPengeluaran] = await Promise.all([
     prisma.pembayaranIuran.aggregate({
-      where: { iuran: { kelasId, deletedAt: null } },
+      where: { iuran: { kelasId, deletedAt: null }, status: "LUNAS" },
       _sum: { jumlah: true },
     }),
     prisma.pembayaranDenda.aggregate({
@@ -1407,8 +1447,37 @@ export async function createJadwalPelajaranGuru(data: {
     where: { id: data.kelasId, guruId: guru.id, deletedAt: null },
   })
   if (!kelas) throw new Error("Akses ditolak")
+  if (data.jamSelesai <= data.jamMulai) throw new Error("Jam selesai harus setelah jam mulai")
 
   await prisma.jadwalPelajaran.create({ data })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
+
+export async function updateJadwalPelajaranGuru(
+  id: string,
+  data: { mataPelajaranId?: string; hari?: string; jamMulai?: string; jamSelesai?: string }
+) {
+  const guru = await getCurrentGuru()
+  const item = await prisma.jadwalPelajaran.findUnique({
+    where: { id },
+    include: { kelas: { select: { guruId: true } } },
+  })
+  if (!item || item.kelas.guruId !== guru.id) throw new Error("Akses ditolak")
+
+  const jamMulai = data.jamMulai ?? item.jamMulai
+  const jamSelesai = data.jamSelesai ?? item.jamSelesai
+  if (jamSelesai <= jamMulai) throw new Error("Jam selesai harus setelah jam mulai")
+
+  await prisma.jadwalPelajaran.update({
+    where: { id },
+    data: {
+      ...(data.mataPelajaranId !== undefined && { mataPelajaranId: data.mataPelajaranId }),
+      ...(data.hari !== undefined && { hari: data.hari }),
+      ...(data.jamMulai !== undefined && { jamMulai: data.jamMulai }),
+      ...(data.jamSelesai !== undefined && { jamSelesai: data.jamSelesai }),
+    },
+  })
   revalidatePath("/(dashboard)/guru/wali-kelas")
   return { success: true }
 }
@@ -1419,7 +1488,7 @@ export async function deleteJadwalPelajaranGuru(id: string) {
     include: { kelas: { select: { guruId: true } } },
   })
   if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
-  await prisma.jadwalPelajaran.delete({ where: { id } })
+  await prisma.jadwalPelajaran.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/guru/wali-kelas")
   return { success: true }
 }

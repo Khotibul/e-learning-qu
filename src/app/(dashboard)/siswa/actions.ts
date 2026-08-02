@@ -743,13 +743,15 @@ export async function getIuranSiswa() {
         id: p.id,
         siswaId: p.siswaId,
         status: p.status,
+        jumlah: p.jumlah,
+        keterangan: p.keterangan,
         dibayarPada: p.tanggalBayar,
       })),
     })),
   }
 }
 
-export async function bayarIuran(iuranId: string) {
+export async function bayarIuran(iuranId: string, data: { nominal?: number; keterangan?: string }) {
   const session = await auth()
   if (!session?.user?.id) redirect("/login")
 
@@ -765,10 +767,22 @@ export async function bayarIuran(iuranId: string) {
   })
   if (!iuran || iuran.kelasId !== siswa.kelasId) throw new Error("Iuran tidak ditemukan")
 
+  const nominal = data.nominal && data.nominal > 0 ? data.nominal : iuran.nominal
+
   await prisma.pembayaranIuran.upsert({
     where: { iuranId_siswaId: { iuranId, siswaId: siswa.id } },
-    update: { jumlah: iuran.nominal, status: "LUNAS", tanggalBayar: new Date() },
-    create: { iuranId, siswaId: siswa.id, jumlah: iuran.nominal, status: "LUNAS" },
+    update: {
+      jumlah: nominal,
+      status: "MENUNGGU",
+      keterangan: data.keterangan || null,
+    },
+    create: {
+      iuranId,
+      siswaId: siswa.id,
+      jumlah: nominal,
+      status: "MENUNGGU",
+      keterangan: data.keterangan || null,
+    },
   })
   revalidatePath("/(dashboard)/siswa/iuran")
   return { success: true }
@@ -813,7 +827,7 @@ export async function createBendaharaIuran(data: {
       kelasId: siswa.kelasId,
       nama: data.nama,
       nominal: data.nominal,
-      tenggat: data.tenggat ? new Date(data.tenggat) : null,
+      tenggat: data.tenggat ? new Date(`${data.tenggat}T23:59:59`) : null,
       deskripsi: data.deskripsi || null,
     },
   })
@@ -833,7 +847,57 @@ export async function deleteBendaharaIuran(id: string) {
   return { success: true }
 }
 
-export async function recordBendaharaPembayaranIuran(iuranId: string, siswaId: string, jumlah: number) {
+export async function recordBendaharaPembayaranIuran(iuranId: string, siswaId: string) {
+  const siswa = await getCurrentBendahara()
+  if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  const iuran = await prisma.iuran.findUnique({
+    where: { id: iuranId },
+    select: { kelasId: true, nominal: true },
+  })
+  if (!iuran || iuran.kelasId !== siswa.kelasId) throw new Error("Akses ditolak")
+  const target = await prisma.siswa.findFirst({
+    where: { id: siswaId, kelasId: siswa.kelasId, deletedAt: null },
+    select: { id: true },
+  })
+  if (!target) throw new Error("Siswa tidak ditemukan di kelas ini")
+
+  await prisma.pembayaranIuran.upsert({
+    where: { iuranId_siswaId: { iuranId, siswaId } },
+    update: { jumlah: iuran.nominal, status: "LUNAS", tanggalBayar: new Date() },
+    create: { iuranId, siswaId, jumlah: iuran.nominal, status: "LUNAS" },
+  })
+  revalidatePath("/(dashboard)/siswa/bendahara")
+  return { success: true }
+}
+
+export async function confirmBendaharaPembayaranIuran(iuranId: string, siswaId: string) {
+  const siswa = await getCurrentBendahara()
+  if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  const iuran = await prisma.iuran.findUnique({
+    where: { id: iuranId },
+    select: { kelasId: true, nominal: true },
+  })
+  if (!iuran || iuran.kelasId !== siswa.kelasId) throw new Error("Akses ditolak")
+  const target = await prisma.siswa.findFirst({
+    where: { id: siswaId, kelasId: siswa.kelasId, deletedAt: null },
+    select: { id: true },
+  })
+  if (!target) throw new Error("Siswa tidak ditemukan di kelas ini")
+
+  const existing = await prisma.pembayaranIuran.findUnique({
+    where: { iuranId_siswaId: { iuranId, siswaId } },
+  })
+  if (!existing) throw new Error("Belum ada pengajuan pembayaran")
+
+  await prisma.pembayaranIuran.update({
+    where: { id: existing.id },
+    data: { status: "LUNAS", jumlah: iuran.nominal, tanggalBayar: new Date() },
+  })
+  revalidatePath("/(dashboard)/siswa/bendahara")
+  return { success: true }
+}
+
+export async function rejectBendaharaPembayaranIuran(iuranId: string, siswaId: string) {
   const siswa = await getCurrentBendahara()
   if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
   const iuran = await prisma.iuran.findUnique({
@@ -841,11 +905,8 @@ export async function recordBendaharaPembayaranIuran(iuranId: string, siswaId: s
     select: { kelasId: true },
   })
   if (!iuran || iuran.kelasId !== siswa.kelasId) throw new Error("Akses ditolak")
-  await prisma.pembayaranIuran.upsert({
-    where: { iuranId_siswaId: { iuranId, siswaId } },
-    update: { jumlah, status: "LUNAS", tanggalBayar: new Date() },
-    create: { iuranId, siswaId, jumlah, status: "LUNAS" },
-  })
+
+  await prisma.pembayaranIuran.deleteMany({ where: { iuranId, siswaId } })
   revalidatePath("/(dashboard)/siswa/bendahara")
   return { success: true }
 }
@@ -960,7 +1021,7 @@ export async function getBendaharaSummary() {
   if (!siswa.kelasId) return null
   const [totalIuran, totalDenda, totalPengeluaran] = await Promise.all([
     prisma.pembayaranIuran.aggregate({
-      where: { iuran: { kelasId: siswa.kelasId, deletedAt: null } },
+      where: { iuran: { kelasId: siswa.kelasId, deletedAt: null }, status: "LUNAS" },
       _sum: { jumlah: true },
     }),
     prisma.pembayaranDenda.aggregate({
@@ -1072,8 +1133,38 @@ export async function createSekretarisJadwalPelajaran(data: {
 }) {
   const siswa = await getCurrentSekretaris()
   if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  if (data.jamSelesai <= data.jamMulai) throw new Error("Jam selesai harus setelah jam mulai")
   await prisma.jadwalPelajaran.create({
     data: { kelasId: siswa.kelasId, ...data },
+  })
+  revalidatePath("/(dashboard)/siswa/sekretaris")
+  return { success: true }
+}
+
+export async function updateSekretarisJadwalPelajaran(
+  id: string,
+  data: { mataPelajaranId?: string; hari?: string; jamMulai?: string; jamSelesai?: string }
+) {
+  const siswa = await getCurrentSekretaris()
+  if (!siswa.kelasId) throw new Error("Anda belum memiliki kelas")
+  const item = await prisma.jadwalPelajaran.findUnique({
+    where: { id },
+    select: { kelasId: true, jamMulai: true, jamSelesai: true },
+  })
+  if (!item || item.kelasId !== siswa.kelasId) throw new Error("Akses ditolak")
+
+  const jamMulai = data.jamMulai ?? item.jamMulai
+  const jamSelesai = data.jamSelesai ?? item.jamSelesai
+  if (jamSelesai <= jamMulai) throw new Error("Jam selesai harus setelah jam mulai")
+
+  await prisma.jadwalPelajaran.update({
+    where: { id },
+    data: {
+      ...(data.mataPelajaranId !== undefined && { mataPelajaranId: data.mataPelajaranId }),
+      ...(data.hari !== undefined && { hari: data.hari }),
+      ...(data.jamMulai !== undefined && { jamMulai: data.jamMulai }),
+      ...(data.jamSelesai !== undefined && { jamSelesai: data.jamSelesai }),
+    },
   })
   revalidatePath("/(dashboard)/siswa/sekretaris")
   return { success: true }
@@ -1086,7 +1177,7 @@ export async function deleteSekretarisJadwalPelajaran(id: string) {
     select: { kelasId: true },
   })
   if (!item || item.kelasId !== siswa.kelasId) throw new Error("Akses ditolak")
-  await prisma.jadwalPelajaran.delete({ where: { id } })
+  await prisma.jadwalPelajaran.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/siswa/sekretaris")
   return { success: true }
 }
