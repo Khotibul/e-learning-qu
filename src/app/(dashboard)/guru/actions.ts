@@ -1501,6 +1501,18 @@ export async function deleteJadwalPelajaranGuru(id: string) {
 
 // ─── PELANGGARAN ──────────────────────────────────────────────
 
+async function deleteUploadFile(url?: string | null) {
+  if (!url) return
+  if (url.startsWith("/uploads/")) {
+    try { await unlink(path.join(process.cwd(), "public", url)) } catch { }
+  } else if (url.startsWith("/api/upload/")) {
+    const id = url.split("/").pop()
+    if (id) {
+      try { await prisma.upload.delete({ where: { id } }) } catch { }
+    }
+  }
+}
+
 export async function getPelanggaran(kelasId: string) {
   const guru = await getCurrentGuru()
   const kelas = await prisma.kelas.findFirst({
@@ -1552,8 +1564,8 @@ export async function updatePelanggaran(
   })
   if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
 
-  if (data.fotoUrl !== item.fotoUrl && item.fotoUrl?.startsWith("/uploads/")) {
-    try { await unlink(path.join(process.cwd(), "public", item.fotoUrl)) } catch { }
+  if (data.fotoUrl !== item.fotoUrl) {
+    await deleteUploadFile(item.fotoUrl)
   }
 
   await prisma.pelanggaran.update({
@@ -1579,9 +1591,7 @@ export async function deletePelanggaran(id: string) {
   })
   if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
   await prisma.pelanggaran.update({ where: { id }, data: { deletedAt: new Date() } })
-  if (item.fotoUrl?.startsWith("/uploads/")) {
-    try { await unlink(path.join(process.cwd(), "public", item.fotoUrl)) } catch { }
-  }
+  await deleteUploadFile(item.fotoUrl)
   revalidatePath("/(dashboard)/guru/wali-kelas")
   return { success: true }
 }
@@ -1659,8 +1669,8 @@ export async function updatePelanggaranBK(
   })
   if (!siswa) throw new Error("Siswa tidak ditemukan di kelas tersebut")
 
-  if (data.fotoUrl !== item.fotoUrl && item.fotoUrl?.startsWith("/uploads/")) {
-    try { await unlink(path.join(process.cwd(), "public", item.fotoUrl)) } catch { }
+  if (data.fotoUrl !== item.fotoUrl) {
+    await deleteUploadFile(item.fotoUrl)
   }
 
   await prisma.pelanggaran.update({
@@ -1685,9 +1695,7 @@ export async function deletePelanggaranBK(id: string) {
   const item = await prisma.pelanggaran.findUnique({ where: { id } })
   if (!item) throw new Error("Pelanggaran tidak ditemukan")
   await prisma.pelanggaran.update({ where: { id }, data: { deletedAt: new Date() } })
-  if (item.fotoUrl?.startsWith("/uploads/")) {
-    try { await unlink(path.join(process.cwd(), "public", item.fotoUrl)) } catch { }
-  }
+  await deleteUploadFile(item.fotoUrl)
   revalidatePath("/(dashboard)/guru/pelanggaran")
   return { success: true }
 }

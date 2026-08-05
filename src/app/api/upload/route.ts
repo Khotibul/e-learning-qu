@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
+import { prisma } from "@/lib/prisma"
 
 const MAX_SIZE = 10 * 1024 * 1024
 const ALLOWED_EXT = /\.(png|jpe?g|gif|webp|heic|heif|avif|bmp|ico)$/i
@@ -28,17 +27,16 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads")
-    await mkdir(uploadDir, { recursive: true })
+    const upload = await prisma.upload.create({
+      data: {
+        filename: file.name || "foto",
+        mime: file.type || "application/octet-stream",
+        size: file.size,
+        data: buffer,
+      },
+    })
 
-    const rawExt = (file.name.split(".").pop() || "jpg").toLowerCase()
-    const ext = ALLOWED_EXT.test(`.${rawExt}`) ? rawExt.replace(/[^a-z0-9]/g, "") : "jpg"
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    const filepath = path.join(uploadDir, filename)
-    await writeFile(filepath, buffer)
-
-    const url = `/uploads/${filename}`
-    return NextResponse.json({ url })
+    return NextResponse.json({ url: `/api/upload/${upload.id}` })
   } catch (e: any) {
     console.error("Upload gagal:", e?.message || e)
     return NextResponse.json({ error: "Upload gagal, coba lagi" }, { status: 500 })

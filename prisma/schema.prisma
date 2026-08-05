@@ -683,3 +683,14 @@ model Pelanggaran {
 
   @@map("pelanggaran")
 }
+
+model Upload {
+  id        String   @id @default(uuid()) @db.Uuid
+  filename  String
+  mime      String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  @@map("upload")
+}
