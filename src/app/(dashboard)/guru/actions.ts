@@ -1081,7 +1081,11 @@ export async function getWaliKelasInfo() {
     where: { guruId: guru.id, deletedAt: null },
     include: {
       _count: { select: { siswas: true } },
-      siswas: { where: { deletedAt: null }, orderBy: { nama: "asc" } },
+      siswas: {
+        where: { deletedAt: null },
+        select: { id: true, nama: true, nis: true, jabatan: true, deletedAt: true },
+        orderBy: { nama: "asc" },
+      },
     },
     orderBy: { nama: "asc" },
   })
@@ -1551,51 +1555,55 @@ export async function getRekapAbsensi(kelasId: string) {
   const kelas = await prisma.kelas.findUnique({
     where: { id: kelasId, guruId: guru.id, deletedAt: null },
     include: {
-      siswas: { where: { deletedAt: null }, orderBy: { nama: "asc" } },
+      siswas: {
+        where: { deletedAt: null },
+        select: { id: true, nama: true, nis: true, jabatan: true },
+        orderBy: { nama: "asc" },
+      },
     },
   })
   if (!kelas) throw new Error("Kelas tidak ditemukan")
 
-  const absensiList = await prisma.absensi.findMany({
-    where: { kelasId },
-    include: {
-      mataPelajaran: { select: { nama: true } },
-      siswa: true,
-    },
-    orderBy: { tanggal: "desc" },
+  const entries = await prisma.absensiSiswa.findMany({
+    where: { absensi: { kelasId } },
+    select: { siswaId: true, absensiId: true, status: true },
   })
 
-  const totalPertemuan = absensiList.length
+  const totalPertemuan = await prisma.absensi.count({ where: { kelasId } })
+
+  const perSiswa = new Map<string, { hadir: number; sakit: number; izin: number; alpa: number; tidakHadir: number; pertemuan: Set<string> }>()
+  for (const e of entries) {
+    let rec = perSiswa.get(e.siswaId)
+    if (!rec) {
+      rec = { hadir: 0, sakit: 0, izin: 0, alpa: 0, tidakHadir: 0, pertemuan: new Set() }
+      perSiswa.set(e.siswaId, rec)
+    }
+    rec.pertemuan.add(e.absensiId)
+    switch (e.status) {
+      case "HADIR": rec.hadir++; break
+      case "SAKIT": rec.sakit++; break
+      case "IZIN": rec.izin++; break
+      case "ALPA": rec.alpa++; break
+      case "TIDAK_HADIR": rec.tidakHadir++; break
+    }
+  }
 
   const rekap = kelas.siswas.map((siswa) => {
-    let totalHadir = 0, totalSakit = 0, totalIzin = 0, totalAlpa = 0, totalTidakHadir = 0
-    let tercatat = 0
-
-    for (const absensi of absensiList) {
-      const entry = absensi.siswa.find((s) => s.siswaId === siswa.id)
-      if (!entry) continue
-      tercatat++
-      switch (entry.status) {
-        case "HADIR": totalHadir++; break
-        case "SAKIT": totalSakit++; break
-        case "IZIN": totalIzin++; break
-        case "ALPA": totalAlpa++; break
-        case "TIDAK_HADIR": totalTidakHadir++; break
-      }
-    }
-
-    const persentase = tercatat > 0 ? Math.round((totalHadir / tercatat) * 100) : 0
+    const rec = perSiswa.get(siswa.id)
+    const tercatat = rec ? rec.pertemuan.size : 0
+    const hadir = rec?.hadir ?? 0
+    const persentase = tercatat > 0 ? Math.round((hadir / tercatat) * 100) : 0
 
     return {
       id: siswa.id,
       nama: siswa.nama,
       nis: siswa.nis,
       jabatan: siswa.jabatan,
-      totalHadir,
-      totalSakit,
-      totalIzin,
-      totalAlpa,
-      totalTidakHadir,
+      totalHadir: rec?.hadir ?? 0,
+      totalSakit: rec?.sakit ?? 0,
+      totalIzin: rec?.izin ?? 0,
+      totalAlpa: rec?.alpa ?? 0,
+      totalTidakHadir: rec?.tidakHadir ?? 0,
       tercatat,
       persentase,
     }

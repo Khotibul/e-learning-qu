@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { motion } from "framer-motion"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
@@ -93,6 +93,12 @@ export default function WaliKelasPage() {
   const [rekapAbsensi, setRekapAbsensi] = useState<any>(null)
   const [detailAbsensi, setDetailAbsensi] = useState<any>(null)
   const [detailAbsensiOpen, setDetailAbsensiOpen] = useState(false)
+  const [kelasLoading, setKelasLoading] = useState(false)
+  const [rekapLoading, setRekapLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState("kas")
+  const loadKelasReqRef = useRef(0)
+  const activeKelasIdRef = useRef<string | null>(null)
+  const rekapInFlightRef = useRef<string | null>(null)
 
   const fetchData = async () => {
     try {
@@ -106,17 +112,23 @@ export default function WaliKelasPage() {
 
   const loadKelas = async (k: any) => {
     setSelectedKelas(k)
+    activeKelasIdRef.current = k.id
+    setKelasLoading(true)
+    const reqId = ++loadKelasReqRef.current
     try {
-      const [piket, iuran, denda, pengeluaran, summary, jp, mapel, rekap] = await Promise.all([
-        getJadwalPiket(k.id),
-        getIuran(k.id),
-        getDenda(k.id),
-        getPengeluaran(k.id),
-        getSummaryKas(k.id),
-        getJadwalPelajaranGuru(k.id),
-        getMapelByKelas(k.id),
-        getRekapAbsensi(k.id),
+      const safe = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+        try { return await fn() } catch (e) { console.error("Wali kelas: gagal memuat sebagian data", e); return fallback }
+      }
+      const [piket, iuran, denda, pengeluaran, summary, jp, mapel] = await Promise.all([
+        safe(() => getJadwalPiket(k.id), []),
+        safe(() => getIuran(k.id), []),
+        safe(() => getDenda(k.id), []),
+        safe(() => getPengeluaran(k.id), []),
+        safe(() => getSummaryKas(k.id), null),
+        safe(() => getJadwalPelajaranGuru(k.id), []),
+        safe(() => getMapelByKelas(k.id), []),
       ])
+      if (reqId !== loadKelasReqRef.current) return
       setJadwalPiket(piket as any[])
       setIuranList(iuran as any[])
       setDendaList(denda as any[])
@@ -124,9 +136,30 @@ export default function WaliKelasPage() {
       setSummaryKas(summary as any)
       setJadwalPelajaranList(jp as any[])
       setMapelList(mapel as any[])
-      setRekapAbsensi(rekap as any)
-    } catch { toast.error("Gagal memuat detail kelas") }
+      setRekapAbsensi(null)
+      setDetailAbsensi(null)
+    } catch (e) { console.error("Gagal memuat detail kelas", e); toast.error("Gagal memuat detail kelas") }
+    finally { if (reqId === loadKelasReqRef.current) setKelasLoading(false) }
   }
+
+  const loadRekapAbsensi = useCallback(async () => {
+    if (!selectedKelas) return
+    const kelasId = selectedKelas.id
+    if (rekapAbsensi || rekapInFlightRef.current === kelasId) return
+    rekapInFlightRef.current = kelasId
+    setRekapLoading(true)
+    try {
+      const data = await getRekapAbsensi(kelasId)
+      if (activeKelasIdRef.current === kelasId) setRekapAbsensi(data as any)
+    } catch {
+      if (activeKelasIdRef.current === kelasId) toast.error("Gagal memuat rekap absensi")
+    } finally {
+      if (rekapInFlightRef.current === kelasId) {
+        rekapInFlightRef.current = null
+        setRekapLoading(false)
+      }
+    }
+  }, [selectedKelas, rekapAbsensi])
 
   const handleJabatan = async (siswaId: string, jabatan: string) => {
     try {
@@ -326,6 +359,12 @@ export default function WaliKelasPage() {
     }
   }, [selectedKelas])
 
+  useEffect(() => {
+    if (activeTab === "absensi" && selectedKelas) {
+      loadRekapAbsensi()
+    }
+  }, [activeTab, selectedKelas, loadRekapAbsensi])
+
   const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
@@ -360,9 +399,10 @@ export default function WaliKelasPage() {
             <Button variant="ghost" size="sm" onClick={() => setSelectedKelas(null)}>&larr; Kembali</Button>
             <h2 className="text-xl font-bold">{selectedKelas.nama}</h2>
             <Badge variant="secondary">{selectedKelas._count?.siswas || selectedKelas.siswas?.length || 0} siswa</Badge>
+            {kelasLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           </div>
 
-          <Tabs defaultValue="kas">
+          <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="kas">
             <div className="sticky top-0 z-10 bg-background pb-px -mx-4 sm:-mx-6 px-4 sm:px-6 overflow-x-auto">
               <TabsList className="flex-nowrap w-max min-w-full">
                 <TabsTrigger value="kas" className="px-3 py-1.5 text-xs sm:text-sm"><PiggyBank className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Kas</TabsTrigger>
@@ -880,7 +920,11 @@ export default function WaliKelasPage() {
 
             {/* ABSENSI */}
             <TabsContent value="absensi" className="space-y-4 mt-4">
-              {rekapAbsensi ? (
+              {rekapLoading && !rekapAbsensi ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : rekapAbsensi ? (
                 <>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <div>
