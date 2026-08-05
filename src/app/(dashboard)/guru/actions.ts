@@ -1540,6 +1540,38 @@ export async function createPelanggaran(data: {
   return { success: true }
 }
 
+export async function updatePelanggaran(
+  id: string,
+  data: {
+    siswaId: string; jenis: string; deskripsi?: string; poin?: number; tindakan?: string; tanggal?: string; fotoUrl?: string | null
+  }
+) {
+  const item = await prisma.pelanggaran.findUnique({
+    where: { id },
+    include: { kelas: { select: { guruId: true } } },
+  })
+  if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
+
+  if (data.fotoUrl !== item.fotoUrl && item.fotoUrl?.startsWith("/uploads/")) {
+    try { await unlink(path.join(process.cwd(), "public", item.fotoUrl)) } catch { }
+  }
+
+  await prisma.pelanggaran.update({
+    where: { id },
+    data: {
+      siswaId: data.siswaId,
+      jenis: data.jenis,
+      deskripsi: data.deskripsi || null,
+      poin: data.poin || null,
+      tindakan: data.tindakan || null,
+      fotoUrl: data.fotoUrl || null,
+      tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
+    },
+  })
+  revalidatePath("/(dashboard)/guru/wali-kelas")
+  return { success: true }
+}
+
 export async function deletePelanggaran(id: string) {
   const item = await prisma.pelanggaran.findUnique({
     where: { id },

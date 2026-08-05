@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Users, ClipboardList, Wallet, Trash2, Plus, Loader2, ShieldCheck,
   Banknote, Receipt, TrendingUp, TrendingDown, PiggyBank, Calendar,
-  Gavel, ClipboardCheck, ExternalLink, Check, X, Pencil, Camera, ImagePlus,
+  Gavel, ClipboardCheck, ExternalLink, Check, X, Pencil, Camera, ImagePlus, BarChart3,
 } from "lucide-react"
 import {
   getWaliKelasInfo, updateSiswaJabatan,
@@ -31,7 +31,7 @@ import {
   getPengeluaran, createPengeluaran, deletePengeluaran,
   getSummaryKas,
   getJadwalPelajaranGuru, getMapelByKelas, createJadwalPelajaranGuru, updateJadwalPelajaranGuru, deleteJadwalPelajaranGuru,
-  getPelanggaran, createPelanggaran, deletePelanggaran,
+  getPelanggaran, createPelanggaran, updatePelanggaran, deletePelanggaran,
   getRekapAbsensi, getDetailAbsensiSiswa,
 } from "../actions"
 
@@ -92,6 +92,7 @@ export default function WaliKelasPage() {
   const [pelanggaranFotoPreview, setPelanggaranFotoPreview] = useState<string | null>(null)
   const [pelanggaranFotoUploading, setPelanggaranFotoUploading] = useState(false)
   const [pelanggaranFilterSiswa, setPelanggaranFilterSiswa] = useState("")
+  const [editingPelanggaran, setEditingPelanggaran] = useState<any>(null)
   const pelanggaranFotoInputRef = useRef<HTMLInputElement>(null)
   const pelanggaranCameraInputRef = useRef<HTMLInputElement>(null)
 
@@ -338,11 +339,37 @@ export default function WaliKelasPage() {
     }
   }
 
+  const resetPelanggaranForm = () => {
+    setEditingPelanggaran(null)
+    setPelanggaranSiswaId("")
+    setPelanggaranJenis("")
+    setPelanggaranDeskripsi("")
+    setPelanggaranPoin("")
+    setPelanggaranTindakan("")
+    setPelanggaranTanggal("")
+    handleFotoPelanggaran(null)
+    if (pelanggaranFotoInputRef.current) pelanggaranFotoInputRef.current.value = ""
+    if (pelanggaranCameraInputRef.current) pelanggaranCameraInputRef.current.value = ""
+  }
+
+  const openEditPelanggaran = (p: any) => {
+    setEditingPelanggaran(p)
+    setPelanggaranSiswaId(p.siswaId)
+    setPelanggaranJenis(p.jenis)
+    setPelanggaranDeskripsi(p.deskripsi || "")
+    setPelanggaranPoin(p.poin != null ? String(p.poin) : "")
+    setPelanggaranTindakan(p.tindakan || "")
+    setPelanggaranTanggal(p.tanggal ? new Date(p.tanggal).toISOString().slice(0, 10) : "")
+    handleFotoPelanggaran(null)
+    setPelanggaranFotoPreview(p.fotoUrl || null)
+    setPelanggaranDialog(true)
+  }
+
   const handleAddPelanggaran = async () => {
     if (!pelanggaranSiswaId || !pelanggaranJenis) { toast.error("Pilih siswa dan jenis pelanggaran"); return }
     setSaving(true)
     try {
-      let fotoUrl: string | undefined
+      let fotoUrl: string | null = null
       if (pelanggaranFoto) {
         setPelanggaranFotoUploading(true)
         const formData = new FormData()
@@ -351,8 +378,10 @@ export default function WaliKelasPage() {
         if (!uploadRes.ok) throw new Error("Gagal upload foto")
         const { url } = await uploadRes.json()
         fotoUrl = url
+      } else if (editingPelanggaran) {
+        fotoUrl = pelanggaranFotoPreview || null
       }
-      await createPelanggaran({
+      const payload = {
         kelasId: selectedKelas.id,
         siswaId: pelanggaranSiswaId,
         jenis: pelanggaranJenis,
@@ -360,19 +389,17 @@ export default function WaliKelasPage() {
         poin: pelanggaranPoin ? Number(pelanggaranPoin) : undefined,
         tindakan: pelanggaranTindakan || undefined,
         tanggal: pelanggaranTanggal || undefined,
-        fotoUrl,
-      })
-      toast.success("Pelanggaran dicatat")
+        fotoUrl: fotoUrl || undefined,
+      }
+      if (editingPelanggaran) {
+        await updatePelanggaran(editingPelanggaran.id, { ...payload, fotoUrl })
+        toast.success("Pelanggaran diperbarui")
+      } else {
+        await createPelanggaran(payload)
+        toast.success("Pelanggaran dicatat")
+      }
       setPelanggaranDialog(false)
-      setPelanggaranSiswaId("")
-      setPelanggaranJenis("")
-      setPelanggaranDeskripsi("")
-      setPelanggaranPoin("")
-      setPelanggaranTindakan("")
-      setPelanggaranTanggal("")
-      handleFotoPelanggaran(null)
-      if (pelanggaranFotoInputRef.current) pelanggaranFotoInputRef.current.value = ""
-      if (pelanggaranCameraInputRef.current) pelanggaranCameraInputRef.current.value = ""
+      resetPelanggaranForm()
       loadPelanggaran()
     } catch (e: any) { toast.error(e?.message || "Gagal") }
     finally { setPelanggaranFotoUploading(false); setSaving(false) }
@@ -874,9 +901,14 @@ export default function WaliKelasPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Dialog open={pelanggaranDialog} onOpenChange={setPelanggaranDialog}>
-                  <DialogTrigger asChild><Button size="sm" className="p-2 sm:px-3 sm:py-1"><Plus className="h-4 w-4 mr-1" /> Catat Pelanggaran</Button></DialogTrigger>
-                  <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>Catat Pelanggaran</DialogTitle></DialogHeader>
+                <Dialog open={pelanggaranDialog} onOpenChange={(open) => { setPelanggaranDialog(open); if (!open) resetPelanggaranForm() }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="p-2 sm:px-3 sm:py-1" onClick={resetPelanggaranForm}>
+                      <Plus className="h-4 w-4 mr-1" /> Catat Pelanggaran
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-lg">
+                    <DialogHeader><DialogTitle>{editingPelanggaran ? "Edit Pelanggaran" : "Catat Pelanggaran"}</DialogTitle></DialogHeader>
                     <div className="space-y-4">
                       <div className="space-y-2"><Label>Siswa</Label>
                         <Select value={pelanggaranSiswaId} onValueChange={setPelanggaranSiswaId}>
@@ -964,6 +996,61 @@ export default function WaliKelasPage() {
                 </Dialog>
               </div>
 
+              {(() => {
+                const perSiswa: Record<string, { nama: string; jumlah: number; poin: number }> = {}
+                for (const p of pelanggaranList) {
+                  if (!perSiswa[p.siswaId]) perSiswa[p.siswaId] = { nama: p.siswa?.nama || "?", jumlah: 0, poin: 0 }
+                  perSiswa[p.siswaId].jumlah++
+                  perSiswa[p.siswaId].poin += p.poin || 0
+                }
+                const ranked = Object.values(perSiswa).sort((a: any, b: any) => b.jumlah - a.jumlah || b.poin - a.poin)
+                const maxCount = ranked[0]?.jumlah || 1
+                const totalPoin = pelanggaranList.reduce((s: number, p: any) => s + (p.poin || 0), 0)
+                return (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4 text-primary" /> Statistika Pelanggaran
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="rounded-lg bg-muted p-3 text-center">
+                          <p className="text-lg font-bold">{pelanggaranList.length}</p>
+                          <p className="text-[10px] text-muted-foreground">Total Pelanggaran</p>
+                        </div>
+                        <div className="rounded-lg bg-muted p-3 text-center">
+                          <p className="text-lg font-bold">{ranked.length}</p>
+                          <p className="text-[10px] text-muted-foreground">Siswa Melanggar</p>
+                        </div>
+                        <div className="rounded-lg bg-muted p-3 text-center">
+                          <p className="text-lg font-bold">{totalPoin}</p>
+                          <p className="text-[10px] text-muted-foreground">Total Poin</p>
+                        </div>
+                      </div>
+                      {ranked.length > 0 && (
+                        <div className="space-y-2">
+                          {ranked.map((s: any, i: number) => (
+                            <div key={i} className="space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="truncate">{i + 1}. {s.nama}</span>
+                                <span className="text-muted-foreground shrink-0">{s.jumlah}x {s.poin > 0 ? `· ${s.poin} poin` : ""}</span>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${i === 0 ? "bg-red-500" : "bg-primary/60"}`}
+                                  style={{ width: `${(s.jumlah / maxCount) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })()}
+
               {pelanggaranList.length === 0 ? (
                 <Card><CardContent className="p-8 text-center text-muted-foreground">Belum ada pelanggaran</CardContent></Card>
               ) : (
@@ -983,9 +1070,14 @@ export default function WaliKelasPage() {
                                 )}
                               </div>
                             </div>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeletePelanggaran(p.id)}>
-                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                            </Button>
+                            <div className="flex items-center gap-0.5">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditPelanggaran(p)}>
+                                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeletePelanggaran(p.id)}>
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
+                            </div>
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-2 text-sm">
