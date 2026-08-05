@@ -34,6 +34,7 @@ import {
   getPelanggaran, createPelanggaran, updatePelanggaran, deletePelanggaran,
   getRekapAbsensi, getDetailAbsensiSiswa,
 } from "../actions"
+import { compressImage } from "@/lib/compress-image"
 
 const jabatanLabels: Record<string, string> = {
   KETUA: "Ketua Kelas", WAKIL: "Wakil Ketua",
@@ -372,8 +373,9 @@ export default function WaliKelasPage() {
       let fotoUrl: string | null = null
       if (pelanggaranFoto) {
         setPelanggaranFotoUploading(true)
+        const file = await compressImage(pelanggaranFoto)
         const formData = new FormData()
-        formData.append("file", pelanggaranFoto)
+        formData.append("file", file)
         const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
         if (!uploadRes.ok) throw new Error("Gagal upload foto")
         const { url } = await uploadRes.json()
@@ -935,18 +937,20 @@ export default function WaliKelasPage() {
                       <div className="space-y-2">
                         <Label>Dokumen Foto (opsional)</Label>
                         <input
+                          id="pelanggaran-foto-input"
                           ref={pelanggaranFotoInputRef}
                           type="file"
                           accept="image/*"
-                          className="hidden"
+                          className="sr-only"
                           onChange={(e) => handleFotoPelanggaran(e.target.files?.[0] || null)}
                         />
                         <input
+                          id="pelanggaran-foto-camera"
                           ref={pelanggaranCameraInputRef}
                           type="file"
                           accept="image/*"
                           capture="environment"
-                          className="hidden"
+                          className="sr-only"
                           onChange={(e) => handleFotoPelanggaran(e.target.files?.[0] || null)}
                         />
                         {pelanggaranFotoPreview ? (
@@ -970,20 +974,18 @@ export default function WaliKelasPage() {
                           </div>
                         ) : (
                           <div className="flex gap-2">
-                            <Button
-                              type="button" variant="outline" size="sm"
-                              onClick={() => pelanggaranFotoInputRef.current?.click()}
-                              disabled={pelanggaranFotoUploading}
+                            <label
+                              htmlFor="pelanggaran-foto-input"
+                              className="inline-flex items-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground cursor-pointer"
                             >
                               <ImagePlus className="h-4 w-4 mr-1.5" /> Pilih Foto
-                            </Button>
-                            <Button
-                              type="button" variant="outline" size="sm"
-                              onClick={() => pelanggaranCameraInputRef.current?.click()}
-                              disabled={pelanggaranFotoUploading}
+                            </label>
+                            <label
+                              htmlFor="pelanggaran-foto-camera"
+                              className="inline-flex items-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground cursor-pointer"
                             >
                               <Camera className="h-4 w-4 mr-1.5" /> Ambil Foto
-                            </Button>
+                            </label>
                           </div>
                         )}
                       </div>

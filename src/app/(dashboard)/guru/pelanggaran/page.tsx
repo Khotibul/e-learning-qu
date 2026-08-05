@@ -21,6 +21,7 @@ import {
 import {
   getPelanggaranBK, createPelanggaranBK, updatePelanggaranBK, deletePelanggaranBK,
 } from "../actions"
+import { compressImage } from "@/lib/compress-image"
 
 export default function PelanggaranBKPage() {
   const [data, setData] = useState<any>({ kelas: [], pelanggaran: [] })
@@ -103,8 +104,9 @@ export default function PelanggaranBKPage() {
       let fotoUrl: string | null = null
       if (foto) {
         setFotoUploading(true)
+        const file = await compressImage(foto)
         const formData = new FormData()
-        formData.append("file", foto)
+        formData.append("file", file)
         const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
         if (!uploadRes.ok) throw new Error("Gagal upload foto")
         const { url } = await uploadRes.json()
@@ -227,18 +229,20 @@ export default function PelanggaranBKPage() {
               <div className="space-y-2">
                 <Label>Dokumen Foto (opsional)</Label>
                 <input
+                  id="bk-foto-input"
                   ref={fotoInputRef}
                   type="file"
                   accept="image/*"
-                  className="hidden"
+                  className="sr-only"
                   onChange={(e) => handleFoto(e.target.files?.[0] || null)}
                 />
                 <input
+                  id="bk-foto-camera"
                   ref={cameraInputRef}
                   type="file"
                   accept="image/*"
                   capture="environment"
-                  className="hidden"
+                  className="sr-only"
                   onChange={(e) => handleFoto(e.target.files?.[0] || null)}
                 />
                 {fotoPreview ? (
@@ -258,12 +262,18 @@ export default function PelanggaranBKPage() {
                   </div>
                 ) : (
                   <div className="flex gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => fotoInputRef.current?.click()} disabled={fotoUploading}>
+                    <label
+                      htmlFor="bk-foto-input"
+                      className="inline-flex items-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                    >
                       <ImagePlus className="h-4 w-4 mr-1.5" /> Pilih Foto
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" onClick={() => cameraInputRef.current?.click()} disabled={fotoUploading}>
+                    </label>
+                    <label
+                      htmlFor="bk-foto-camera"
+                      className="inline-flex items-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                    >
                       <Camera className="h-4 w-4 mr-1.5" /> Ambil Foto
-                    </Button>
+                    </label>
                   </div>
                 )}
               </div>
