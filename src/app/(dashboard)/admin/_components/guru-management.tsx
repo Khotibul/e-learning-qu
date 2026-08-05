@@ -64,6 +64,7 @@ import { cn } from "@/lib/utils"
 interface Guru {
   id: string
   nama: string
+  jabatan: string | null
   nip: string | null
   nuptk: string | null
   alamat: string | null
@@ -119,8 +120,9 @@ export function GuruManagement({
     restore: false,
   })
   const [editingGuru, setEditingGuru] = useState<Guru | null>(null)
-  const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
     nama: "",
+    jabatan: "",
     nip: "",
     nuptk: "",
     alamat: "",
@@ -161,7 +163,16 @@ export function GuruManagement({
       cell: ({ row }) => (page - 1) * 10 + row.index + 1,
       size: 60,
     },
-    { accessorKey: "nama", header: "Nama" },
+{ accessorKey: "nama", header: "Nama" },
+    {
+      accessorKey: "jabatan",
+      header: "Jabatan",
+      cell: ({ row }) => {
+        const j = row.original.jabatan
+        if (j === "BK") return <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100">BK / BP</Badge>
+        return <Badge variant="secondary">Guru</Badge>
+      },
+    },
     { accessorKey: "nip", header: "NIP", cell: ({ row }) => row.original.nip || "-" },
     { accessorKey: "nuptk", header: "NUPTK", cell: ({ row }) => row.original.nuptk || "-" },
     { accessorKey: "noTelp", header: "No Telp", cell: ({ row }) => row.original.noTelp || "-" },
@@ -199,6 +210,7 @@ export function GuruManagement({
                 setEditingGuru(guru)
                 setFormData({
                   nama: guru.nama,
+                  jabatan: guru.jabatan || "",
                   nip: guru.nip || "",
                   nuptk: guru.nuptk || "",
                   alamat: guru.alamat || "",
@@ -245,9 +257,10 @@ export function GuruManagement({
     }
     setSubmitting(true)
     try {
-      if (editingGuru) {
+if (editingGuru) {
         await updateGuru(editingGuru.id, {
           nama: formData.nama,
+          jabatan: formData.jabatan || undefined,
           nip: formData.nip || undefined,
           nuptk: formData.nuptk || undefined,
           alamat: formData.alamat || undefined,
@@ -257,6 +270,7 @@ export function GuruManagement({
       } else {
         await createGuru({
           nama: formData.nama,
+          jabatan: formData.jabatan || undefined,
           nip: formData.nip || undefined,
           nuptk: formData.nuptk || undefined,
           alamat: formData.alamat || undefined,
@@ -291,9 +305,9 @@ export function GuruManagement({
     }
   }
 
-  function resetForm() {
+function resetForm() {
     setEditingGuru(null)
-    setFormData({ nama: "", nip: "", nuptk: "", alamat: "", noTelp: "", email: "" })
+    setFormData({ nama: "", jabatan: "", nip: "", nuptk: "", alamat: "", noTelp: "", email: "" })
   }
 
   return (
@@ -451,6 +465,22 @@ export function GuruManagement({
                   placeholder="email@sekolah.sch.id"
                   disabled={!!editingGuru}
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Jabatan</label>
+                <Select
+                  value={formData.jabatan}
+                  onValueChange={(v) => setFormData((f) => ({ ...f, jabatan: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih jabatan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Guru</SelectItem>
+                    <SelectItem value="BK">BK / BP</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">BK / BP mendapat menu Pelanggaran untuk semua kelas</p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">NIP</label>

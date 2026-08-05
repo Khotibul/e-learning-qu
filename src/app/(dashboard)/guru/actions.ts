@@ -1586,6 +1586,112 @@ export async function deletePelanggaran(id: string) {
   return { success: true }
 }
 
+// ─── PELANGGARAN BK/BP ───────────────────────────────────────
+
+async function getCurrentGuruBK() {
+  const guru = await getCurrentGuru()
+  if (guru.jabatan !== "BK") throw new Error("Akses ditolak")
+  return guru
+}
+
+export async function getPelanggaranBK() {
+  await getCurrentGuruBK()
+  const [kelas, pelanggaran] = await Promise.all([
+    prisma.kelas.findMany({
+      where: { deletedAt: null },
+      include: {
+        siswas: {
+          where: { deletedAt: null },
+          select: { id: true, nama: true, nis: true },
+          orderBy: { nama: "asc" },
+        },
+      },
+      orderBy: { nama: "asc" },
+    }),
+    prisma.pelanggaran.findMany({
+      where: { deletedAt: null },
+      include: {
+        siswa: { select: { id: true, nama: true } },
+        kelas: { select: { id: true, nama: true } },
+      },
+      orderBy: { tanggal: "desc" },
+    }),
+  ])
+  return { kelas, pelanggaran }
+}
+
+export async function createPelanggaranBK(data: {
+  kelasId: string; siswaId: string; jenis: string; deskripsi?: string; poin?: number; tindakan?: string; tanggal?: string; fotoUrl?: string
+}) {
+  await getCurrentGuruBK()
+  const siswa = await prisma.siswa.findFirst({
+    where: { id: data.siswaId, kelasId: data.kelasId, deletedAt: null },
+  })
+  if (!siswa) throw new Error("Siswa tidak ditemukan di kelas tersebut")
+
+  await prisma.pelanggaran.create({
+    data: {
+      kelasId: data.kelasId,
+      siswaId: data.siswaId,
+      jenis: data.jenis,
+      deskripsi: data.deskripsi || null,
+      poin: data.poin || null,
+      tindakan: data.tindakan || null,
+      fotoUrl: data.fotoUrl || null,
+      tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
+    },
+  })
+  revalidatePath("/(dashboard)/guru/pelanggaran")
+  return { success: true }
+}
+
+export async function updatePelanggaranBK(
+  id: string,
+  data: {
+    kelasId: string; siswaId: string; jenis: string; deskripsi?: string; poin?: number; tindakan?: string; tanggal?: string; fotoUrl?: string | null
+  }
+) {
+  await getCurrentGuruBK()
+  const item = await prisma.pelanggaran.findUnique({ where: { id } })
+  if (!item) throw new Error("Pelanggaran tidak ditemukan")
+  const siswa = await prisma.siswa.findFirst({
+    where: { id: data.siswaId, kelasId: data.kelasId, deletedAt: null },
+  })
+  if (!siswa) throw new Error("Siswa tidak ditemukan di kelas tersebut")
+
+  if (data.fotoUrl !== item.fotoUrl && item.fotoUrl?.startsWith("/uploads/")) {
+    try { await unlink(path.join(process.cwd(), "public", item.fotoUrl)) } catch { }
+  }
+
+  await prisma.pelanggaran.update({
+    where: { id },
+    data: {
+      kelasId: data.kelasId,
+      siswaId: data.siswaId,
+      jenis: data.jenis,
+      deskripsi: data.deskripsi || null,
+      poin: data.poin || null,
+      tindakan: data.tindakan || null,
+      fotoUrl: data.fotoUrl || null,
+      tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
+    },
+  })
+  revalidatePath("/(dashboard)/guru/pelanggaran")
+  return { success: true }
+}
+
+export async function deletePelanggaranBK(id: string) {
+  await getCurrentGuruBK()
+  const item = await prisma.pelanggaran.findUnique({ where: { id } })
+  if (!item) throw new Error("Pelanggaran tidak ditemukan")
+  await prisma.pelanggaran.update({ where: { id }, data: { deletedAt: new Date() } })
+  if (item.fotoUrl?.startsWith("/uploads/")) {
+    try { await unlink(path.join(process.cwd(), "public", item.fotoUrl)) } catch { }
+  }
+  revalidatePath("/(dashboard)/guru/pelanggaran")
+  return { success: true }
+}
+
 // ─── REKAP ABSENSI ───────────────────────────────────────────
 
 export async function getRekapAbsensi(kelasId: string) {

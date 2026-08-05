@@ -9,7 +9,7 @@ import {
   LayoutDashboard, UserCheck, Users, DoorOpen, BookOpen,
   Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3, Settings,
   Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy,
-  GraduationCap, ShieldCheck, Wallet, X
+  GraduationCap, ShieldCheck, Wallet, Gavel, X
 } from "lucide-react"
 import type { Role } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button"
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, UserCheck, Users, DoorOpen, BookOpen,
   Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3, Settings,
-  Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy, GraduationCap, ShieldCheck, Wallet,
+  Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy, GraduationCap, ShieldCheck, Wallet, Gavel,
 }
 
 interface SidebarProps {
@@ -28,8 +28,8 @@ interface SidebarProps {
 
 export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
-  const items = NAV_ITEMS[role as keyof typeof NAV_ITEMS] || []
   const [siteConfig, setSiteConfig] = useState({ siteName: "E-Learning QU", logoUrl: "" })
+  const [guruJabatan, setGuruJabatan] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("/api/site-config")
@@ -37,6 +37,18 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
       .then((d) => { if (d?.siteName) setSiteConfig(d) })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (role !== "GURU") return
+    fetch("/api/guru/jabatan")
+      .then((r) => r.json())
+      .then((d) => setGuruJabatan(d?.jabatan || null))
+      .catch(() => {})
+  }, [role])
+
+  const items = (NAV_ITEMS[role as keyof typeof NAV_ITEMS] || []).filter(
+    (item) => item.href !== "/guru/pelanggaran" || guruJabatan === "BK"
+  )
 
   return (
     <>

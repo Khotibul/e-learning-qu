@@ -58,6 +58,7 @@ export async function getGuru(id: string) {
 
 export async function createGuru(data: {
   nama: string
+  jabatan?: string
   nip?: string
   nuptk?: string
   alamat?: string
@@ -75,6 +76,7 @@ export async function createGuru(data: {
     return tx.guru.create({
       data: {
         nama: data.nama,
+        jabatan: data.jabatan || null,
         nip: data.nip || null,
         nuptk: data.nuptk || null,
         alamat: data.alamat || null,
@@ -90,10 +92,21 @@ export async function createGuru(data: {
 
 export async function updateGuru(
   id: string,
-  data: { nama?: string; nip?: string; nuptk?: string; alamat?: string; noTelp?: string }
+  data: { nama?: string; jabatan?: string; nip?: string; nuptk?: string; alamat?: string; noTelp?: string }
 ) {
   const guru = await prisma.$transaction(async (tx) => {
-    const updated = await tx.guru.update({ where: { id }, data, include: { user: true } })
+    const updated = await tx.guru.update({
+      where: { id },
+      data: {
+        nama: data.nama,
+        jabatan: data.jabatan || null,
+        nip: data.nip,
+        nuptk: data.nuptk,
+        alamat: data.alamat,
+        noTelp: data.noTelp,
+      },
+      include: { user: true },
+    })
     if (data.nama) {
       await tx.user.update({
         where: { id: updated.userId },

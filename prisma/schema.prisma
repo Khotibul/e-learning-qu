@@ -102,6 +102,7 @@ model Guru {
   nip       String?   @unique
   nuptk     String?
   nama      String
+  jabatan   String?   @db.VarChar(20)
   alamat    String?
   noTelp    String?
   createdAt DateTime  @default(now())

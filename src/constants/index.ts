@@ -56,6 +56,7 @@ export const NAV_ITEMS = {
     { label: "Ujian", href: "/guru/ujian", icon: "ClipboardList" },
     { label: "Absensi", href: "/guru/absensi", icon: "ClipboardCheck" },
     { label: "Wali Kelas", href: "/guru/wali-kelas", icon: "ShieldCheck" },
+    { label: "Pelanggaran", href: "/guru/pelanggaran", icon: "Gavel" },
     { label: "Materi", href: "/guru/materi", icon: "BookOpen" },
     { label: "Nilai", href: "/guru/nilai", icon: "Award" },
     { label: "Analitik", href: "/guru/analitik", icon: "BarChart3" },
