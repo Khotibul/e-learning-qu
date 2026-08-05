@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Users, ClipboardList, Wallet, Trash2, Plus, Loader2, ShieldCheck,
   Banknote, Receipt, TrendingUp, TrendingDown, PiggyBank, Calendar,
-  Gavel, ClipboardCheck, ExternalLink, Check, X, Pencil,
+  Gavel, ClipboardCheck, ExternalLink, Check, X, Pencil, Camera, ImagePlus,
 } from "lucide-react"
 import {
   getWaliKelasInfo, updateSiswaJabatan,
@@ -88,7 +88,12 @@ export default function WaliKelasPage() {
   const [pelanggaranPoin, setPelanggaranPoin] = useState("")
   const [pelanggaranTindakan, setPelanggaranTindakan] = useState("")
   const [pelanggaranTanggal, setPelanggaranTanggal] = useState("")
+  const [pelanggaranFoto, setPelanggaranFoto] = useState<File | null>(null)
+  const [pelanggaranFotoPreview, setPelanggaranFotoPreview] = useState<string | null>(null)
+  const [pelanggaranFotoUploading, setPelanggaranFotoUploading] = useState(false)
   const [pelanggaranFilterSiswa, setPelanggaranFilterSiswa] = useState("")
+  const pelanggaranFotoInputRef = useRef<HTMLInputElement>(null)
+  const pelanggaranCameraInputRef = useRef<HTMLInputElement>(null)
 
   const [rekapAbsensi, setRekapAbsensi] = useState<any>(null)
   const [detailAbsensi, setDetailAbsensi] = useState<any>(null)
@@ -322,10 +327,31 @@ export default function WaliKelasPage() {
     } catch { toast.error("Gagal memuat pelanggaran") }
   }
 
+  const handleFotoPelanggaran = (file: File | null) => {
+    setPelanggaranFoto(file)
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = () => setPelanggaranFotoPreview(reader.result as string)
+      reader.readAsDataURL(file)
+    } else {
+      setPelanggaranFotoPreview(null)
+    }
+  }
+
   const handleAddPelanggaran = async () => {
     if (!pelanggaranSiswaId || !pelanggaranJenis) { toast.error("Pilih siswa dan jenis pelanggaran"); return }
     setSaving(true)
     try {
+      let fotoUrl: string | undefined
+      if (pelanggaranFoto) {
+        setPelanggaranFotoUploading(true)
+        const formData = new FormData()
+        formData.append("file", pelanggaranFoto)
+        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
+        if (!uploadRes.ok) throw new Error("Gagal upload foto")
+        const { url } = await uploadRes.json()
+        fotoUrl = url
+      }
       await createPelanggaran({
         kelasId: selectedKelas.id,
         siswaId: pelanggaranSiswaId,
@@ -334,6 +360,7 @@ export default function WaliKelasPage() {
         poin: pelanggaranPoin ? Number(pelanggaranPoin) : undefined,
         tindakan: pelanggaranTindakan || undefined,
         tanggal: pelanggaranTanggal || undefined,
+        fotoUrl,
       })
       toast.success("Pelanggaran dicatat")
       setPelanggaranDialog(false)
@@ -343,9 +370,12 @@ export default function WaliKelasPage() {
       setPelanggaranPoin("")
       setPelanggaranTindakan("")
       setPelanggaranTanggal("")
+      handleFotoPelanggaran(null)
+      if (pelanggaranFotoInputRef.current) pelanggaranFotoInputRef.current.value = ""
+      if (pelanggaranCameraInputRef.current) pelanggaranCameraInputRef.current.value = ""
       loadPelanggaran()
     } catch (e: any) { toast.error(e?.message || "Gagal") }
-    finally { setSaving(false) }
+    finally { setPelanggaranFotoUploading(false); setSaving(false) }
   }
 
   const handleDeletePelanggaran = async (id: string) => {
@@ -870,8 +900,64 @@ export default function WaliKelasPage() {
                       </div>
                       <div className="space-y-2"><Label>Tindakan (opsional)</Label>
                         <Textarea value={pelanggaranTindakan} onChange={(e) => setPelanggaranTindakan(e.target.value)} rows={2} placeholder="Contoh: Teguran lisan, panggilan orang tua" /></div>
+                      <div className="space-y-2">
+                        <Label>Dokumen Foto (opsional)</Label>
+                        <input
+                          ref={pelanggaranFotoInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleFotoPelanggaran(e.target.files?.[0] || null)}
+                        />
+                        <input
+                          ref={pelanggaranCameraInputRef}
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={(e) => handleFotoPelanggaran(e.target.files?.[0] || null)}
+                        />
+                        {pelanggaranFotoPreview ? (
+                          <div className="relative w-fit">
+                            <img
+                              src={pelanggaranFotoPreview}
+                              alt="Dokumen pelanggaran"
+                              className="h-32 w-44 rounded-lg border object-cover"
+                            />
+                            <Button
+                              variant="destructive" size="icon"
+                              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                              onClick={() => {
+                                handleFotoPelanggaran(null)
+                                if (pelanggaranFotoInputRef.current) pelanggaranFotoInputRef.current.value = ""
+                                if (pelanggaranCameraInputRef.current) pelanggaranCameraInputRef.current.value = ""
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <Button
+                              type="button" variant="outline" size="sm"
+                              onClick={() => pelanggaranFotoInputRef.current?.click()}
+                              disabled={pelanggaranFotoUploading}
+                            >
+                              <ImagePlus className="h-4 w-4 mr-1.5" /> Pilih Foto
+                            </Button>
+                            <Button
+                              type="button" variant="outline" size="sm"
+                              onClick={() => pelanggaranCameraInputRef.current?.click()}
+                              disabled={pelanggaranFotoUploading}
+                            >
+                              <Camera className="h-4 w-4 mr-1.5" /> Ambil Foto
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                       <Button onClick={handleAddPelanggaran} disabled={saving} className="w-full">
-                        {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Simpan
+                        {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        {pelanggaranFotoUploading ? "Mengunggah foto..." : "Simpan"}
                       </Button>
                     </div>
                   </DialogContent>
@@ -903,6 +989,15 @@ export default function WaliKelasPage() {
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-2 text-sm">
+                          {p.fotoUrl && (
+                            <a href={p.fotoUrl} target="_blank" rel="noopener noreferrer">
+                              <img
+                                src={p.fotoUrl}
+                                alt="Dokumen pelanggaran"
+                                className="h-28 w-full rounded-md border object-cover transition hover:opacity-80"
+                              />
+                            </a>
+                          )}
                           {p.deskripsi && <p className="text-muted-foreground">{p.deskripsi}</p>}
                           {p.tindakan && (
                             <div>

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { unlink } from "fs/promises"
+import path from "path"
 import bcrypt from "bcryptjs"
 
 async function getCurrentGuru() {
@@ -1514,7 +1516,7 @@ export async function getPelanggaran(kelasId: string) {
 }
 
 export async function createPelanggaran(data: {
-  kelasId: string; siswaId: string; jenis: string; deskripsi?: string; poin?: number; tindakan?: string; tanggal?: string
+  kelasId: string; siswaId: string; jenis: string; deskripsi?: string; poin?: number; tindakan?: string; tanggal?: string; fotoUrl?: string
 }) {
   const guru = await getCurrentGuru()
   const kelas = await prisma.kelas.findFirst({
@@ -1530,6 +1532,7 @@ export async function createPelanggaran(data: {
       deskripsi: data.deskripsi || null,
       poin: data.poin || null,
       tindakan: data.tindakan || null,
+      fotoUrl: data.fotoUrl || null,
       tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
     },
   })
@@ -1544,6 +1547,9 @@ export async function deletePelanggaran(id: string) {
   })
   if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
   await prisma.pelanggaran.update({ where: { id }, data: { deletedAt: new Date() } })
+  if (item.fotoUrl?.startsWith("/uploads/")) {
+    try { await unlink(path.join(process.cwd(), "public", item.fotoUrl)) } catch { }
+  }
   revalidatePath("/(dashboard)/guru/wali-kelas")
   return { success: true }
 }

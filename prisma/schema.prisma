@@ -671,6 +671,7 @@ model Pelanggaran {
   deskripsi String?
   poin      Int?
   tindakan  String?
+  fotoUrl   String?
   tanggal   DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
