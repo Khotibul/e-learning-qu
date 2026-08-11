@@ -148,9 +148,13 @@ export function MuridManagement(props: Props) {
 
   const columns: ColumnDef<Murid>[] = [
     { header: "No", cell: ({ row }) => (page - 1) * 10 + row.index + 1, size: 60 },
-    { accessorKey: "nama", header: "Nama" },
+{ accessorKey: "nama", header: "Nama" },
     { accessorKey: "nis", header: "NIS", cell: ({ row }) => row.original.nis || "-" },
     { accessorKey: "nisn", header: "NISN", cell: ({ row }) => row.original.nisn || "-" },
+    {
+      header: "Email",
+      cell: ({ row }) => <span className="block max-w-[200px] truncate text-sm">{row.original.user.email}</span>,
+    },
     {
       header: "Kelas",
       cell: ({ row }) => row.original.kelas?.nama || "-",

@@ -248,15 +248,16 @@ export function MuridManagement(props: Props) {
       cell: ({ row }) => row.original.kelas?.nama || "-",
     },
     {
-      header: tab === "pendaftar" ? "Email" : "Status",
-      cell: ({ row }) =>
-        tab === "pendaftar" ? (
-          <span className="text-sm truncate max-w-[180px] block">{row.original.user.email}</span>
-        ) : (
-          <Badge variant={row.original.user.isActive ? "success" : "destructive"}>
-            {row.original.user.isActive ? "Aktif" : "Nonaktif"}
-          </Badge>
-        ),
+      header: "Email",
+      cell: ({ row }) => <span className="block max-w-[200px] truncate text-sm">{row.original.user.email}</span>,
+    },
+    {
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge variant={row.original.user.isActive ? "success" : "destructive"}>
+          {row.original.user.isActive ? "Aktif" : "Nonaktif"}
+        </Badge>
+      ),
     },
     {
       header: "Aksi",
