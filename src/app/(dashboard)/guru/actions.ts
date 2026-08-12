@@ -8,7 +8,7 @@ import { unlink } from "fs/promises"
 import path from "path"
 import bcrypt from "bcryptjs"
 
-async function getCurrentGuru() {
+export async function getCurrentGuru() {
   const session = await auth()
   if (!session?.user?.email) redirect("/login")
   const guru = await prisma.guru.findFirst({
@@ -929,7 +929,10 @@ export async function getGuruMapelRefs() {
     where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
     include: { mataPelajaran: { select: { id: true, nama: true, kode: true } }, kelas: { select: { id: true, nama: true } } },
   })
-  return pengajarans.map((p) => ({ ...p.mataPelajaran, kelas: p.kelas }))
+  const seen = new Set<string>()
+  return pengajarans
+    .map((p) => ({ ...p.mataPelajaran, kelas: p.kelas }))
+    .filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)))
 }
 
 export async function getGuruKelasRefs() {
@@ -1039,12 +1042,16 @@ export async function getGuruMapelsWithMateri() {
     where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
     include: { mataPelajaran: { select: { id: true, nama: true, kode: true } }, kelas: { select: { id: true, nama: true } } },
   })
-  return pengajarans.map((p) => ({ ...p.mataPelajaran, kelas: p.kelas }))
+  const seen = new Set<string>()
+  return pengajarans
+    .map((p) => ({ ...p.mataPelajaran, kelas: p.kelas }))
+    .filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)))
 }
 
 export async function createMateri(data: {
   judul: string
   deskripsi?: string
+  konten?: string
   fileUrl: string
   fileType?: string
   fileSize?: number
@@ -1055,6 +1062,7 @@ export async function createMateri(data: {
     data: {
       judul: data.judul,
       deskripsi: data.deskripsi || null,
+      konten: data.konten || null,
       fileUrl: data.fileUrl,
       fileType: data.fileType || null,
       fileSize: data.fileSize || null,

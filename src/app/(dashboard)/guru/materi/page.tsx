@@ -15,28 +15,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { BookOpen, Upload, Trash2, FileText, Loader2, Plus, Download, Link as LinkIcon } from "lucide-react"
+import { BookOpen, Upload, Trash2, FileText, Loader2, Plus, Download } from "lucide-react"
 import { getGuruMateris, getGuruMapelsWithMateri, createMateri, deleteMateri } from "../actions"
-
-interface MateriItem {
-  id: string
-  judul: string
-  deskripsi: string | null
-  fileUrl: string
-  fileType: string | null
-  fileSize: number | null
-  mataPelajaranId: string
-  createdAt: string
-  mataPelajaran: { id: string; nama: string; kelas: { nama: string } }
-}
-
-interface MapelOption {
-  id: string
-  nama: string
-  kode: string
-  kelas: { id: string; nama: string }
-}
 
 function getFileIcon(fileType: string | null) {
   const type = fileType?.toLowerCase() || ""
@@ -56,35 +36,40 @@ function formatFileSize(bytes: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export default function GuruMateriPage() {
-  const [materis, setMateris] = useState<MateriItem[]>([])
-  const [mapels, setMapels] = useState<MapelOption[]>([])
+export default function MateriPage() {
+  const [materis, setMateris] = useState<any[]>([])
+  const [mapels, setMapels] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-
   const [selectedMapel, setSelectedMapel] = useState("")
   const [judul, setJudul] = useState("")
   const [deskripsi, setDeskripsi] = useState("")
+  const [konten, setKonten] = useState("")
   const [file, setFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchData = () => {
     Promise.all([getGuruMateris(), getGuruMapelsWithMateri()])
-      .then(([m, map]) => {
-        setMateris(m as unknown as MateriItem[])
-        setMapels(map as unknown as MapelOption[])
+      .then(([m, mp]) => {
+        setMateris(m)
+        setMapels(mp)
       })
-      .catch(() => toast.error("Gagal memuat data"))
+      .catch(() => toast.error("Gagal memuat materi"))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { fetchData() }, [])
+  const mapelOptions = Array.from(new Map(mapels.map((m: any) => [m.id, m])).values())
+
+  useEffect(() => {
+    fetchData()
+  }, [])
 
   const resetForm = () => {
     setSelectedMapel("")
     setJudul("")
     setDeskripsi("")
+    setKonten("")
     setFile(null)
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
@@ -106,6 +91,7 @@ export default function GuruMateriPage() {
       await createMateri({
         judul,
         deskripsi: deskripsi || undefined,
+        konten: konten || undefined,
         fileUrl: url,
         fileType: ext,
         fileSize: file.size,
@@ -133,22 +119,14 @@ export default function GuruMateriPage() {
     }
   }
 
-  const groupedByMapel: Record<string, { mapel: MapelOption; items: MateriItem[] }> = {}
-  for (const m of mapels) {
-    groupedByMapel[m.id] = { mapel: m, items: [] }
-  }
-  for (const mat of materis) {
-    if (groupedByMapel[mat.mataPelajaranId]) {
-      groupedByMapel[mat.mataPelajaranId].items.push(mat)
+  const groupedByMapel: Record<string, { mapel: any; items: any[] }> = {}
+  for (const m of materis) {
+    const id = m.mataPelajaranId || "tanpa"
+    if (!groupedByMapel[id]) {
+      const mapelInfo = mapels.find((p) => p.id === m.mataPelajaranId) || m.mataPelajaran || { nama: "Tanpa Mapel" }
+      groupedByMapel[id] = { mapel: mapelInfo, items: [] }
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    )
+    groupedByMapel[id].items.push(m)
   }
 
   return (
@@ -182,9 +160,9 @@ export default function GuruMateriPage() {
                 <Select value={selectedMapel} onValueChange={setSelectedMapel}>
                   <SelectTrigger><SelectValue placeholder="Pilih Mapel" /></SelectTrigger>
                   <SelectContent>
-                    {mapels.map((m) => (
+                    {mapelOptions.map((m: any) => (
                       <SelectItem key={m.id} value={m.id}>
-                        {m.nama} ({m.kelas.nama})
+                        {m.nama} ({m.kelas?.nama || "-"})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -197,6 +175,19 @@ export default function GuruMateriPage() {
               <div className="space-y-2">
                 <Label htmlFor="deskripsi">Deskripsi (opsional)</Label>
                 <Textarea id="deskripsi" value={deskripsi} onChange={(e) => setDeskripsi(e.target.value)} rows={2} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="konten">Konten Teks (untuk AI Tutor)</Label>
+                <Textarea
+                  id="konten"
+                  value={konten}
+                  onChange={(e) => setKonten(e.target.value)}
+                  rows={5}
+                  placeholder="Tempel konten pembelajaran sebagai teks. Semakin lengkap, semakin baik jawaban AI Tutor (RAG) untuk siswa."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Jika dikosongkan, AI hanya menggunakan judul & deskripsi.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="file">File</Label>
@@ -222,7 +213,9 @@ export default function GuruMateriPage() {
         </Dialog>
       </div>
 
-      {Object.keys(groupedByMapel).length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      ) : Object.keys(groupedByMapel).length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
             <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -237,43 +230,41 @@ export default function GuruMateriPage() {
               <CardTitle className="text-lg flex items-center gap-2">
                 <BookOpen className="h-5 w-5 text-primary" />
                 {group.mapel.nama}
-                <Badge variant="secondary" className="text-xs">{group.mapel.kelas.nama}</Badge>
+                <Badge variant="secondary" className="text-xs">{group.mapel.kelas?.nama}</Badge>
                 <Badge variant="outline" className="text-xs">{group.items.length} materi</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {group.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Belum ada materi untuk mapel ini</p>
-              ) : (
-                group.items.map((item) => (
-                  <div key={item.id} className="flex items-start justify-between gap-3 rounded-xl border p-3 sm:p-4 hover:bg-muted/50 transition-colors">
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <span className="text-xl shrink-0 mt-0.5">{getFileIcon(item.fileType)}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm sm:text-base truncate">{item.judul}</p>
-                        {item.deskripsi && (
-                          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 line-clamp-2">{item.deskripsi}</p>
+              {group.items.map((item) => (
+                <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl border p-3 sm:p-4 hover:bg-muted/50 transition-colors">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <span className="text-2xl shrink-0">{getFileIcon(item.fileType)}</span>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm sm:text-base truncate">{item.judul}</p>
+                      {item.deskripsi && (
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 line-clamp-2">{item.deskripsi}</p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        <Badge variant="outline" className="text-[10px]">{item.fileType?.toUpperCase()}</Badge>
+                        {item.fileSize != null && (
+                          <span className="text-[10px] text-muted-foreground">{formatFileSize(item.fileSize)}</span>
                         )}
-                        <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                          <Badge variant="secondary" className="text-[10px]">{item.fileType?.toUpperCase() || "FILE"}</Badge>
-                          {item.fileSize && <span className="text-[10px] text-muted-foreground">{formatFileSize(item.fileSize)}</span>}
-                          <span className="text-[10px] text-muted-foreground">{new Date(item.createdAt).toLocaleDateString("id-ID")}</span>
-                        </div>
+                        <Badge className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                          {(item.konten?.length || 0)} karakter untuk AI
+                        </Badge>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                        <a href={item.fileUrl} download target="_blank">
-                          <Download className="h-4 w-4" />
-                        </a>
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(item.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
                   </div>
-                ))
-              )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                      <a href={item.fileUrl} target="_blank" download><Download className="h-4 w-4" /></a>
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(item.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         ))

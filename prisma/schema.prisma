@@ -13,6 +13,44 @@ enum Role {
   SISWA
 }
 
+enum MasteryKategori {
+  BEGINNER
+  BASIC
+  DEVELOPING
+  PROFICIENT
+  ADVANCED
+}
+
+enum AktivitasJenis {
+  MATERI_DIBUKA
+  MATERI_SELESAI
+  SOAL_DIKERJAKAN
+  LATIHAN_SELESAI
+  AI_CHAT
+  ASSESSMENT_SELESAI
+  PRETEST
+  POSTTEST
+}
+
+enum RekomendasiTipe {
+  MATERI
+  LATIHAN
+  ASSESSMENT
+  VIDEO
+}
+
+enum RekomendasiStatus {
+  BARU
+  DIAKSES
+  SELESAI
+}
+
+enum PathItemStatus {
+  PENDING
+  SEDANG
+  SELESAI
+}
+
 enum TingkatKesulitan {
   MUDAH
   SEDANG
@@ -129,23 +167,181 @@ model Siswa {
   alamat    String?
   noTelp    String?
   kelasId   String?   @db.Uuid
+  jurusanId String?   @db.Uuid
   jabatan   String?   @db.VarChar(20)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kelas            Kelas?            @relation(fields: [kelasId], references: [id])
-  jawabanUjian     JawabanUjian[]
-  jawabanLatihan   JawabanLatihan[]
-  nilai            Nilai[]
-  AbsensiSiswa     AbsensiSiswa[]
-  jadwalPiket      JadwalPiket[]
-  pembayaranIuran  PembayaranIuran[]
-  pembayaranDenda  PembayaranDenda[]
-  pelanggaran      Pelanggaran[]
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kelas           Kelas?                 @relation(fields: [kelasId], references: [id])
+  jurusan         Jurusan?               @relation(fields: [jurusanId], references: [id])
+  jawabanUjian    JawabanUjian[]
+  chatSessions    ChatSession[]
+  latihanAI       LatihanAI[]
+  agentLogs       AgentLog[]
+  jawabanLatihan  JawabanLatihan[]
+  nilai           Nilai[]
+  AbsensiSiswa    AbsensiSiswa[]
+  jadwalPiket     JadwalPiket[]
+  pembayaranIuran PembayaranIuran[]
+  pembayaranDenda PembayaranDenda[]
+  pelanggaran     Pelanggaran[]
+  penguasaan      PenguasaanKompetensi[]
+  aktivitas       LearningActivity[]
+  rekomendasi     Rekomendasi[]
+  learningPaths   LearningPath[]
 
   @@map("siswa")
+}
+
+model Jurusan {
+  id        String    @id @default(uuid()) @db.Uuid
+  kode      String    @unique
+  nama      String
+  deskripsi String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  siswas      Siswa[]
+  kompetensis Kompetensi[]
+
+  @@map("jurusan")
+}
+
+model Kompetensi {
+  id              String    @id @default(uuid()) @db.Uuid
+  kode            String
+  nama            String
+  deskripsi       String?
+  jurusanId       String    @db.Uuid
+  mataPelajaranId String?   @db.Uuid
+  tingkat         Int       @default(1)
+  urutan          Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  jurusan           Jurusan                @relation(fields: [jurusanId], references: [id])
+  mataPelajaran     MataPelajaran?         @relation(fields: [mataPelajaranId], references: [id])
+  materis           Materi[]
+  soals             Soal[]
+  penguasaan        PenguasaanKompetensi[]
+  rekomendasi       Rekomendasi[]
+  learningPaths     LearningPath[]
+  learningPathItems LearningPathItem[]
+  prasyarat         KompetensiPrasyarat[]  @relation("KompetensiPrasyarat")
+  diprasyaratiOleh  KompetensiPrasyarat[]  @relation("KompetensiPrasyaratReverse")
+
+  @@unique([kode, jurusanId])
+  @@map("kompetensi")
+}
+
+model KompetensiPrasyarat {
+  id                    String @id @default(uuid()) @db.Uuid
+  kompetensiId          String @db.Uuid
+  prasyaratKompetensiId String @db.Uuid
+
+  kompetensi          Kompetensi @relation("KompetensiPrasyarat", fields: [kompetensiId], references: [id], onDelete: Cascade)
+  prasyaratKompetensi Kompetensi @relation("KompetensiPrasyaratReverse", fields: [prasyaratKompetensiId], references: [id], onDelete: Cascade)
+
+  @@unique([kompetensiId, prasyaratKompetensiId])
+  @@map("kompetensi_prasyarat")
+}
+
+model PenguasaanKompetensi {
+  id              String          @id @default(uuid()) @db.Uuid
+  siswaId         String          @db.Uuid
+  kompetensiId    String          @db.Uuid
+  skor            Int             @default(0)
+  kategori        MasteryKategori @default(BEGINNER)
+  jumlahSoalBenar Int             @default(0)
+  jumlahSoalSalah Int             @default(0)
+  jumlahLatihan   Int             @default(0)
+  jumlahChat      Int             @default(0)
+  jumlahMateri    Int             @default(0)
+  jumlahNilai     Int             @default(0)
+  rataNilaiMapel  Float?
+  terakhirDinilai DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  siswa      Siswa      @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  kompetensi Kompetensi @relation(fields: [kompetensiId], references: [id], onDelete: Cascade)
+
+  @@unique([siswaId, kompetensiId])
+  @@index([kompetensiId])
+  @@map("penguasaan_kompetensi")
+}
+
+model LearningActivity {
+  id              String         @id @default(uuid()) @db.Uuid
+  siswaId         String         @db.Uuid
+  jenis           AktivitasJenis
+  kompetensiId    String?        @db.Uuid
+  mataPelajaranId String?        @db.Uuid
+  targetId        String?
+  detail          Json?
+  createdAt       DateTime       @default(now())
+
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@index([siswaId, createdAt])
+  @@map("learning_activity")
+}
+
+model Rekomendasi {
+  id           String            @id @default(uuid()) @db.Uuid
+  siswaId      String            @db.Uuid
+  kompetensiId String?           @db.Uuid
+  materiId     String?           @db.Uuid
+  tipe         RekomendasiTipe
+  judul        String
+  alasan       String
+  prioritas    Int               @default(1)
+  status       RekomendasiStatus @default(BARU)
+  sumber       String            @default("adaptive")
+  createdAt    DateTime          @default(now())
+
+  siswa      Siswa       @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  kompetensi Kompetensi? @relation(fields: [kompetensiId], references: [id])
+
+  @@index([siswaId, status])
+  @@map("rekomendasi")
+}
+
+model LearningPath {
+  id           String   @id @default(uuid()) @db.Uuid
+  siswaId      String   @unique @db.Uuid
+  kompetensiId String?  @db.Uuid
+  progres      Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  siswa      Siswa              @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  kompetensi Kompetensi?        @relation(fields: [kompetensiId], references: [id])
+  items      LearningPathItem[]
+
+  @@map("learning_path")
+}
+
+model LearningPathItem {
+  id             String         @id @default(uuid()) @db.Uuid
+  learningPathId String         @db.Uuid
+  kompetensiId   String?        @db.Uuid
+  materiId       String?        @db.Uuid
+  jenis          AktivitasJenis
+  urutan         Int
+  status         PathItemStatus @default(PENDING)
+  createdAt      DateTime       @default(now())
+
+  learningPath LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  kompetensi   Kompetensi?  @relation(fields: [kompetensiId], references: [id])
+  materi       Materi?      @relation(fields: [materiId], references: [id])
+
+  @@index([learningPathId, urutan])
+  @@map("learning_path_item")
 }
 
 model Kelas {
@@ -157,7 +353,7 @@ model Kelas {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  guru            Guru?             @relation(fields: [guruId], references: [id])
+  guru            Guru?              @relation(fields: [guruId], references: [id])
   siswas          Siswa[]
   ujians          Ujian[]
   jadwalPelajaran JadwalPelajaran[]
@@ -191,18 +387,19 @@ model MataPelajaran {
   Absensi         Absensi[]
   materis         Materi[]
   pengajaran      Pengajaran[]
+  kompetensis     Kompetensi[]
 
   @@unique([kode, semesterId])
   @@map("mata_pelajaran")
 }
 
 model Pengajaran {
-  id              String   @id @default(uuid()) @db.Uuid
-  mataPelajaranId String   @db.Uuid
-  guruId          String   @db.Uuid
-  kelasId         String   @db.Uuid
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id              String    @id @default(uuid()) @db.Uuid
+  mataPelajaranId String    @db.Uuid
+  guruId          String    @db.Uuid
+  kelasId         String    @db.Uuid
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
   mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id], onDelete: Cascade)
@@ -261,6 +458,7 @@ model Soal {
   bab              String?
   tags             String?
   kategoriId       String?          @db.Uuid
+  kompetensiId     String?          @db.Uuid
   mataPelajaranId  String           @db.Uuid
   guruId           String           @db.Uuid
   createdAt        DateTime         @default(now())
@@ -268,6 +466,7 @@ model Soal {
   deletedAt        DateTime?
 
   kategori       KategoriSoal?    @relation(fields: [kategoriId], references: [id])
+  kompetensi     Kompetensi?      @relation(fields: [kompetensiId], references: [id])
   mataPelajaran  MataPelajaran    @relation(fields: [mataPelajaranId], references: [id])
   guru           Guru             @relation(fields: [guruId], references: [id])
   ujianSoal      UjianSoal[]
@@ -306,6 +505,7 @@ model Ujian {
   jamSelesai      DateTime
   mode            String      @default("manual")
   status          StatusUjian @default(DRAFT)
+  tipe            String      @default("REGULER")
   isLatihan       Boolean     @default(false)
   randomSoal      Boolean     @default(true)
   randomJawaban   Boolean     @default(true)
@@ -450,15 +650,15 @@ model JadwalPiket {
 }
 
 model Iuran {
-  id           String    @id @default(uuid()) @db.Uuid
-  kelasId      String    @db.Uuid
-  nama         String
-  nominal      Int
-  tenggat      DateTime?
-  deskripsi    String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  deletedAt    DateTime?
+  id        String    @id @default(uuid()) @db.Uuid
+  kelasId   String    @db.Uuid
+  nama      String
+  nominal   Int
+  tenggat   DateTime?
+  deskripsi String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   kelas      Kelas             @relation(fields: [kelasId], references: [id], onDelete: Cascade)
   pembayaran PembayaranIuran[]
@@ -467,14 +667,14 @@ model Iuran {
 }
 
 model PembayaranIuran {
-  id          String   @id @default(uuid()) @db.Uuid
-  iuranId     String   @db.Uuid
-  siswaId     String   @db.Uuid
-  jumlah      Int
-  status      String   @default("LUNAS")
+  id           String   @id @default(uuid()) @db.Uuid
+  iuranId      String   @db.Uuid
+  siswaId      String   @db.Uuid
+  jumlah       Int
+  status       String   @default("LUNAS")
   tanggalBayar DateTime @default(now())
-  keterangan  String?
-  createdAt   DateTime @default(now())
+  keterangan   String?
+  createdAt    DateTime @default(now())
 
   iuran Iuran @relation(fields: [iuranId], references: [id], onDelete: Cascade)
   siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
@@ -484,14 +684,14 @@ model PembayaranIuran {
 }
 
 model Denda {
-  id           String    @id @default(uuid()) @db.Uuid
-  kelasId      String    @db.Uuid
-  nama         String
-  nominal      Int
-  deskripsi    String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  deletedAt    DateTime?
+  id        String    @id @default(uuid()) @db.Uuid
+  kelasId   String    @db.Uuid
+  nama      String
+  nominal   Int
+  deskripsi String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   kelas      Kelas             @relation(fields: [kelasId], references: [id], onDelete: Cascade)
   pembayaran PembayaranDenda[]
@@ -517,14 +717,14 @@ model PembayaranDenda {
 }
 
 model PengeluaranKelas {
-  id          String   @id @default(uuid()) @db.Uuid
-  kelasId     String   @db.Uuid
-  jumlah      Int
-  keterangan  String
-  tanggal     DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  id         String    @id @default(uuid()) @db.Uuid
+  kelasId    String    @db.Uuid
+  jumlah     Int
+  keterangan String
+  tanggal    DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
 
   kelas Kelas @relation(fields: [kelasId], references: [id], onDelete: Cascade)
 
@@ -604,32 +804,118 @@ model AbsensiSiswa {
 }
 
 model Materi {
-  id              String   @id @default(uuid()) @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
   judul           String
   deskripsi       String?
+  konten          String?   @db.Text
   fileUrl         String
   fileType        String?
   fileSize        Int?
-  mataPelajaranId String   @db.Uuid
-  guruId          String   @db.Uuid
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  kompetensiId    String?   @db.Uuid
+  mataPelajaranId String    @db.Uuid
+  guruId          String    @db.Uuid
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
-  mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id])
-  guru          Guru          @relation(fields: [guruId], references: [id])
+  kompetensi        Kompetensi?        @relation(fields: [kompetensiId], references: [id])
+  mataPelajaran     MataPelajaran      @relation(fields: [mataPelajaranId], references: [id])
+  guru              Guru               @relation(fields: [guruId], references: [id])
+  chunks            MateriChunk[]
+  latihanAI         LatihanAI[]
+  learningPathItems LearningPathItem[]
 
   @@map("materi")
 }
 
+model MateriChunk {
+  id              String   @id @default(uuid()) @db.Uuid
+  materiId        String   @db.Uuid
+  mataPelajaranId String   @db.Uuid
+  index           Int
+  text            String   @db.Text
+  tokenCount      Int
+  embedding       Float[]
+  createdAt       DateTime @default(now())
+
+  materi Materi @relation(fields: [materiId], references: [id], onDelete: Cascade)
+
+  @@index([mataPelajaranId])
+  @@index([materiId])
+  @@map("materi_chunk")
+}
+
+model ChatSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  siswaId   String   @db.Uuid
+  mapelId   String?  @db.Uuid
+  judul     String   @default("Percakapan AI")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  siswa    Siswa         @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@map("chat_session")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  sessionId String   @db.Uuid
+  role      String
+  agent     String?
+  konten    String   @db.Text
+  sumber    Json?
+  createdAt DateTime @default(now())
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("chat_message")
+}
+
+model LatihanAI {
+  id         String   @id @default(uuid()) @db.Uuid
+  siswaId    String   @db.Uuid
+  materiId   String   @db.Uuid
+  soal       Json
+  jawaban    Json?
+  skor       Int?
+  umpanBalik String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  siswa  Siswa  @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  materi Materi @relation(fields: [materiId], references: [id], onDelete: Cascade)
+
+  @@map("latihan_ai")
+}
+
+model AgentLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  siswaId    String?  @db.Uuid
+  agent      String
+  tipe       String?
+  query      String   @db.Text
+  hasil      String?  @db.Text
+  sumber     Json?
+  durasiMs   Int?
+  model      String?
+  sukses     Boolean  @default(true)
+  pesanError String?
+  createdAt  DateTime @default(now())
+
+  siswa Siswa? @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+
+  @@map("agent_log")
+}
+
 model SiteConfig {
   id          String   @id @default(uuid()) @db.Uuid
-  siteName    String   @default("E-Learning QU")
+  siteName    String   @default("E-Learning Agent AI")
   tagline     String   @default("Platform E-Learning Modern")
   description String   @default("Platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
   logoUrl     String?
   aboutTitle  String   @default("Tentang Kami")
-  aboutText   String   @default("E-Learning QU adalah platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
+  aboutText   String   @default("E-Learning Agent AI adalah platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -665,17 +951,17 @@ model AuditLog {
 }
 
 model Pelanggaran {
-  id        String   @id @default(uuid()) @db.Uuid
-  siswaId   String   @db.Uuid
-  kelasId   String   @db.Uuid
+  id        String    @id @default(uuid()) @db.Uuid
+  siswaId   String    @db.Uuid
+  kelasId   String    @db.Uuid
   jenis     String
   deskripsi String?
   poin      Int?
   tindakan  String?
   fotoUrl   String?
-  tanggal   DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  tanggal   DateTime  @default(now())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)

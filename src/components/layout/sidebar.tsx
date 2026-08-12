@@ -9,7 +9,7 @@ import {
   LayoutDashboard, UserCheck, Users, DoorOpen, BookOpen,
   Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3, Settings,
   Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy,
-  GraduationCap, ShieldCheck, Wallet, Gavel, X
+  GraduationCap, ShieldCheck, Wallet, Gavel, Bot, X
 } from "lucide-react"
 import type { Role } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button"
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, UserCheck, Users, DoorOpen, BookOpen,
   Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3, Settings,
-  Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy, GraduationCap, ShieldCheck, Wallet, Gavel,
+  Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy, GraduationCap, ShieldCheck, Wallet, Gavel, Bot,
 }
 
 interface SidebarProps {
@@ -28,10 +28,14 @@ interface SidebarProps {
 
 export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
-  const [siteConfig, setSiteConfig] = useState({ siteName: "E-Learning QU", logoUrl: "" })
+  const [siteConfig, setSiteConfig] = useState({
+    siteName: process.env.NEXT_PUBLIC_SITE_NAME || "E-Learning QU",
+    logoUrl: "",
+  })
   const [guruJabatan, setGuruJabatan] = useState<string | null>(null)
 
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_SITE_NAME) return
     fetch("/api/site-config")
       .then((r) => r.json())
       .then((d) => { if (d?.siteName) setSiteConfig(d) })

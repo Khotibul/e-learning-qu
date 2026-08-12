@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { BookOpen, Brain, FileText, Megaphone } from "lucide-react"
 import { StatCard } from "./_components/StatCard"
 import { PengumumanList } from "./_components/PengumumanList"
+import RekomendasiAI from "./_components/RekomendasiAI"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 
@@ -116,7 +117,10 @@ export default async function SiswaDashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <PengumumanList items={data.pengumuman} />
+        <div className="space-y-6">
+          <PengumumanList items={data.pengumuman} />
+          <RekomendasiAI />
+        </div>
 
         <Card>
           <CardHeader>
