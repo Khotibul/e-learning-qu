@@ -45,10 +45,11 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
-  Loader2,
+Loader2,
   Upload,
   FileSpreadsheet,
   FileText,
+  KeyRound,
 } from "lucide-react"
 import {
   getMurids,
@@ -56,6 +57,7 @@ import {
   updateMurid,
   deleteMurid,
   restoreMurid,
+  resetMuridPassword,
   getKelasRefs,
 } from "../actions"
 
@@ -106,8 +108,11 @@ export function MuridManagement(props: Props) {
   const debouncedSearch = useDebounce(search, 500)
 
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; restore: boolean }>({
+const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; restore: boolean }>({
     open: false, id: "", restore: false,
+  })
+  const [resetDialog, setResetDialog] = useState<{ open: boolean; id: string; nama: string }>({
+    open: false, id: "", nama: "",
   })
   const [editing, setEditing] = useState<Murid | null>(null)
   const [formData, setFormData] = useState({
@@ -193,6 +198,9 @@ export function MuridManagement(props: Props) {
             }} className="p-2 sm:px-3 sm:py-1">
               <Edit className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span>
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setResetDialog({ open: true, id: m.id, nama: m.nama })} className="p-2 sm:px-3 sm:py-1">
+              <KeyRound className="h-4 w-4" /><span className="hidden sm:inline ml-1">Reset Password</span>
+            </Button>
             <Button variant="destructive" size="sm" onClick={() => setDeleteDialog({ open: true, id: m.id, restore: false })} className="p-2 sm:px-3 sm:py-1">
               <Trash2 className="h-4 w-4" /><span className="hidden sm:inline ml-1">Hapus</span>
             </Button>
@@ -234,6 +242,16 @@ export function MuridManagement(props: Props) {
       }
       setDialogOpen(false); resetForm(); fetchData()
     } catch (err: any) { toast.error(err?.message || "Terjadi kesalahan") } finally { setSubmitting(false) }
+  }
+
+  async function handleResetPassword() {
+    try {
+      const nama = await resetMuridPassword(resetDialog.id)
+      toast.success(`Password ${nama} direset ke siswa123`)
+      setResetDialog({ open: false, id: "", nama: "" })
+    } catch (err: any) {
+      toast.error(err?.message || "Terjadi kesalahan")
+    }
   }
 
   async function handleDeleteRestore() {
@@ -408,7 +426,7 @@ export function MuridManagement(props: Props) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteDialog.open} onOpenChange={(o) => setDeleteDialog({ open: o, id: "", restore: false })}>
+<Dialog open={deleteDialog.open} onOpenChange={(o) => setDeleteDialog({ open: o, id: "", restore: false })}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>{deleteDialog.restore ? "Restore Murid" : "Nonaktifkan Murid"}</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">
@@ -420,6 +438,22 @@ export function MuridManagement(props: Props) {
             <Button variant="outline" onClick={() => setDeleteDialog({ open: false, id: "", restore: false })}>Batal</Button>
             <Button variant={deleteDialog.restore ? "default" : "destructive"} onClick={handleDeleteRestore}>
               {deleteDialog.restore ? "Restore" : "Nonaktifkan"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={resetDialog.open} onOpenChange={(o) => setResetDialog({ open: o, id: "", nama: "" })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Reset Password Murid</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Password akun <strong>{resetDialog.nama}</strong> akan direset menjadi <strong>siswa123</strong>.
+            Murid dapat login dengan password default ini dan mengubahnya di menu Pengaturan.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setResetDialog({ open: false, id: "", nama: "" })}>Batal</Button>
+            <Button variant="default" onClick={handleResetPassword}>
+              <KeyRound className="h-4 w-4 mr-2" /> Reset Password
             </Button>
           </div>
         </DialogContent>

@@ -230,6 +230,18 @@ export async function restoreMurid(id: string) {
   revalidatePath("/(dashboard)/admin/murid")
 }
 
+export async function resetMuridPassword(id: string) {
+  const siswa = await prisma.siswa.findUnique({ where: { id }, include: { user: true } })
+  if (!siswa) throw new Error("Siswa tidak ditemukan")
+  const hashedPassword = await bcrypt.hash("siswa123", 12)
+  await prisma.user.update({
+    where: { id: siswa.userId },
+    data: { password: hashedPassword },
+  })
+  revalidatePath("/(dashboard)/admin/murid")
+  return siswa.nama
+}
+
 // ─── KELAS ───────────────────────────────────────────────
 
 export async function getKelass(params: { search?: string; page?: number; limit?: number }) {
