@@ -47,6 +47,8 @@ export default function MateriPage() {
   const [deskripsi, setDeskripsi] = useState("")
   const [konten, setKonten] = useState("")
   const [file, setFile] = useState<File | null>(null)
+  const [uploaded, setUploaded] = useState<{ url: string; text: string | null } | null>(null)
+  const [uploadingFile, setUploadingFile] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchData = () => {
@@ -71,30 +73,49 @@ export default function MateriPage() {
     setDeskripsi("")
     setKonten("")
     setFile(null)
+    setUploaded(null)
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] || null
+    setFile(f)
+    setUploaded(null)
+    if (!f) return
+    setUploadingFile(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", f)
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
+      if (!uploadRes.ok) throw new Error("Upload file gagal")
+      const data = await uploadRes.json()
+      setUploaded({ url: data.url, text: data.text || null })
+      if (data.text) {
+        setKonten((prev) => (prev.trim() ? prev : data.text))
+      }
+    } catch {
+      toast.error("Gagal mengupload file")
+      setFile(null)
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
   const handleUpload = async () => {
-    if (!selectedMapel || !judul || !file) {
+    if (!selectedMapel || !judul || !uploaded?.url) {
       toast.error("Mapel, judul, dan file harus diisi")
       return
     }
     setSaving(true)
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
-      if (!uploadRes.ok) throw new Error("Upload file gagal")
-      const { url } = await uploadRes.json()
-
-      const ext = file.name.split(".").pop() || ""
+      const ext = (file?.name.split(".").pop() || uploaded.url.split(".").pop() || "").toLowerCase()
       await createMateri({
         judul,
         deskripsi: deskripsi || undefined,
-        konten: konten || undefined,
-        fileUrl: url,
+        konten: konten || uploaded.text || undefined,
+        fileUrl: uploaded.url,
         fileType: ext,
-        fileSize: file.size,
+        fileSize: file?.size,
         mataPelajaranId: selectedMapel,
       })
       toast.success("Materi berhasil diupload")
@@ -186,7 +207,7 @@ export default function MateriPage() {
                   placeholder="Tempel konten pembelajaran sebagai teks. Semakin lengkap, semakin baik jawaban AI Tutor (RAG) untuk siswa."
                 />
                 <p className="text-xs text-muted-foreground">
-                  Jika dikosongkan, AI hanya menggunakan judul & deskripsi.
+                  Jika file PDF/TXT/MD, teks diekstrak otomatis dan diisi di sini. Anda bisa mengeditnya sebelum menyimpan.
                 </p>
               </div>
               <div className="space-y-2">
@@ -195,15 +216,28 @@ export default function MateriPage() {
                   id="file"
                   type="file"
                   ref={fileInputRef}
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  onChange={handleFileChange}
                 />
-                {file && (
+                {uploadingFile && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Mengupload file...
+                  </p>
+                )}
+                {!uploadingFile && uploaded && (
+                  <p className="text-xs text-muted-foreground">
+                    {file?.name} ({formatFileSize(file?.size || 0)}) diupload.
+                    {uploaded.text
+                      ? ` Teks untuk AI diekstrak otomatis (${uploaded.text.length} karakter).`
+                      : " Tidak ada teks yang bisa diekstrak dari file ini."}
+                  </p>
+                )}
+                {!uploadingFile && file && !uploaded && (
                   <p className="text-xs text-muted-foreground">{file.name} ({formatFileSize(file.size)})</p>
                 )}
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm() }}>Batal</Button>
-                <Button onClick={handleUpload} disabled={saving}>
+                <Button onClick={handleUpload} disabled={saving || uploadingFile || !uploaded}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                   Upload
                 </Button>
