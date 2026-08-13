@@ -151,15 +151,16 @@ export function SoalManagementClient() {
     }
   }
 
-  const handleExport = async () => {
+  const handleExport = async (format: "excel" | "pdf" | "csv") => {
     try {
-      const res = await fetch("/api/export?type=soal")
+      const res = await fetch(`/api/export?type=soal&format=${format}`)
       if (!res.ok) throw new Error("Gagal mengekspor data")
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
+      const ext = format === "pdf" ? "pdf" : format === "csv" ? "csv" : "xls"
       const a = document.createElement("a")
       a.href = url
-      a.download = `soal_${new Date().toISOString().split("T")[0]}.csv`
+      a.download = `soal_${new Date().toISOString().split("T")[0]}.${ext}`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -319,11 +320,23 @@ export function SoalManagementClient() {
             {importLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />}
             Import Excel
           </Button>
-          <Button variant="outline" onClick={handleExport} size="sm" className="sm:hidden p-2" title="Export">
+          <Button variant="outline" onClick={() => handleExport("excel")} size="sm" className="sm:hidden p-2" title="Export Excel">
+            <FileSpreadsheet className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={() => handleExport("excel")} className="hidden sm:inline-flex">
+            <FileSpreadsheet className="h-4 w-4 mr-2" /> Export Excel
+          </Button>
+          <Button variant="outline" onClick={() => handleExport("pdf")} size="sm" className="sm:hidden p-2" title="Export PDF">
+            <FileText className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={() => handleExport("pdf")} className="hidden sm:inline-flex">
+            <FileText className="h-4 w-4 mr-2" /> Export PDF
+          </Button>
+          <Button variant="outline" onClick={() => handleExport("csv")} size="sm" className="sm:hidden p-2" title="Export CSV">
             <Download className="h-4 w-4" />
           </Button>
-          <Button variant="outline" onClick={handleExport} className="hidden sm:inline-flex">
-            <Download className="h-4 w-4 mr-2" /> Export
+          <Button variant="outline" onClick={() => handleExport("csv")} className="hidden sm:inline-flex">
+            <Download className="h-4 w-4 mr-2" /> Export CSV
           </Button>
           <Button asChild size="sm" className="sm:hidden p-2" title="Tambah Soal">
             <Link href="/guru/soal/new">

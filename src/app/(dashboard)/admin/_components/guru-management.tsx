@@ -305,6 +305,26 @@ if (editingGuru) {
     }
   }
 
+  const handleExport = async (format: "excel" | "pdf") => {
+    try {
+      const res = await fetch(`/api/export?type=guru&format=${format}`)
+      if (!res.ok) throw new Error("Gagal mengekspor data")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const ext = format === "pdf" ? "pdf" : "xls"
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `guru_${new Date().toISOString().split("T")[0]}.${ext}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success(`Ekspor ${format === "pdf" ? "PDF" : "Excel"} berhasil`)
+    } catch {
+      toast.error("Gagal mengekspor data")
+    }
+  }
+
 function resetForm() {
     setEditingGuru(null)
     setFormData({ nama: "", jabatan: "", nip: "", nuptk: "", alamat: "", noTelp: "", email: "" })
@@ -321,16 +341,16 @@ function resetForm() {
           <Button variant="outline" size="sm" className="hidden sm:inline-flex">
             <Upload className="h-4 w-4 mr-1" /> Import
           </Button>
-          <Button variant="outline" size="sm" className="sm:hidden p-2" title="Excel">
+          <Button variant="outline" size="sm" className="sm:hidden p-2" title="Excel" onClick={() => handleExport("excel")}>
             <FileSpreadsheet className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" className="hidden sm:inline-flex">
+          <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => handleExport("excel")}>
             <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
           </Button>
-          <Button variant="outline" size="sm" className="sm:hidden p-2" title="PDF">
+          <Button variant="outline" size="sm" className="sm:hidden p-2" title="PDF" onClick={() => handleExport("pdf")}>
             <FileText className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" className="hidden sm:inline-flex">
+          <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => handleExport("pdf")}>
             <FileText className="h-4 w-4 mr-1" /> PDF
           </Button>
           <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true) }}>

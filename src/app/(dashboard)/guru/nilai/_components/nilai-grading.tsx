@@ -136,7 +136,7 @@ export function NilaiGradingClient() {
       if (!res.ok) throw new Error("Gagal mengekspor data")
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
-      const ext = format === "Excel" ? "xlsx" : format.toLowerCase()
+      const ext = format === "Excel" ? "xls" : format.toLowerCase()
       const a = document.createElement("a")
       a.href = url
       a.download = `nilai_${selectedUjianId.slice(0, 8)}_${new Date().toISOString().split("T")[0]}.${ext}`

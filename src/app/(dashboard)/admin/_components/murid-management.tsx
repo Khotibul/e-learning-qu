@@ -267,6 +267,26 @@ const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; re
     setFormData({ nama: "", nis: "", nisn: "", alamat: "", noTelp: "", email: "", kelasId: "", jabatan: "", password: "" })
   }
 
+  const handleExport = async (format: "excel" | "pdf") => {
+    try {
+      const res = await fetch(`/api/export?type=murid&format=${format}`)
+      if (!res.ok) throw new Error("Gagal mengekspor data")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const ext = format === "pdf" ? "pdf" : "xls"
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `murid_${new Date().toISOString().split("T")[0]}.${ext}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success(`Ekspor ${format === "pdf" ? "PDF" : "Excel"} berhasil`)
+    } catch {
+      toast.error("Gagal mengekspor data")
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -274,10 +294,10 @@ const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; re
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" className="sm:hidden p-2" title="Import"><Upload className="h-4 w-4" /></Button>
           <Button variant="outline" size="sm" className="hidden sm:inline-flex"><Upload className="h-4 w-4 mr-1" /> Import</Button>
-          <Button variant="outline" size="sm" className="sm:hidden p-2" title="Excel"><FileSpreadsheet className="h-4 w-4" /></Button>
-          <Button variant="outline" size="sm" className="hidden sm:inline-flex"><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
-          <Button variant="outline" size="sm" className="sm:hidden p-2" title="PDF"><FileText className="h-4 w-4" /></Button>
-          <Button variant="outline" size="sm" className="hidden sm:inline-flex"><FileText className="h-4 w-4 mr-1" /> PDF</Button>
+          <Button variant="outline" size="sm" className="sm:hidden p-2" title="Excel" onClick={() => handleExport("excel")}><FileSpreadsheet className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => handleExport("excel")}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
+          <Button variant="outline" size="sm" className="sm:hidden p-2" title="PDF" onClick={() => handleExport("pdf")}><FileText className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => handleExport("pdf")}><FileText className="h-4 w-4 mr-1" /> PDF</Button>
           <Button size="sm" onClick={() => { resetForm(); setDialogOpen(true) }}>
             <Plus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Tambah Murid</span>
           </Button>
