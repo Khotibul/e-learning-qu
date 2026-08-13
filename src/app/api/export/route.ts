@@ -35,6 +35,13 @@ interface Row {
   [key: string]: string | number | null | undefined
 }
 
+interface Section {
+  title: string
+  headers: string[]
+  rows: Row[]
+  colWidths?: number[]
+}
+
 function escPdf(s: string): string {
   let out = ""
   for (const ch of s) {
@@ -42,7 +49,7 @@ function escPdf(s: string): string {
     if (c === 40) out += "\\("
     else if (c === 41) out += "\\)"
     else if (c === 92) out += "\\\\"
-    else if (c > 31 && c < 127 || c > 160) out += ch
+    else if ((c > 31 && c < 127) || c > 160) out += ch
     else out += "?"
   }
   return out
@@ -52,7 +59,7 @@ function trunc(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + "…" : s
 }
 
-function toPdf(title: string, headers: string[], rows: Row[], colWidths: number[], dateLabel = "Dicetak"): Buffer {
+function toPdf(docTitle: string, sections: Section[]): Buffer {
   const W = 842
   const H = 595
   const ML = 40
@@ -63,66 +70,69 @@ function toPdf(title: string, headers: string[], rows: Row[], colWidths: number[
   const headerH = 24
   const usableW = W - ML - MR
   const dateStr = new Date().toLocaleString("id-ID")
-  const pw = Buffer.byteLength(String(title), "binary")
   const dw = Buffer.byteLength(escPdf(dateStr), "binary")
+  const perPage = Math.max(1, Math.floor((H - MT - MB - headerH - 20) / rowH))
 
-  const colX: number[] = []
-  let cur = ML
-  const totW = colWidths.reduce((a, b) => a + b, 0)
-  for (let i = 0; i < headers.length; i++) {
-    colX.push(cur)
-    cur += (colWidths[i] / totW) * usableW
-  }
-
-  function pageStream(y0: number): string {
-    let s = "BT /F1 14 Tf 1 0 0 1 " + ML + " 560 Tm (" + escPdf(title) + ") Tj ET\n"
-    s += "BT /F1 8 Tf 1 0 0 1 " + (W - MR - dw) + " 565 Tm (" + escPdf(dateStr) + ") Tj ET\n"
-    s += "1 0 0 1 40 " + (y0 + 20) + " cm 762 0.5 re f\n"
-    return s
-  }
-
-  function headerStream(y0: number): string {
-    let s = "BT /F2 10 Tf\n"
-    for (let i = 0; i < headers.length; i++) {
-      const x = colX[i]
-      const w = ((colWidths[i] / totW) * usableW) - 6
-      s += "1 0 0 1 " + x + " " + y0 + " Tm (" + trunc(escPdf(headers[i]), 60) + ") Tj ET\n"
-      s += "0 0 0 rg 1 0 0 1 " + x + " " + (y0 - 10) + " m " + (x + w) + " " + (y0 - 10) + " l S\n"
-      s += "BT /F2 10 Tf\n"
+  const pages: { label: string; headers: string[]; rows: Row[]; colWidths: number[] }[] = []
+  for (const sec of sections) {
+    const colWidths = sec.colWidths?.length === sec.headers.length
+      ? sec.colWidths
+      : sec.headers.map(() => 100 / sec.headers.length)
+    const chunks: Row[][] = []
+    for (let i = 0; i < sec.rows.length; i += perPage) chunks.push(sec.rows.slice(i, i + perPage))
+    if (chunks.length === 0) chunks.push([])
+    for (const chunk of chunks) {
+      pages.push({ label: sec.title, headers: sec.headers, rows: chunk, colWidths })
     }
-    return s + "ET\n"
-  }
-
-  function rowStream(y0: number, r: Row): string {
-    let s = "BT /F1 9 Tf\n"
-    for (let i = 0; i < headers.length; i++) {
-      const x = colX[i]
-      const w = ((colWidths[i] / totW) * usableW) - 6
-      let cell = String(r[headers[i]] ?? "")
-      if (cell.length > 0) cell = trunc(escPdf(cell), Math.floor(w / 4.6))
-      s += "1 0 0 1 " + x + " " + y0 + " Tm (" + cell + ") Tj ET\n"
-      s += "BT /F1 9 Tf\n"
-    }
-    return s + "ET\n"
   }
 
   const objs: string[] = []
-  const perPage = Math.max(1, Math.floor((H - MT - MB - headerH - 10) / rowH))
-
-  const chunks: Row[][] = []
-  for (let i = 0; i < rows.length; i += perPage) chunks.push(rows.slice(i, i + perPage))
-  if (chunks.length === 0) chunks.push([])
-
-  const nPages = chunks.length
+  const nPages = pages.length
   for (let pi = 0; pi < nPages; pi++) {
-    const contentY = H - MT - headerH - 10
-    let body = ""
+    const { label, headers, rows, colWidths } = pages[pi]
+    const totW = colWidths.reduce((a, b) => a + b, 0)
+    const colX: number[] = []
+    let cur = ML
+    for (let i = 0; i < headers.length; i++) {
+      colX.push(cur)
+      cur += (colWidths[i] / totW) * usableW
+    }
+
+    let s = "BT /F1 14 Tf 1 0 0 1 " + ML + " 560 Tm (" + escPdf(docTitle) + ") Tj ET\n"
+    s += "BT /F1 8 Tf 1 0 0 1 " + (W - MR - dw) + " 565 Tm (" + escPdf(dateStr) + ") Tj ET\n"
+    s += "1 0 0 1 40 " + 555 + " cm 762 0.5 re f\n"
+    if (label) {
+      s += "BT /F2 10 Tf 1 0 0 1 " + ML + " 542 Tm (" + trunc(escPdf(label), 90) + ") Tj ET\n"
+    }
+
+    const contentY = H - MT - headerH - 20
+    const headerY = 522
+    s += "BT /F2 9 Tf\n"
+    for (let i = 0; i < headers.length; i++) {
+      const x = colX[i]
+      const w = ((colWidths[i] / totW) * usableW) - 6
+      s += "1 0 0 1 " + x + " " + headerY + " Tm (" + trunc(escPdf(headers[i]), 60) + ") Tj ET\n"
+      s += "0 0 0 rg 1 0 0 1 " + x + " " + (headerY - 10) + " m " + (x + w) + " " + (headerY - 10) + " l S\n"
+      s += "BT /F2 9 Tf\n"
+    }
+    s += "ET\n"
+
     let y = contentY
-    for (const r of chunks[pi]) {
-      body += rowStream(y, r)
+    for (const r of rows) {
+      s += "BT /F1 9 Tf\n"
+      for (let i = 0; i < headers.length; i++) {
+        const x = colX[i]
+        const w = ((colWidths[i] / totW) * usableW) - 6
+        let cell = String(r[headers[i]] ?? "")
+        if (cell.length > 0) cell = trunc(escPdf(cell), Math.floor(w / 4.6))
+        s += "1 0 0 1 " + x + " " + y + " Tm (" + cell + ") Tj ET\n"
+        s += "BT /F1 9 Tf\n"
+      }
+      s += "ET\n"
       y -= rowH
     }
-    const content = pageStream(H - MT) + headerStream(contentY + 26) + body
+
+    const content = s
     objs.push(
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${3 + nPages * 2} 0 R /F2 ${4 + nPages * 2} 0 R >> >> /Contents ${4 + pi * 2} 0 R >>`
     )
@@ -157,17 +167,26 @@ function toPdf(title: string, headers: string[], rows: Row[], colWidths: number[
   return Buffer.from(pdf, "binary")
 }
 
-function toExcel(title: string, headers: string[], rows: Row[]): Buffer {
+function toExcel(docTitle: string, sections: Section[]): Buffer {
   const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
-  const tr = (cells: string[], bold = false) =>
-    `<tr>${cells.map((c) => `<td ${bold ? 'style="font-weight:bold;background-color:#f1f5f9"' : ""}>${esc(c)}</td>`).join("")}</tr>`
+  const maxCols = Math.max(...sections.map((sec) => sec.headers.length), 1)
+  const tr = (cells: string[], bold = false, bg = "") =>
+    `<tr>${cells.map((c) => `<td ${bold ? `style="font-weight:bold;background-color:${bg || "#f1f5f9"}"` : ""}>${esc(c)}</td>`).join("")}</tr>`
 
-  const head = tr(headers.map(String), true)
-  const body = rows.map((r) => tr(headers.map((h) => String(r[h] ?? "")))).join("")
+  const parts: string[] = [
+    `<tr><td colspan="${maxCols}" style="font-weight:bold;font-size:14px">${esc(docTitle)}</td></tr>`,
+  ]
+  for (const sec of sections) {
+    parts.push(`<tr><td colspan="${sec.headers.length}" style="font-weight:bold;background-color:#e2e8f0">${esc(sec.title)}</td></tr>`)
+    parts.push(tr(sec.headers.map(String), true))
+    for (const r of sec.rows) parts.push(tr(sec.headers.map((h) => String(r[h] ?? ""))))
+    parts.push(`<tr><td colspan="${sec.headers.length}">&nbsp;</td></tr>`)
+  }
+
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
 <head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
-<x:Name>${esc(title)}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
-<body><table border="1"><tr><td colspan="${headers.length}" style="font-weight:bold;font-size:14px">${esc(title)}</td></tr>${head}${body}</table></body></html>`
+<x:Name>${esc(docTitle)}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
+<body><table border="1">${parts.join("")}</table></body></html>`
 
   return Buffer.from("\ufeff" + html, "utf8")
 }
@@ -221,10 +240,10 @@ async function exportGuru(format: string) {
 
   const ext = format === "pdf" ? "pdf" : format === "csv" ? "csv" : "xls"
   const out = format === "pdf"
-    ? toPdf("Data Guru", headers, rows, [20, 20, 30, 15, 15])
+    ? toPdf("Data Guru", [{ title: "", headers, rows, colWidths: [20, 20, 30, 15, 15] }])
     : format === "csv"
       ? toCsv(headers, rows)
-      : toExcel("Data Guru", headers, rows)
+      : toExcel("Data Guru", [{ title: "", headers, rows }])
 
   return respond(out, format, `guru_${new Date().toISOString().split("T")[0]}.${ext}`)
 }
@@ -247,10 +266,10 @@ async function exportMurid(format: string) {
 
   const ext = format === "pdf" ? "pdf" : format === "csv" ? "csv" : "xls"
   const out = format === "pdf"
-    ? toPdf("Data Murid", headers, rows, [15, 15, 30, 20, 20])
+    ? toPdf("Data Murid", [{ title: "", headers, rows, colWidths: [15, 15, 30, 20, 20] }])
     : format === "csv"
       ? toCsv(headers, rows)
-      : toExcel("Data Murid", headers, rows)
+      : toExcel("Data Murid", [{ title: "", headers, rows }])
 
   return respond(out, format, `murid_${new Date().toISOString().split("T")[0]}.${ext}`)
 }
@@ -262,35 +281,94 @@ async function exportNilai(format: string, ujianId: string | null) {
 
   const ujian = await prisma.ujian.findUnique({
     where: { id: ujianId },
-    select: { nama: true },
-  })
-
-  const data = await prisma.jawabanUjian.findMany({
-    where: { ujianId },
-    orderBy: { siswa: { nama: "asc" } },
-    include: {
-      siswa: { select: { nama: true, nis: true } },
-      soal: { select: { pertanyaan: true, poin: true } },
+    select: {
+      nama: true,
+      isLatihan: true,
+      nilaiMinimum: true,
+      mataPelajaran: { select: { nama: true } },
+      kelas: { select: { nama: true } },
     },
   })
 
-  const headers = ["NIS", "Nama", "Soal", "Jawaban", "Benar", "Poin"]
-  const rows: Row[] = data.map((j) => ({
-    NIS: j.siswa.nis || "-",
-    Nama: j.siswa.nama,
-    Soal: j.soal.pertanyaan,
-    Jawaban: j.jawaban || "",
-    Benar: j.isCorrect ? "Ya" : "Tidak",
-    Poin: j.poin || 0,
-  }))
+  const jawabans = await prisma.jawabanUjian.findMany({
+    where: { ujianId },
+    orderBy: [{ siswa: { nama: "asc" } }, { createdAt: "asc" }],
+    include: {
+      siswa: { select: { id: true, nama: true, nis: true } },
+      soal: { select: { id: true, jenisSoal: true, pertanyaan: true, poin: true, jawaban: true } },
+      penilaianEssay: { select: { nilai: true, komentar: true } },
+    },
+  })
 
-  const title = `Nilai Ujian: ${ujian?.nama || "Tanpa judul"}`
+  const nilaiRecords = await prisma.nilai.findMany({
+    where: { ujianId, deletedAt: null },
+    select: { siswaId: true, nilai: true },
+  })
+  const nilaiMap: Record<string, number> = Object.fromEntries(nilaiRecords.map((n) => [n.siswaId, n.nilai]))
+
+  const grouped: Record<string, { nama: string; nis: string | null; jawabans: typeof jawabans }> = {}
+  for (const j of jawabans) {
+    if (!grouped[j.siswa.id]) {
+      grouped[j.siswa.id] = { nama: j.siswa.nama, nis: j.siswa.nis, jawabans: [] }
+    }
+    grouped[j.siswa.id].jawabans.push(j)
+  }
+
+  const rekapHeaders = ["No", "Nama", "NIS", "Nilai", "PG Benar", "Essay Dinilai", "Status"]
+  const rekapRows: Row[] = Object.entries(grouped)
+    .sort(([aid], [bid]) => (nilaiMap[bid] ?? -1) - (nilaiMap[aid] ?? -1))
+    .map(([sid, g], idx) => {
+      const auto = g.jawabans.filter((j) => j.soal.jenisSoal !== "ESSAY")
+      const essay = g.jawabans.filter((j) => j.soal.jenisSoal === "ESSAY")
+      const correct = auto.filter((j) => j.isCorrect === true).length
+      const essayGraded = essay.filter((j) => j.penilaianEssay?.nilai != null).length
+      const finalScore = nilaiMap[sid]
+      const nMin = ujian?.nilaiMinimum ?? 0
+      return {
+        "No": idx + 1,
+        "Nama": g.nama,
+        "NIS": g.nis || "-",
+        "Nilai": finalScore !== undefined ? finalScore : "-",
+        "PG Benar": auto.length > 0 ? `${correct}/${auto.length}` : "-",
+        "Essay Dinilai": essay.length > 0 ? `${essayGraded}/${essay.length}` : "-",
+        "Status": finalScore === undefined ? "-" : finalScore >= nMin ? "LULUS" : "TL",
+      }
+    })
+
+  const detailHeaders = ["No", "NIS", "Nama", "Jenis", "Soal", "Jawaban Siswa", "Kunci", "Benar", "Poin"]
+  const detailRows: Row[] = jawabans.map((j, idx) => {
+    const isEssay = j.soal.jenisSoal === "ESSAY"
+    return {
+      "No": idx + 1,
+      "NIS": j.siswa.nis || "-",
+      "Nama": j.siswa.nama,
+      "Jenis": isEssay ? "Essay" : "PG",
+      "Soal": j.soal.pertanyaan,
+      "Jawaban Siswa": isEssay ? (j.esaiJawaban || "-") : (j.jawaban || "-"),
+      "Kunci": isEssay ? (j.penilaianEssay ? `${j.penilaianEssay.nilai}` : "") : j.soal.jawaban,
+      "Benar": isEssay ? (j.penilaianEssay?.nilai != null ? "Dinilai" : "-") : j.isCorrect === true ? "Ya" : j.isCorrect === false ? "Tidak" : "-",
+      "Poin": j.poin ?? (j.penilaianEssay?.nilai ?? ""),
+    }
+  })
+
+  const jenis = ujian?.isLatihan ? "Latihan" : "Ujian"
+  const title = `Nilai ${jenis}: ${ujian?.nama || "Tanpa judul"}${ujian?.mataPelajaran?.nama ? ` (${ujian.mataPelajaran.nama})` : ""}`
+
   const ext = format === "pdf" ? "pdf" : format === "csv" ? "csv" : "xls"
-  const out = format === "pdf"
-    ? toPdf(title, headers, rows, [10, 20, 40, 20, 5, 5])
-    : format === "csv"
-      ? toCsv(headers, rows)
-      : toExcel(title, headers, rows)
+  let out: Buffer | string
+  if (format === "pdf") {
+    out = toPdf(title, [
+      { title: "Rekap Nilai", headers: rekapHeaders, rows: rekapRows, colWidths: [4, 22, 10, 8, 10, 12, 8] },
+      { title: "Detail Jawaban", headers: detailHeaders, rows: detailRows, colWidths: [4, 8, 14, 6, 20, 18, 8, 6, 5] },
+    ])
+  } else if (format === "csv") {
+    out = toCsv(detailHeaders, detailRows)
+  } else {
+    out = toExcel(title, [
+      { title: "Rekap Nilai", headers: rekapHeaders, rows: rekapRows },
+      { title: "Detail Jawaban", headers: detailHeaders, rows: detailRows },
+    ])
+  }
 
   return respond(out, format, `nilai_${ujianId.slice(0, 8)}.${ext}`)
 }
@@ -318,10 +396,10 @@ async function exportSoal(format: string, guruId: string | null) {
 
   const ext = format === "pdf" ? "pdf" : format === "csv" ? "csv" : "xls"
   const out = format === "pdf"
-    ? toPdf("Bank Soal", headers, rows, [30, 12, 10, 15, 20, 5, 8])
+    ? toPdf("Bank Soal", [{ title: "", headers, rows, colWidths: [30, 12, 10, 15, 20, 5, 8] }])
     : format === "csv"
       ? toCsv(headers, rows)
-      : toExcel("Bank Soal", headers, rows)
+      : toExcel("Bank Soal", [{ title: "", headers, rows }])
 
   return respond(out, format, `soal_${new Date().toISOString().split("T")[0]}.${ext}`)
 }
