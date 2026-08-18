@@ -67,6 +67,107 @@ RESPONS MUST BE STRUCTURED:
 - Gunakan bullet untuk poin-poin penting`
 }
 
+function extractRelevantSentences(text: string, query: string, maxSentences = 5): string[] {
+  const queryTokens = new Set(query.toLowerCase().split(/\s+/).filter((w) => w.length > 2))
+
+  const sentences = text
+    .split(/(?<=[.!?。])\s+|\n+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 20 && s.length < 500)
+
+  const scored = sentences.map((s) => {
+    const sLower = s.toLowerCase()
+    let score = 0
+    for (const token of queryTokens) {
+      if (sLower.includes(token)) score += 1
+    }
+    if (s.includes(":") || s.includes("adalah") || s.includes("yaitu") || s.includes("definisi")) score += 0.5
+    if (s.startsWith("###") || s.startsWith("**")) score += 0.3
+    return { sentence: s, score }
+  })
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxSentences)
+    .map((s) => s.sentence)
+}
+
+function synthesizeAnswer(query: string, hasil: { chunk: any; skor: number }[]): string {
+  const queryLower = query.toLowerCase()
+  const isDefinition = /(apa itu|definisi|pengertian|arti|mean|makna)/.test(queryLower)
+  const isHowTo = /(bagaimana|cara|langkah|proses|tutorial|tutorial)/.test(queryLower)
+  const isWhy = /(mengapa|kenapa|alasan|sebab|karena)/.test(queryLower)
+  const isList = /(sebutkan|jelaskan|macam|jenis|tipe|variasi)/.test(queryLower)
+
+  const allRelevantSentences: { sentence: string; source: string; score: number }[] = []
+  for (const h of hasil) {
+    const matapel = (h.chunk as any).materi?.mataPelajaran?.nama ?? ""
+    const judul = (h.chunk as any).materi?.judul ?? ""
+    const source = `${matapel} — ${judul}`
+    const sentences = extractRelevantSentences(h.chunk.text, query, 4)
+    for (const s of sentences) {
+      allRelevantSentences.push({ sentence: s, source, score: h.skor })
+    }
+  }
+
+  const seen = new Set<string>()
+  const unique = allRelevantSentences.filter((s) => {
+    const key = s.sentence.slice(0, 60).toLowerCase()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+
+  let answer = ""
+
+  if (isDefinition) {
+    const definisi = unique.filter((s) =>
+      s.sentence.includes("adalah") || s.sentence.includes("yaitu") || s.sentence.includes("yang dimaksud") || s.sentence.includes("merupakan")
+    )
+    if (definisi.length > 0) {
+      answer += "**Definisi:**\n\n"
+      answer += definisi.slice(0, 2).map((d) => `> ${d.sentence}`).join("\n\n") + "\n\n"
+    }
+  }
+
+  if (isHowTo) {
+    const steps = unique.filter((s) =>
+      /\d+[\.\)]/.test(s.sentence) || s.sentence.includes("langkah") || s.sentence.includes("pertama") || s.sentence.includes("kedua")
+    )
+    if (steps.length > 0) {
+      answer += "**Langkah-langkah:**\n\n"
+      steps.forEach((s, i) => { answer += `${i + 1}. ${s.sentence}\n` })
+      answer += "\n"
+    }
+  }
+
+  if (!answer) {
+    const topSentences = unique.slice(0, 6)
+    if (topSentences.length > 0) {
+      answer += "**Poin Penting:**\n\n"
+      answer += topSentences.map((s) => `- ${s.sentence}`).join("\n") + "\n\n"
+    }
+  }
+
+  if (!answer) {
+    const topExcerpts = hasil.slice(0, 3).map((h) => {
+      const judul = (h.chunk as any).materi?.judul ?? ""
+      const text = h.chunk.text.slice(0, 300)
+      return `**${judul}:**\n${text}...`
+    })
+    answer = topExcerpts.join("\n\n") + "\n\n"
+  }
+
+  const sources = [...new Set(hasil.map((h) => (h.chunk as any).materi?.judul ?? "").filter(Boolean))]
+  if (sources.length > 0) {
+    answer += `\n---\n📚 **Sumber:** ${sources.join(", ")}`
+  }
+
+  answer += `\n\n> 💡 Pertanyaanmu: "${query.slice(0, 80)}". Jika jawaban kurang jelas, coba jelaskan pertanyaanmu dengan kata-kata yang berbeda atau pilih materi spesifik.`
+
+  return answer
+}
+
 export async function runTutorAgent(
   query: string,
   opts: {
@@ -158,13 +259,7 @@ export async function runTutorAgent(
     }
   } catch {
     fallback = true
-    const excerpts = hasil
-      .map((h) => {
-        const relevance = Math.round(h.skor * 100)
-        return `• **${(h.chunk as any).materi?.judul ?? ""}** (relevansi: ${relevance}%)\n  ${h.chunk.text.slice(0, 250)}...`
-      })
-      .join("\n\n")
-    jawaban = `(Mode tanpa API AI) Berdasarkan materi yang tersedia:\n\n${excerpts}\n\nPelajari bagian tersebut untuk menjawab pertanyaan "${query.slice(0, 100)}".`
+    jawaban = synthesizeAnswer(query, hasil)
   }
 
   const sumber: SumberRAG[] = hasil.map((h) => ({

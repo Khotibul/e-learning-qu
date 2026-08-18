@@ -25,20 +25,44 @@ const SYNONYM_MAP: Record<string, string[]> = {
   "ai": ["kecerdasan buatan", "artificial intelligence", "machine learning"],
   "ml": ["machine learning", "pembelajaran mesin"],
   "database": ["basis data", "db", "sql"],
-  "algoritma": ["algorithm", "prosedur", "metode"],
-  "variabel": ["variable", "peubah", "data"],
-  "fungsi": ["function", "method", "metode"],
-  "array": ["list", "daftar", "tabel"],
+  "algoritma": ["algorithm", "prosedur", "metode", "langkah"],
+  "variabel": ["variable", "peubah", "data", "penyimpanan"],
+  "fungsi": ["function", "method", "metode", "prosedur"],
+  "array": ["list", "daftar", "tabel", "kumpulan"],
   "loop": ["perulangan", "iterasi", "pengulangan"],
-  "input": ["masukan", "inputan"],
-  "output": ["keluaran", "hasil"],
-  "error": ["kesalahan", "bug", "exception"],
-  "class": ["kelas", "objek"],
-  "function": ["fungsi", "method", "prosedur"],
+  "input": ["masukan", "inputan", "data masuk"],
+  "output": ["keluaran", "hasil", "data keluar"],
+  "error": ["kesalahan", "bug", "exception", "gangguan"],
+  "class": ["kelas", "objek", "blueprint"],
   "boolean": ["logika", "true false", "benar salah"],
-  "integer": ["bulat", "angka", "bilangan bulat"],
-  "string": ["teks", "text", "karakter"],
+  "integer": ["bulat", "angka", "bilangan bulat", "int"],
+  "string": ["teks", "text", "karakter", "char"],
   "float": ["desimal", "pecahan", "bilangan desimal"],
+  "pythagoras": ["phytagoras", "sisi", "segitiga", "a2 b2 c2"],
+  "penjumlahan": ["tambah", "addition", "sum", "total"],
+  "pengurangan": ["kurang", "subtraction", "selisih"],
+  "perkalian": ["kali", "multiplication", "hasil kali"],
+  "pembagian": ["bagi", "division", "quotient"],
+  "persamaan": ["equation", "samadeng", "equal"],
+  "grafik": ["chart", "diagram", "plot", "grafik fungsi", "kurva"],
+  "reaksi": ["kimia", "chemical reaction", "reaktan", "produk"],
+  "fotosintesis": ["fotosintesa", "proses tumbuhan", "daun"],
+  "sejarah": ["history", "peristiwa", "masa lalu", "timeline"],
+  "geografi": ["geografi", "peta", "wilayah", "negara"],
+  "sastra": ["literatur", "karya sastra", "novel", "puisi"],
+  "fisika": ["physics", "gaya", "energi", "gerak", "massa"],
+  "biologi": ["biology", "makhluk hidup", "sel", "organ"],
+  "ekonomi": ["ekonomi", "pasar", "supply demand", "inflasi"],
+  "sosiologi": ["sosial", "masyarakat", "interaksi sosial"],
+  "pemrograman": ["coding", "programming", "kode", "source code"],
+  "html": ["hypertext markup", "web", "halaman web"],
+  "css": ["cascading style", "style", "tampilan web"],
+  "javascript": ["js", "web programming", "frontend"],
+  "python": ["phyton", "bahasa python", "scripting"],
+  "network": ["jaringan", "internet", "komputer", "tcp ip"],
+  "hardware": ["perangkat keras", "komponen", "cpu", "ram"],
+  "software": ["perangkat lunak", "aplikasi", "program"],
+  "sistem": ["system", "komponen", "elemen", "proses"],
 }
 
 function expandQuery(query: string): string[] {
@@ -131,16 +155,27 @@ export function retrieveTopKKeyword(chunks: ChunkLike[], query: string, k = 5): 
 
   const avgDocLen = totalDocs > 0 ? totalLen / totalDocs : 1
 
-  const results = chunks.map((c, i) => {
-    const bm25 = bm25Score(allQueryTokens, docTokenLists[i], docTokenLists[i].length, avgDocLen, docFreqs, totalDocs)
+  const rawResults = chunks.map((c, i) => {
+    const bm25Raw = bm25Score(allQueryTokens, docTokenLists[i], docTokenLists[i].length, avgDocLen, docFreqs, totalDocs)
     const keywordScore = keywordOverlap(c.text, query)
-    const synonymBoost = expandedTerms.some((t) => tokenize(c.text).some((ct) => t.includes(ct) || ct.includes(t))) ? 0.15 : 0
-    const combinedScore = bm25 * 0.5 + keywordScore * 0.35 + synonymBoost + 0.15
-    return { chunk: c, skor: combinedScore }
+    const expandedText = expandedTerms.join(" ")
+    const synonymBoost = expandedTerms.some((t) => {
+      const docText = c.text.toLowerCase()
+      return docText.includes(t.toLowerCase()) || t.toLowerCase().split(" ").some(w => w.length > 2 && docText.includes(w))
+    }) ? 0.2 : 0
+    return { chunk: c, bm25Raw, keywordScore, synonymBoost }
+  })
+
+  const maxBm25 = Math.max(...rawResults.map((r) => r.bm25Raw), 0.001)
+
+  const results = rawResults.map((r) => {
+    const bm25Norm = r.bm25Raw / maxBm25
+    const combinedScore = bm25Norm * 0.45 + r.keywordScore * 0.35 + r.synonymBoost + 0.02
+    return { chunk: r.chunk, skor: combinedScore }
   })
 
   const sorted = results
-    .filter((r) => r.skor > 0.05)
+    .filter((r) => r.skor > 0.06)
     .sort((a, b) => b.skor - a.skor)
     .slice(0, k)
 
