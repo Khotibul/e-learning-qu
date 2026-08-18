@@ -191,6 +191,11 @@ model Siswa {
   aktivitas       LearningActivity[]
   rekomendasi     Rekomendasi[]
   learningPaths   LearningPath[]
+  profile         StudentProfile?
+  earlyWarnings   EarlyWarning[]
+  pretestPosttest PretestPosttest[]
+  susResponses    SUSResponse[]
+  aiEvaluations   AIEvaluation[]
 
   @@map("siswa")
 }
@@ -388,6 +393,7 @@ model MataPelajaran {
   materis         Materi[]
   pengajaran      Pengajaran[]
   kompetensis     Kompetensi[]
+  pretestPosttest PretestPosttest[]
 
   @@unique([kode, semesterId])
   @@map("mata_pelajaran")
@@ -525,6 +531,7 @@ model Ujian {
   ujianSoal     UjianSoal[]
   jawabanUjian  JawabanUjian[]
   nilai         Nilai[]
+  pretestPosttest PretestPosttest[]
 
   @@map("ujian")
 }
@@ -979,4 +986,99 @@ model Upload {
   createdAt DateTime @default(now())
 
   @@map("upload")
+}
+
+enum LearningStyleType {
+  VISUAL
+  AUDITORY
+  READ_WRITE
+  KINESTHETIC
+}
+
+model StudentProfile {
+  id              String          @id @default(uuid()) @db.Uuid
+  siswaId         String          @unique @db.Uuid
+  gayaBelajar     LearningStyleType @default(VISUAL)
+  motivasi        Float           @default(0.5)
+  engagementScore Float           @default(0.5)
+  konsistensi     Float           @default(0)
+  waktuAktif      Int             @default(0)
+  totalSesi       Int             @default(0)
+  streak          Int             @default(0)
+  lastActiveAt    DateTime?
+  preferensiTopik Json?
+  updateKe        DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@map("student_profile")
+}
+
+model EarlyWarning {
+  id          String   @id @default(uuid()) @db.Uuid
+  siswaId     String   @db.Uuid
+  tipe        String
+  severity    String   @default("MEDIUM")
+  message     String   @db.Text
+  skor        Float
+  detail      Json?
+  isResolved  Boolean  @default(false)
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@index([siswaId, isResolved])
+  @@map("early_warning")
+}
+
+model PretestPosttest {
+  id              String    @id @default(uuid()) @db.Uuid
+  siswaId         String    @db.Uuid
+  ujianId         String    @db.Uuid
+  mataPelajaranId String    @db.Uuid
+  tipe            String
+  pretestNilai    Float?
+  posttestNilai   Float?
+  nGain           Float?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  siswa         Siswa         @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  ujian         Ujian         @relation(fields: [ujianId], references: [id], onDelete: Cascade)
+  mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id])
+
+  @@unique([siswaId, ujianId])
+  @@map("pretest_posttest")
+}
+
+model SUSResponse {
+  id         String   @id @default(uuid()) @db.Uuid
+  siswaId    String   @db.Uuid
+  skor       Float
+  jawaban    Json
+  komentar   String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@map("sus_response")
+}
+
+model AIEvaluation {
+  id          String   @id @default(uuid()) @db.Uuid
+  siswaId     String?  @db.Uuid
+  tipe        String
+  metrik      String
+  skor        Float
+  detail      Json?
+  periode     String?
+  createdAt   DateTime @default(now())
+
+  siswa Siswa? @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+
+  @@index([tipe, periode])
+  @@map("ai_evaluation")
 }
