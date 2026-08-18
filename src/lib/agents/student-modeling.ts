@@ -1,149 +1,247 @@
 import { prisma } from "@/lib/prisma"
 
-export type LearningStyle = "VISUAL" | "AUDITORY" | "READ_WRITE" | "KINESTHETIC"
-
-interface ActivitySignal {
-  jenis: string
-  detail: any
+export interface StudentModel {
+  gayaBelajar: "VISUAL" | "AUDITORY" | "KINESTHETIC" | "READ_WRITE"
+  engagementScore: number
+  konsistensi: number
+  motivasi: number
+  streak: number
+  totalSesi: number
+  learningVelocity: number
+  trendNilai: "naik" | "stabil" | "turun"
 }
 
-export async function getOrCreateProfile(siswaId: string) {
-  const existing = await prisma.studentProfile.findUnique({ where: { siswaId } })
-  if (existing) return existing
-  return prisma.studentProfile.create({ data: { siswaId } })
+const DURASI_NORMAL = { min: 2 * 60 * 1000, max: 45 * 60 * 1000 }
+
+function computeEngagementDepth(activities: {
+  tipe: string
+  durasiMs: number
+  createdAt: Date
+}[]): number {
+  if (activities.length === 0) return 0
+
+  let depthScore = 0
+  const now = Date.now()
+
+  for (const a of activities) {
+    const durasi = a.durasiMs || 0
+    const durasiRatio = Math.min(1, durasi / DURASI_NORMAL.max)
+    const depthMultiplier = a.tipe === "AI_CHAT" ? 0.8
+      : a.tipe === "ASSESSMENT_SELESAI" || a.tipe === "SOAL_DIKERJAKAN" ? 1.0
+      : a.tipe === "LATIHAN_SELESAI" ? 0.9
+      : a.tipe === "MATERI_DIBUKA" || a.tipe === "MATERI_SELESAI" ? 0.6
+      : 0.5
+
+    const timeSince = now - new Date(a.createdAt).getTime()
+    const recencyBonus = Math.max(0, 1 - timeSince / (14 * 24 * 60 * 60 * 1000)) * 0.3
+
+    depthScore += (durasiRatio * 0.4 + depthMultiplier * 0.4 + recencyBonus * 0.2) / activities.length
+  }
+
+  return Math.min(1, depthScore * 2)
 }
 
-function detectLearningStyle(signals: ActivitySignal[]): LearningStyle {
-  const counts: Record<LearningStyle, number> = { VISUAL: 0, AUDITORY: 0, READ_WRITE: 0, KINESTHETIC: 0 }
-  for (const s of signals) {
-    switch (s.jenis) {
-      case "MATERI_DIBUKA": counts.VISUAL += 2; counts.READ_WRITE += 1; break
-      case "MATERI_SELESAI": counts.READ_WRITE += 2; counts.VISUAL += 1; break
-      case "SOAL_DIKERJAKAN": counts.KINESTHETIC += 2; break
-      case "LATIHAN_SELESAI": counts.KINESTHETIC += 3; break
-      case "AI_CHAT": counts.AUDITORY += 2; break
-      case "ASSESSMENT_SELESAI": counts.READ_WRITE += 1; counts.KINESTHETIC += 1; break
-      case "PRETEST": counts.READ_WRITE += 1; break
-      case "POSTTEST": counts.READ_WRITE += 1; break
+function computeLearningStyle(activities: {
+  tipe: string
+  durasiMs: number
+  detal?: any
+}[]): StudentModel["gayaBelajar"] {
+  const scores = { VISUAL: 0, AUDITORY: 0, KINESTHETIC: 0, READ_WRITE: 0 }
+
+  for (const a of activities) {
+    const durasi = a.durasiMs || 60000
+    const weight = Math.min(2, durasi / 60000)
+
+    if (a.tipe === "MATERI_DIBUKA" || a.tipe === "MATERI_SELESAI") {
+      scores.VISUAL += weight * 1.2
+    } else if (a.tipe === "AI_CHAT") {
+      scores.AUDITORY += weight * 1.0
+    } else if (a.tipe === "SOAL_DIKERJAKAN" || a.tipe === "LATIHAN_SELESAI" || a.tipe === "ASSESSMENT_SELESAI") {
+      scores.KINESTHETIC += weight * 1.3
+    }
+
+    const detail = a.detal as any
+    if (detail) {
+      if (detail.materiType === "pdf" || detail.materiType === "image") scores.VISUAL += 0.5
+      if (detail.hasAudio) scores.AUDITORY += 0.5
+      if (detail.isInteractive) scores.KINESTHETIC += 0.5
     }
   }
-  const sorted = (Object.entries(counts) as [LearningStyle, number][]).sort((a, b) => b[1] - a[1])
-  return sorted[0][1] > 0 ? sorted[0][0] : "VISUAL"
+
+  const total = scores.VISUAL + scores.AUDITORY + scores.KINESTHETIC + scores.READ_WRITE
+  if (total === 0) return "READ_WRITE"
+
+  const maxScore = Math.max(scores.VISUAL, scores.AUDITORY, scores.KINESTHETIC, scores.READ_WRITE)
+  const threshold = total * 0.35
+
+  if (maxScore < threshold) return "READ_WRITE"
+  if (maxScore === scores.VISUAL) return "VISUAL"
+  if (maxScore === scores.AUDITORY) return "AUDITORY"
+  if (maxScore === scores.KINESTHETIC) return "KINESTHETIC"
+  return "READ_WRITE"
 }
 
-function computeEngagement(activities: { createdAt: Date; jenis: string }[], days = 14): number {
-  const now = Date.now()
-  const cutoff = now - days * 86400000
-  const recent = activities.filter((a) => a.createdAt.getTime() >= cutoff)
-  const uniqueDays = new Set(recent.map((a) => new Date(a.createdAt).toDateString())).size
-  const base = Math.min(recent.length / 30, 1)
-  const dayRatio = uniqueDays / days
-  return Math.round((base * 0.6 + dayRatio * 0.4) * 100) / 100
+function computeStreak(activities: { createdAt: Date }[]): number {
+  if (activities.length === 0) return 0
+
+  const days = new Set(
+    activities.map((a) => new Date(a.createdAt).toISOString().split("T")[0])
+  )
+  const sorted = [...days].sort().reverse()
+
+  let streak = 0
+  const today = new Date().toISOString().split("T")[0]
+  let checkDate = new Date(today)
+
+  for (const d of sorted) {
+    const dateStr = checkDate.toISOString().split("T")[0]
+    if (d === dateStr) {
+      streak++
+      checkDate.setDate(checkDate.getDate() - 1)
+    } else if (d < dateStr) {
+      break
+    }
+  }
+
+  return streak
 }
 
 function computeConsistency(activities: { createdAt: Date }[]): number {
-  if (activities.length < 3) return 0
-  const sorted = activities.map((a) => a.createdAt.getTime()).sort((a, b) => a - b)
+  if (activities.length < 2) return 0
+
+  const days = new Set(
+    activities.map((a) => new Date(a.createdAt).toISOString().split("T")[0])
+  )
+  if (days.size < 2) return 0.3
+
+  const sorted = [...days].sort()
   const gaps: number[] = []
-  for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i] - sorted[i - 1])
-  const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length
-  const variance = gaps.reduce((s, g) => s + (g - avgGap) ** 2, 0) / gaps.length
-  const cv = avgGap > 0 ? Math.sqrt(variance) / avgGap : 2
-  return Math.round(Math.max(0, 1 - cv) * 100) / 100
+  for (let i = 1; i < sorted.length; i++) {
+    const diff = new Date(sorted[i]).getTime() - new Date(sorted[i - 1]).getTime()
+    gaps.push(diff / (24 * 60 * 60 * 1000))
+  }
+
+  const avgGap = gaps.reduce((s, g) => s + g, 0) / gaps.length
+  const variance = gaps.reduce((s, g) => s + Math.pow(g - avgGap, 2), 0) / gaps.length
+  const cv = avgGap > 0 ? Math.sqrt(variance) / avgGap : 1
+
+  return Math.max(0, Math.min(1, 1 - cv / 2))
 }
 
-function computeMotivation(profile: {
-  engagementScore: number
-  konsistensi: number
-  streak: number
-  totalSesi: number
-}): number {
-  const e = profile.engagementScore * 0.35
-  const k = profile.konsistensi * 0.25
-  const s = Math.min(profile.streak / 7, 1) * 0.2
-  const f = Math.min(profile.totalSesi / 50, 1) * 0.2
-  return Math.round((e + k + s + f) * 100) / 100
+function computeTrend(nilaiHistory: number[]): "naik" | "stabil" | "turun" {
+  if (nilaiHistory.length < 2) return "stabil"
+
+  const recent = nilaiHistory.slice(-5)
+  const firstHalf = recent.slice(0, Math.ceil(recent.length / 2))
+  const secondHalf = recent.slice(Math.ceil(recent.length / 2))
+
+  const avgFirst = firstHalf.reduce((s, v) => s + v, 0) / firstHalf.length
+  const avgSecond = secondHalf.reduce((s, v) => s + v, 0) / secondHalf.length
+  const diff = avgSecond - avgFirst
+
+  if (diff > 5) return "naik"
+  if (diff < -5) return "turun"
+  return "stabil"
 }
 
-export async function updateStudentModel(siswaId: string) {
-  const [profile, activities, nilaiAgg] = await Promise.all([
-    getOrCreateProfile(siswaId),
+function computeLearningVelocity(activities: { tipe: string; createdAt: Date }[]): number {
+  if (activities.length === 0) return 0
+
+  const uniqueDays = new Set(activities.map((a) => new Date(a.createdAt).toISOString().split("T")[0]))
+  const totalActivities = activities.length
+  const daysActive = uniqueDays.size || 1
+
+  return Math.min(1, totalActivities / (daysActive * 3))
+}
+
+export async function updateStudentModel(siswaId: string): Promise<StudentModel> {
+  const now = new Date()
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+
+  const [activities, nilaiHistory, chatSessions] = await Promise.all([
     prisma.learningActivity.findMany({
-      where: { siswaId },
+      where: { siswaId, createdAt: { gte: fourteenDaysAgo } },
       orderBy: { createdAt: "desc" },
-      take: 200,
     }),
-    prisma.nilai.aggregate({
+    prisma.nilai.findMany({
       where: { siswaId, deletedAt: null },
-      _avg: { nilai: true },
-      _count: { _all: true },
+      orderBy: { createdAt: "asc" },
+      select: { nilai: true, createdAt: true },
+    }),
+    prisma.chatSession.findMany({
+      where: { siswaId },
+      select: { createdAt: true },
     }),
   ])
 
-  const signals: ActivitySignal[] = activities.map((a) => ({ jenis: a.jenis, detail: a.detail }))
-  const gayaBelajar = detectLearningStyle(signals)
-  const engagementScore = computeEngagement(activities)
-  const konsistensi = computeConsistency(activities)
+  const allActivities = [
+    ...activities.map((a) => ({ tipe: a.jenis, durasiMs: 0, createdAt: a.createdAt, detal: a.detail })),
+    ...chatSessions.map((c) => ({ tipe: "AI_CHAT" as const, durasiMs: 0, createdAt: c.createdAt, detal: null })),
+  ]
 
-  let streak = 0
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const dates = [...new Set(activities.map((a) => new Date(a.createdAt).toDateString()))]
-    .map((d) => new Date(d).getTime())
-    .sort((a, b) => b - a)
-  for (const t of dates) {
-    if (t === today.getTime() - streak * 86400000) streak++
-    else if (t === today.getTime()) { streak = Math.max(streak, 1) }
-    else break
+  const gayaBelajar = computeLearningStyle(allActivities)
+  const engagementScore = computeEngagementDepth(allActivities)
+  const konsistensi = computeConsistency(allActivities)
+  const streak = computeStreak(allActivities)
+  const totalSesi = activities.length + chatSessions.length
+  const rataNilai = nilaiHistory.length > 0
+    ? Math.round(nilaiHistory.reduce((s, n) => s + n.nilai, 0) / nilaiHistory.length)
+    : 0
+  const trendNilai = computeTrend(nilaiHistory.map((n) => n.nilai))
+  const learningVelocity = computeLearningVelocity(allActivities)
+
+  const motivasiBase = (engagementScore * 0.3 + konsistensi * 0.3 + Math.min(1, streak / 7) * 0.2 + learningVelocity * 0.2)
+  const trendBonus = trendNilai === "naik" ? 0.1 : trendNilai === "turun" ? -0.1 : 0
+  const motivasi = Math.max(0, Math.min(1, motivasiBase + trendBonus))
+
+  const profile = await prisma.studentProfile.findFirst({ where: { siswaId } })
+  const data = {
+    siswaId,
+    gayaBelajar,
+    motivasi: Math.round(motivasi * 1000) / 1000,
+    engagementScore: Math.round(engagementScore * 1000) / 1000,
+    konsistensi: Math.round(konsistensi * 1000) / 1000,
+    streak,
+    totalSesi,
   }
 
-  const totalSesi = activities.length
-  const motivasi = computeMotivation({ engagementScore, konsistensi, streak, totalSesi })
-
-  const lastActivity = activities[0]?.createdAt ?? profile.lastActiveAt
-
-  const updated = await prisma.studentProfile.update({
-    where: { siswaId },
-    data: {
-      gayaBelajar,
-      engagementScore,
-      konsistensi,
-      motivasi,
-      streak,
-      totalSesi,
-      waktuAktif: totalSesi,
-      lastActiveAt: lastActivity,
-      updateKe: new Date(),
-    },
-  })
+  if (profile) {
+    await prisma.studentProfile.update({ where: { id: profile.id }, data })
+  } else {
+    await prisma.studentProfile.create({ data })
+  }
 
   return {
-    ...updated,
-    rataNilai: nilaiAgg._avg.nilai ?? 0,
-    totalUjian: nilaiAgg._count._all,
+    gayaBelajar,
+    engagementScore,
+    konsistensi,
+    motivasi,
+    streak,
+    totalSesi,
+    learningVelocity,
+    trendNilai,
   }
 }
 
 export async function getStudentModelSummary(siswaId: string) {
-  const profile = await getOrCreateProfile(siswaId)
-  const recentActivities = await prisma.learningActivity.count({
-    where: {
-      siswaId,
-      createdAt: { gte: new Date(Date.now() - 7 * 86400000) },
-    },
-  })
-  const warnings = await prisma.earlyWarning.count({
-    where: { siswaId, isResolved: false },
-  })
-  const nilaiAgg = await prisma.nilai.aggregate({
-    where: { siswaId, deletedAt: null },
-    _avg: { nilai: true },
-  })
+  const profile = await prisma.studentProfile.findFirst({ where: { siswaId } })
+
+  if (!profile) {
+    const model = await updateStudentModel(siswaId)
+    return { profile: model, isNew: true }
+  }
 
   return {
-    profile,
-    recentActivities,
-    openWarnings: warnings,
-    rataNilai: nilaiAgg._avg.nilai ?? 0,
+    profile: {
+      gayaBelajar: profile.gayaBelajar as StudentModel["gayaBelajar"],
+      motivasi: profile.motivasi,
+      engagementScore: profile.engagementScore,
+      konsistensi: profile.konsistensi,
+      streak: profile.streak,
+      totalSesi: profile.totalSesi,
+      learningVelocity: 0,
+      trendNilai: "stabil" as const,
+    },
+    isNew: false,
   }
 }

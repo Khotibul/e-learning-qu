@@ -12,14 +12,20 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Bot, Sparkles, GraduationCap, Send, Loader2, Plus, Target } from "lucide-react"
-import { aiIndexData, aiChat, aiJawabLatihan } from "../ai/actions"
+import { Bot, Sparkles, GraduationCap, Send, Loader2, Plus, Target, ThumbsUp, ThumbsDown, Star } from "lucide-react"
+import { aiIndexData, aiChat, aiJawabLatihan, submitFeedbackAction } from "../ai/actions"
 import { cn } from "@/lib/utils"
 
 const agentMeta: Record<string, { label: string; cls: string }> = {
-  tutor: { label: "Tutor Agent (RAG)", cls: "bg-blue-100 text-blue-700" },
+  tutor: { label: "Tutor Agent", cls: "bg-blue-100 text-blue-700" },
   assessor: { label: "Assessor Agent", cls: "bg-amber-100 text-amber-700" },
   recommender: { label: "Recommender Agent", cls: "bg-purple-100 text-purple-700" },
+  adaptive: { label: "Adaptive Agent", cls: "bg-indigo-100 text-indigo-700" },
+  mastery: { label: "Mastery Agent", cls: "bg-emerald-100 text-emerald-700" },
+  analytics: { label: "Analytics Agent", cls: "bg-cyan-100 text-cyan-700" },
+  warning: { label: "Warning Agent", cls: "bg-rose-100 text-rose-700" },
+  explain: { label: "Explainable Agent", cls: "bg-orange-100 text-orange-700" },
+  greeting: { label: "Tutor Agent", cls: "bg-blue-100 text-blue-700" },
   orchestrator: { label: "Orchestrator", cls: "bg-slate-100 text-slate-700" },
 }
 
@@ -51,6 +57,52 @@ interface Msg {
   konten: string
   sumber?: any
   createdAt: string
+}
+
+interface FeedbackState {
+  [messageId: string]: { rating: number; submitted: boolean }
+}
+
+function FeedbackWidget({ messageId }: { messageId: string }) {
+  const [rating, setRating] = useState(0)
+  const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const submit = async (r: number) => {
+    if (submitted || loading) return
+    setRating(r)
+    setLoading(true)
+    try {
+      await submitFeedbackAction({ messageId, rating: r, helpful: r >= 4, accurate: r >= 3 })
+      setSubmitted(true)
+    } catch { /* silent */ }
+    setLoading(false)
+  }
+
+  if (submitted) {
+    return (
+      <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
+        <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+        <span>Terima kasih! ({rating}/5)</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-1 mt-1.5">
+      <span className="text-[10px] text-muted-foreground mr-1">Rating:</span>
+      {[1, 2, 3, 4, 5].map((r) => (
+        <button
+          key={r}
+          onClick={() => submit(r)}
+          disabled={loading}
+          className="p-0.5 hover:scale-110 transition-transform"
+        >
+          <Star className={cn("h-3 w-3", r <= rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground")} />
+        </button>
+      ))}
+    </div>
+  )
 }
 
 interface LatihanAktif {
@@ -259,6 +311,9 @@ export default function AITutorPage() {
                           ))}
                         </div>
                       </details>
+                    )}
+                    {m.role === "asisten" && !m.id.startsWith("temp") && (
+                      <FeedbackWidget messageId={m.id} />
                     )}
                     <p className="mt-1 text-[10px] opacity-60">{new Date(m.createdAt).toLocaleTimeString("id-ID")}</p>
                   </div>

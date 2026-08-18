@@ -3,16 +3,17 @@
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { getCurrentSiswa } from "../actions"
-import { detectIntent, extractMateriMention } from "@/lib/agents/orchestrator"
+import { detectIntent, extractMateriMention, buildConversationHistory, type DetectedIntent } from "@/lib/agents/orchestrator"
 import { runTutorAgent } from "@/lib/agents/tutor"
 import { generateQuiz, gradeQuiz } from "@/lib/agents/assessor"
 import { runHybridRecommender } from "@/lib/agents/hybrid-recommender"
 import { updateStudentModel, getStudentModelSummary } from "@/lib/agents/student-modeling"
-import { getPenguasaanOverview } from "@/lib/agents/knowledge-tracing"
+import { getPenguasaanOverview, updatePenguasaanAfterLatihan, updatePenguasaanAfterUjian } from "@/lib/agents/knowledge-tracing"
 import { getAdaptivePath, generateAdaptivePath } from "@/lib/agents/adaptive-learning"
 import { runEarlyWarning, getStudentWarnings } from "@/lib/agents/early-warning"
-import { explainRecommendation, explainMastery } from "@/lib/agents/explainable"
+import { explainRecommendation, explainMastery, explainEarlyWarning } from "@/lib/agents/explainable"
 import { recordPretestPosttest, getNGainForMapel, submitSUSSurvey, getSUSResults, getAIEvaluationSummary } from "@/lib/agents/evaluation"
+import { submitFeedback, computeQualityMetrics, getRecentFeedback, getMessageFeedback } from "@/lib/agents/feedback"
 
 async function logAgent(siswaId: string, data: {
   agent: string
@@ -25,7 +26,11 @@ async function logAgent(siswaId: string, data: {
   sukses: boolean
   pesanError?: string
 }) {
-  await prisma.agentLog.create({ data: { siswaId, ...data, sumber: data.sumber as never | undefined } })
+  return prisma.agentLog.create({ data: { siswaId, ...data, sumber: data.sumber as never | undefined } })
+}
+
+async function autoEarlyWarning(siswaId: string) {
+  try { await runEarlyWarning(siswaId) } catch { /* silent */ }
 }
 
 export async function aiIndexData() {
@@ -66,23 +71,49 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
   }
   await prisma.chatMessage.create({ data: { sessionId: session.id, role: "siswa", konten: pesan } })
 
-  const intent = detectIntent(pesan)
+  const existingMessages = await prisma.chatMessage.findMany({
+    where: { sessionId: session.id },
+    orderBy: { createdAt: "asc" },
+    select: { role: true, konten: true },
+  })
+  const chatHistory = buildConversationHistory(existingMessages.slice(0, -1))
+
+  const materis = await prisma.materi.findMany({
+    where: { deletedAt: null, ...(input.mapelId ? { mataPelajaranId: input.mapelId } : {}) },
+    select: { id: true, judul: true },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  })
+
+  const intentResult: DetectedIntent = await detectIntent(pesan, { history: chatHistory, materis })
+  const intent = intentResult.primary
+  const queryToUse = intentResult.rewrittenQuery || pesan
   let jawaban = ""
   let sumber: unknown = null
   let latihan: any = null
   let agent = intent
 
+  const [modelSummary, penguasaanOverview] = await Promise.all([
+    getStudentModelSummary(siswa.id),
+    getPenguasaanOverview(siswa.id),
+  ])
+
   try {
     switch (intent) {
+      case "greeting": {
+        agent = "tutor"
+        const streak = modelSummary.profile.streak
+        const motivasi = Math.round(modelSummary.profile.motivasi * 100)
+        jawaban = `Hai! Selamat datang kembali! 👋\n\n` +
+          `📊 Status belajarmu: streak ${streak} hari, motivasi ${motivasi}%\n` +
+          `🎯 Gaya belajar: ${modelSummary.profile.gayaBelajar}\n\n` +
+          `Ada yang bisa saya bantu? Tanyakan materi, minta latihan, atau lihat rekomendasi belajar.`
+        break
+      }
+
       case "assessor": {
         agent = "assessor"
-        const materis = await prisma.materi.findMany({
-          where: { deletedAt: null, ...(input.mapelId ? { mataPelajaranId: input.mapelId } : {}) },
-          select: { id: true, judul: true, mataPelajaran: { select: { nama: true } } },
-          orderBy: { createdAt: "desc" },
-          take: 50,
-        })
-        const mention = extractMateriMention(pesan, materis)
+        const mention = intentResult.mentionedMateri
         const materi = materis.find((m) => m.id === mention) || materis[0]
         if (!materi) {
           jawaban = "Belum ada materi untuk dibuatkan latihan. Pilih mata pelajaran yang memiliki materi terlebih dahulu."
@@ -92,15 +123,26 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
             orderBy: { index: "asc" },
           })
           if (chunks.length === 0) {
-            jawaban = `Materi "${materi.judul}" belum diindeks ke knowledge base AI. Minta guru untuk mengindeksnya melalui menu AI Knowledge Base.`
+            jawaban = `Materi "${materi.judul}" belum diindeks ke knowledge base AI. Minta guru untuk mengindeksnya.`
           } else {
-            const soal = await generateQuiz(chunks.map((c) => c.text))
+            const latihanHistory = await prisma.latihanAI.findMany({
+              where: { siswaId: siswa.id, materiId: materi.id },
+              select: { skor: true },
+              orderBy: { createdAt: "desc" },
+              take: 5,
+            })
+
+            const soal = await generateQuiz(chunks.map((c) => c.text), {
+              history: latihanHistory.filter((l) => l.skor != null).map((l) => ({ skor: l.skor! })),
+              learningStyle: modelSummary.profile.gayaBelajar,
+            })
             if (soal.length === 0) throw new Error("Gagal membuat soal")
             latihan = await prisma.latihanAI.create({
               data: { siswaId: siswa.id, materiId: materi.id, soal: soal as never },
               include: { materi: { select: { judul: true } } },
             })
-            jawaban = `Assessor Agent membuat ${soal.length} soal latihan untuk materi *"${materi.judul}"* (${materi.mataPelajaran.nama}). Kerjakan di bawah ini!`
+            jawaban = `Assessor Agent membuat ${soal.length} soal latihan adaptif untuk materi *"${materi.judul}"*.\n` +
+              `📊 Level soal disesuaikan dengan riwayat belajarmu.\n\nKerjakan di bawah ini!`
           }
         }
         break
@@ -108,16 +150,18 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
 
       case "recommender": {
         agent = "recommender"
-        const { rekomendasi, mode } = await runHybridRecommender(siswa.id)
+        const { rekomendasi, mode } = await runHybridRecommender(siswa.id, {
+          engagementScore: modelSummary.profile.engagementScore,
+          gayaBelajar: modelSummary.profile.gayaBelajar,
+        })
         sumber = { mode, jumlah: rekomendasi.length }
         if (rekomendasi.length === 0) {
-          jawaban = "Belum ada rekomendasi. Isi nilai di mapel tertentu terlebih dahulu atau tambahkan materi oleh guru, lalu coba lagi."
+          jawaban = "Belum ada rekomendasi. Isi nilai di mapel tertentu terlebih dahulu atau tambahkan materi oleh guru."
         } else {
-          jawaban =
-            `Berikut rekomendasi materi untuk kamu (mode: ${mode}):\n\n` +
-            rekomendasi
-              .map((r, i) => `${i + 1}. **${r.judul}** (${r.mapel})${r.nilaiRata != null ? ` — rata-rata nilai ${r.nilaiRata}` : ""} [${r.sumber}]\n   ${r.alasan}`)
-              .join("\n")
+          jawaban = `**Rekomendasi Personal** (mode: ${mode}):\n\n` +
+            rekomendasi.slice(0, 5).map((r, i) =>
+              `${i + 1}. **${r.judul}** (${r.mapel}) [${r.tipeRekomendasi}]\n   ${r.alasan}`
+            ).join("\n\n")
         }
         break
       }
@@ -127,55 +171,47 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
         const path = await getAdaptivePath(siswa.id)
         const items = (path as any)?.items ?? []
         if (items.length === 0) {
-          jawaban = "Belum ada jalur belajar yang tersedia. Kerjakan beberapa ujian atau latihan terlebih dahulu agar sistem bisa menyusun jalur belajar untukmu."
+          jawaban = "Belum ada jalur belajar. Kerjakan beberapa ujian atau latihan terlebih dahulu."
         } else {
           const pending = items.filter((i: any) => i.status === "PENDING").slice(0, 5)
           const done = items.filter((i: any) => i.status === "SELESAI").length
-          jawaban = `**Jalur Belajar Adaptif** (Progres: ${Math.round(((path as any)?.progres ?? 0))}%)\n\n` +
-            `Selesai: ${done}/${items.length} item\n\n` +
-            `**Langkah berikutnya:**\n` +
-            pending.map((p: any, i: number) => `${i + 1}. ${p.materi?.judul ?? p.kompetensi?.nama ?? p.jenis} — ${p.status}`).join("\n")
-          sumber = { pathId: (path as any)?.id, totalItems: items.length, progres: (path as any)?.progres }
+          jawaban = `**Jalur Belajar Adaptif** (${Math.round((path as any)?.progres ?? 0)}% selesai)\n\n` +
+            `Selesai: ${done}/${items.length}\n\n**Langkah berikutnya:**\n` +
+            pending.map((p: any, i: number) => `${i + 1}. ${p.judul || p.jenis} — ${p.difficulty || "medium"}`).join("\n")
+          sumber = { pathId: (path as any)?.id, totalItems: items.length }
         }
         break
       }
 
       case "mastery": {
         agent = "tutor"
-        const overview = await getPenguasaanOverview(siswa.id)
-        if (overview.total === 0) {
-          jawaban = "Belum ada data penguasaan kompetensi. Kerjakan ujian atau latihan terlebih dahulu."
+        if (penguasaanOverview.total === 0) {
+          jawaban = "Belum ada data penguasaan. Kerjakan ujian atau latihan terlebih dahulu."
         } else {
-          jawaban = `**Penguasaan Kompetensi** (Rata-rata: ${overview.rataSkor}%)\n\n` +
+          jawaban = `**Penguasaan Kompetensi** (Rata-rata: ${penguasaanOverview.rataSkor}%)\n\n` +
             `**Distribusi:**\n` +
-            `• Advanced: ${overview.distribusi.ADVANCED} | Proficient: ${overview.distribusi.PROFICIENT}\n` +
-            `• Developing: ${overview.distribusi.DEVELOPING} | Basic: ${overview.distribusi.BASIC}\n` +
-            `• Beginner: ${overview.distribusi.BEGINNER}\n\n` +
+            `• Advanced: ${penguasaanOverview.distribusi.ADVANCED} | Proficient: ${penguasaanOverview.distribusi.PROFICIENT}\n` +
+            `• Developing: ${penguasaanOverview.distribusi.DEVELOPING} | Basic: ${penguasaanOverview.distribusi.BASIC}\n` +
+            `• Beginner: ${penguasaanOverview.distribusi.BEGINNER}\n\n` +
             `**Detail:**\n` +
-            overview.penguasaan.slice(0, 8).map((p) => `• ${p.kode} — ${p.kompetensi}: ${p.skor}% (${p.kategori})`).join("\n")
-          sumber = overview
+            penguasaanOverview.penguasaan.slice(0, 8).map((p) =>
+              `• ${p.kode} — ${p.kompetensi}: ${p.skor}% (${p.kategori})${p.projectedSkor < p.skor ? ` ⚠️ projected: ${p.projectedSkor}%` : ""}`
+            ).join("\n")
+          sumber = penguasaanOverview
         }
         break
       }
 
       case "analytics": {
         agent = "tutor"
-        const [model, rekom] = await Promise.all([
-          updateStudentModel(siswa.id),
-          runHybridRecommender(siswa.id),
-        ])
-        jawaban = `**Ringkasan Profil Belajar**\n\n` +
-          `• Gaya Belajar: ${model.gayaBelajar}\n` +
-          `• Engagement: ${Math.round(model.engagementScore * 100)}%\n` +
-          `• Motivasi: ${Math.round(model.motivasi * 100)}%\n` +
-          `• Konsistensi: ${Math.round(model.konsistensi * 100)}%\n` +
-          `• Streak: ${model.streak} hari\n` +
-          `• Total Sesi: ${model.totalSesi}\n` +
-          `• Rata-rata Nilai: ${model.rataNilai}\n\n` +
-          (rekom.rekomendasi.length > 0
-            ? `**Rekomendasi Teratas:** ${rekom.rekomendasi[0].judul} — ${rekom.rekomendasi[0].alasan}`
-            : "")
-        sumber = { model: { gayaBelajar: model.gayaBelajar, motivasi: model.motivasi, engagement: model.engagementScore } }
+        jawaban = `**Profil Belajar**\n\n` +
+          `• Gaya Belajar: ${modelSummary.profile.gayaBelajar}\n` +
+          `• Engagement: ${Math.round(modelSummary.profile.engagementScore * 100)}%\n` +
+          `• Motivasi: ${Math.round(modelSummary.profile.motivasi * 100)}%\n` +
+          `• Konsistensi: ${Math.round(modelSummary.profile.konsistensi * 100)}%\n` +
+          `• Streak: ${modelSummary.profile.streak} hari\n` +
+          `• Penguasaan rata-rata: ${penguasaanOverview.rataSkor}%`
+        sumber = { model: modelSummary.profile }
         break
       }
 
@@ -185,11 +221,16 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
         if (warnings.total === 0) {
           jawaban = "Tidak ada peringatan aktif. Status belajar kamu aman."
         } else {
-          jawaban = `**Early Warning System** — ${warnings.total} peringatan aktif\n\n` +
+          jawaban = `**Early Warning** — ${warnings.total} peringatan aktif\n\n` +
             (warnings.critical > 0 ? `🔴 CRITICAL: ${warnings.critical}\n` : "") +
             (warnings.high > 0 ? `🟠 HIGH: ${warnings.high}\n` : "") +
+            (warnings.medium > 0 ? `🟡 MEDIUM: ${warnings.medium}\n` : "") +
             `\n**Detail:**\n` +
             warnings.warnings.map((w) => `• [${w.severity}] ${w.message}`).join("\n")
+          if (warnings.predictions.length > 0) {
+            jawaban += `\n\n**Prediksi:**\n` +
+              warnings.predictions.map((p) => `• ${p.reason} (${Math.round(p.probability * 100)}% dalam ${p.timeframe})`).join("\n")
+          }
         }
         sumber = warnings
         break
@@ -197,19 +238,39 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
 
       case "explain": {
         agent = "tutor"
-        jawaban = "Untuk penjelasan keputusan AI, kunjungi halaman **Profil Belajar** di mana kamu bisa melihat detail mengapa materi direkomendasikan dan bagaimana skor penguasaan dihitung."
+        const lastRekom = await prisma.rekomendasi.findFirst({
+          where: { siswaId: siswa.id },
+          orderBy: { createdAt: "desc" },
+          select: { materiId: true },
+        })
+        if (lastRekom?.materiId) {
+          const explanation = await explainRecommendation(siswa.id, lastRekom.materiId)
+          jawaban = `**Penjelasan Rekomendasi AI**\n\n${explanation.summary}\n\n` +
+            `**Faktor yang Dipertimbangkan:**\n` +
+            explanation.factors.map((f) => `• ${f.factor}: ${f.value} (${f.impact})`).join("\n") +
+            `\n\n**Confidence:** ${Math.round(explanation.confidence * 100)}%`
+        } else {
+          jawaban = "Belum ada rekomendasi yang bisa dijelaskan. Minta rekomendasi materi terlebih dahulu."
+        }
         break
       }
 
       default: {
-        const res = await runTutorAgent(pesan, { mapelId: input.mapelId || null })
+        const res = await runTutorAgent(queryToUse, {
+          mapelId: input.mapelId || null,
+          history: chatHistory,
+          studentId: siswa.id,
+          masteryAvg: penguasaanOverview.rataSkor,
+          learningStyle: modelSummary.profile.gayaBelajar,
+          streakDays: modelSummary.profile.streak,
+        })
         jawaban = res.jawaban
         sumber = res.sumber
         break
       }
     }
 
-    await logAgent(siswa.id, {
+    const logEntry = await logAgent(siswa.id, {
       agent,
       tipe: intent,
       query: pesan,
@@ -218,6 +279,10 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
       durasiMs: Date.now() - start,
       sukses: true,
     })
+
+    if (intent === "tutor" || intent === "greeting") {
+      autoEarlyWarning(siswa.id)
+    }
   } catch (e: any) {
     await logAgent(siswa.id, {
       agent,
@@ -243,7 +308,7 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
   return { sessionId: session.id, message, latihan }
 }
 
-export async function aiJawabLatihan(latihanId: string, jawaban: Record<number, string>) {
+export async function aiJawabLatihan(latihanId: string, jawabanInput: Record<number, string>) {
   const siswa = await getCurrentSiswa()
   if (!siswa) redirect("/login")
   const start = Date.now()
@@ -252,23 +317,25 @@ export async function aiJawabLatihan(latihanId: string, jawaban: Record<number, 
   if (!latihan) throw new Error("Latihan tidak ditemukan")
   if (latihan.skor != null) return { skor: latihan.skor, umpanBalik: latihan.umpanBalik, perSoal: null }
 
-  const hasil = await gradeQuiz(latihan.soal as never, jawaban)
+  const hasil = await gradeQuiz(latihan.soal as never, jawabanInput, { adaptive: true })
   await prisma.latihanAI.update({
     where: { id: latihan.id },
-    data: { jawaban: jawaban as never, skor: hasil.skor, umpanBalik: hasil.umpanBalik },
+    data: { jawaban: jawabanInput as never, skor: hasil.skor, umpanBalik: hasil.umpanBalik },
   })
 
-  const { updatePenguasaanAfterLatihan } = await import("@/lib/agents/knowledge-tracing")
   await updatePenguasaanAfterLatihan(siswa.id, latihan.materiId, hasil.skor)
 
   await logAgent(siswa.id, {
     agent: "assessor",
     tipe: "penilaian_latihan",
     query: "Penilaian latihan AI",
-    hasil: `Skor ${hasil.skor}/100`,
+    hasil: `Skor ${hasil.skor}/100 (delta: ${hasil.masteryDelta})`,
     durasiMs: Date.now() - start,
     sukses: true,
   })
+
+  autoEarlyWarning(siswa.id)
+
   return hasil
 }
 
@@ -278,11 +345,7 @@ export async function aiDashboard() {
 
   const [rekom, latihan, model, warnings] = await Promise.all([
     runHybridRecommender(siswa.id),
-    prisma.latihanAI.aggregate({
-      where: { siswaId: siswa.id },
-      _avg: { skor: true },
-      _count: { _all: true },
-    }),
+    prisma.latihanAI.aggregate({ where: { siswaId: siswa.id }, _avg: { skor: true }, _count: { _all: true } }),
     getStudentModelSummary(siswa.id),
     prisma.earlyWarning.count({ where: { siswaId: siswa.id, isResolved: false } }),
   ])
@@ -296,6 +359,7 @@ export async function aiDashboard() {
       motivasi: Math.round(model.profile.motivasi * 100),
       engagement: Math.round(model.profile.engagementScore * 100),
       streak: model.profile.streak,
+      trendNilai: (model.profile as any).trendNilai,
     },
     openWarnings: warnings,
   }
@@ -306,43 +370,23 @@ export async function aiAnalitikData() {
   if (!siswa) redirect("/login")
 
   const [logs, byAgent, stat, suksesCount, gagalCount, model, penguasaan] = await Promise.all([
-    prisma.agentLog.findMany({
-      where: { siswaId: siswa.id },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    }),
-    prisma.agentLog.groupBy({
-      by: ["agent"],
-      where: { siswaId: siswa.id },
-      _count: { _all: true },
-      _avg: { durasiMs: true },
-    }),
-    prisma.agentLog.aggregate({
-      where: { siswaId: siswa.id },
-      _count: { _all: true },
-      _avg: { durasiMs: true },
-    }),
+    prisma.agentLog.findMany({ where: { siswaId: siswa.id }, orderBy: { createdAt: "desc" }, take: 100 }),
+    prisma.agentLog.groupBy({ by: ["agent"], where: { siswaId: siswa.id }, _count: { _all: true }, _avg: { durasiMs: true } }),
+    prisma.agentLog.aggregate({ where: { siswaId: siswa.id }, _count: { _all: true }, _avg: { durasiMs: true } }),
     prisma.agentLog.count({ where: { siswaId: siswa.id, sukses: true } }),
     prisma.agentLog.count({ where: { siswaId: siswa.id, sukses: false } }),
     updateStudentModel(siswa.id),
     getPenguasaanOverview(siswa.id),
   ])
 
-  const perAgent = byAgent
-    .map((a) => ({
-      agent: a.agent,
-      total: a._count._all,
-      rataDurasi: a._avg.durasiMs ?? 0,
-    }))
-    .sort((a, b) => b.total - a.total)
+  const perAgent = byAgent.map((a) => ({
+    agent: a.agent, total: a._count._all, rataDurasi: a._avg.durasiMs ?? 0,
+  })).sort((a, b) => b.total - a.total)
 
   return {
-    logs,
-    perAgent,
+    logs, perAgent,
     statistik: {
-      totalRuns: stat._count._all,
-      sukses: suksesCount,
-      gagal: gagalCount,
+      totalRuns: stat._count._all, sukses: suksesCount, gagal: gagalCount,
       rataDurasi: (stat._avg.durasiMs ?? 0) / 1000,
     },
     profile: {
@@ -351,6 +395,7 @@ export async function aiAnalitikData() {
       engagement: Math.round(model.engagementScore * 100),
       konsistensi: Math.round(model.konsistensi * 100),
       streak: model.streak,
+      trendNilai: model.trendNilai,
     },
     penguasaan,
   }
@@ -392,6 +437,46 @@ export async function explainMasteryAction(kompetensiId: string) {
   const siswa = await getCurrentSiswa()
   if (!siswa) redirect("/login")
   return explainMastery(siswa.id, kompetensiId)
+}
+
+export async function explainRecommendationAction(materiId: string) {
+  const siswa = await getCurrentSiswa()
+  if (!siswa) redirect("/login")
+  return explainRecommendation(siswa.id, materiId)
+}
+
+export async function explainWarningAction(warningId: string) {
+  const siswa = await getCurrentSiswa()
+  if (!siswa) redirect("/login")
+  return explainEarlyWarning(siswa.id, warningId)
+}
+
+export async function submitFeedbackAction(input: {
+  agentLogId?: string
+  messageId?: string
+  rating: number
+  category?: string
+  comment?: string
+  helpful?: boolean
+  accurate?: boolean
+}) {
+  const siswa = await getCurrentSiswa()
+  if (!siswa) redirect("/login")
+  return submitFeedback({ ...input, siswaId: siswa.id })
+}
+
+export async function getAgentQualityAction(agent: string, period: string) {
+  return computeQualityMetrics(agent, period)
+}
+
+export async function getRecentFeedbackAction() {
+  const siswa = await getCurrentSiswa()
+  if (!siswa) redirect("/login")
+  return getRecentFeedback(siswa.id)
+}
+
+export async function getMessageFeedbackAction(messageId: string) {
+  return getMessageFeedback(messageId)
 }
 
 export async function submitSUSSurveyAction(jawaban: number[], komentar?: string) {

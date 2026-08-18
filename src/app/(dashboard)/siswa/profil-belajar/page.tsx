@@ -120,7 +120,7 @@ export default function ProfilBelajarPage() {
     setLoadingExplain(kompetensiId)
     try {
       const res = await explainMasteryAction(kompetensiId)
-      setExplanation(res.penjelasan || JSON.stringify(res))
+      setExplanation(res.summary || JSON.stringify(res))
     } catch {
       toast.error("Gagal memuat penjelasan")
     } finally {

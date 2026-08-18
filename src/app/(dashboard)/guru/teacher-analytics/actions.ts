@@ -24,6 +24,5 @@ export async function getTeacherAnalytics() {
 export { resolveWarningAgent as resolveWarning }
 
 export async function getAtRiskStudents() {
-  const guruId = await getGuruId()
-  return getAtRiskStudentsAgent(guruId)
+  return getAtRiskStudentsAgent()
 }

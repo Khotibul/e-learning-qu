@@ -196,6 +196,7 @@ model Siswa {
   pretestPosttest PretestPosttest[]
   susResponses    SUSResponse[]
   aiEvaluations   AIEvaluation[]
+  agentFeedbacks  AgentFeedback[]
 
   @@map("siswa")
 }
@@ -910,7 +911,8 @@ model AgentLog {
   pesanError String?
   createdAt  DateTime @default(now())
 
-  siswa Siswa? @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  siswa    Siswa?          @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  feedbacks AgentFeedback[]
 
   @@map("agent_log")
 }
@@ -1081,4 +1083,41 @@ model AIEvaluation {
 
   @@index([tipe, periode])
   @@map("ai_evaluation")
+}
+
+model AgentFeedback {
+  id          String   @id @default(uuid()) @db.Uuid
+  siswaId     String?  @db.Uuid
+  agentLogId  String?  @db.Uuid
+  messageId   String?  @db.Uuid
+  rating      Int
+  category    String?
+  comment     String?  @db.Text
+  helpful     Boolean?
+  accurate     Boolean?
+  createdAt   DateTime @default(now())
+
+  siswa     Siswa?      @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  agentLog  AgentLog?   @relation(fields: [agentLogId], references: [id], onDelete: SetNull)
+
+  @@index([siswaId])
+  @@index([agentLogId])
+  @@map("agent_feedback")
+}
+
+model AgentQualityMetrics {
+  id          String   @id @default(uuid()) @db.Uuid
+  agent       String
+  period      String
+  avgRating   Float
+  totalFeedback Int
+  helpfulPct  Float
+  accuratePct Float
+  avgResponseMs Int
+  successRate Float
+  detail      Json?
+  createdAt   DateTime @default(now())
+
+  @@unique([agent, period])
+  @@map("agent_quality_metrics")
 }
