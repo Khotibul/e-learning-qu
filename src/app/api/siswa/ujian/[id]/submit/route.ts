@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
+import { trackAssessmentSelesai } from "@/lib/agents/learning-analytics"
+import { updatePenguasaanAfterUjian } from "@/lib/agents/knowledge-tracing"
 
 const SUB_RE = /^(.+)::sub::(\d+)$/
 
@@ -137,6 +139,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       isCorrect: boolean
       poin: number
     }[] = []
+    const jawabanDataForMastery: { kompetensiId?: string | null; isCorrect: boolean }[] = []
 
     for (const us of ujian.ujianSoal) {
       const jawab = regrouped[us.soal.id] ?? ""
@@ -171,6 +174,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             isCorrect,
             poin: isCorrect ? poin : 0,
           })
+          jawabanDataForMastery.push({ kompetensiId: us.soal.kompetensiId, isCorrect })
         }
       } else {
         flatNomor++
@@ -196,6 +200,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           isCorrect,
           poin: isCorrect ? poin : 0,
         })
+        jawabanDataForMastery.push({ kompetensiId: us.soal.kompetensiId, isCorrect })
       }
     }
 
@@ -226,6 +231,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         },
       })
     }
+
+    if (jawabanDataForMastery.length > 0) {
+      updatePenguasaanAfterUjian(siswa.id, id, jawabanDataForMastery).catch(() => {})
+    }
+
+    trackAssessmentSelesai(siswa.id, id, ujian.mataPelajaranId ?? undefined, {
+      nilai: nilaiAkhir,
+      jumlahBenar,
+      jumlahSoal: flatNomor,
+      isLatihan: ujian.isLatihan,
+    }).catch(() => {})
 
     return NextResponse.json({
       nilai: nilaiAkhir,

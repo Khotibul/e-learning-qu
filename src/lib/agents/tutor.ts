@@ -172,6 +172,7 @@ export async function runTutorAgent(
   query: string,
   opts: {
     mapelId?: string | null
+    kelasId?: string | null
     history?: ChatMessage[]
     studentId?: string
     masteryAvg?: number
@@ -179,7 +180,19 @@ export async function runTutorAgent(
     streakDays?: number
   }
 ): Promise<TutorResult> {
-  const where = opts.mapelId ? { mataPelajaranId: opts.mapelId } : {}
+  let where: Record<string, unknown> = {}
+  if (opts.mapelId) {
+    where = { mataPelajaranId: opts.mapelId }
+  } else if (opts.kelasId) {
+    const pengajaranMapels = await prisma.pengajaran.findMany({
+      where: { kelasId: opts.kelasId, deletedAt: null },
+      select: { mataPelajaranId: true },
+    })
+    const allowedMapelIds = pengajaranMapels.map((p) => p.mataPelajaranId)
+    if (allowedMapelIds.length > 0) {
+      where = { mataPelajaranId: { in: allowedMapelIds } }
+    }
+  }
   const chunks = (await prisma.materiChunk.findMany({
     where,
     include: {

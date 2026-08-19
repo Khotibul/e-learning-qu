@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { BookOpen, Download, Loader2, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { getSiswaMateris } from "../actions"
+import { getSiswaMateris, trackOpenMateri } from "../actions"
 
 interface MateriItem {
   id: string
@@ -144,7 +144,7 @@ export default function SiswaMateriPage() {
                     </div>
                   </div>
                   <Button variant="outline" size="sm" className="shrink-0 gap-1" asChild>
-                    <a href={item.fileUrl} download target="_blank">
+                    <a href={item.fileUrl} download target="_blank" onClick={() => trackOpenMateri(item.id).catch(() => {})}>
                       <Download className="h-4 w-4" />
                       <span className="hidden sm:inline">Download</span>
                     </a>

@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
+import { trackLogin } from "@/lib/agents/learning-analytics"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -59,9 +60,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return session
     },
-    async signIn({ account }) {
-      if (account?.provider === "google") {
-        return true
+    async signIn({ user, account }) {
+      if (user?.id) {
+        const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { id: true, role: true } })
+        if (dbUser?.role === "SISWA") {
+          const siswa = await prisma.siswa.findUnique({ where: { userId: dbUser.id }, select: { id: true } })
+          if (siswa) trackLogin(siswa.id).catch(() => {})
+        }
       }
       return true
     },

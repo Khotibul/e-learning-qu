@@ -61,6 +61,7 @@ export const NAV_ITEMS = {
     { label: "AI Knowledge Base", href: "/guru/ai-knowledge", icon: "Database" },
     { label: "Nilai", href: "/guru/nilai", icon: "Award" },
     { label: "Analitik", href: "/guru/analitik", icon: "BarChart3" },
+    { label: "Intervensi", href: "/guru/intervensi", icon: "ShieldCheck" },
     { label: "Pengaturan", href: "/guru/pengaturan", icon: "Settings" },
   ],
   SISWA: [

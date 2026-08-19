@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   type ColumnDef,
   type SortingState,
@@ -240,7 +241,9 @@ export function MuridManagement(props: Props) {
       cell: ({ row }) => (page - 1) * 10 + row.index + 1,
       size: 60,
     },
-    { accessorKey: "nama", header: "Nama" },
+    { accessorKey: "nama", header: "Nama", cell: ({ row }) => (
+      <Link href={`/guru/murid/${row.original.id}`} className="font-medium text-primary hover:underline">{row.original.nama}</Link>
+    ) },
     { accessorKey: "nis", header: "NIS", cell: ({ row }) => row.original.nis || "-" },
     { accessorKey: "nisn", header: "NISN", cell: ({ row }) => row.original.nisn || "-" },
     {

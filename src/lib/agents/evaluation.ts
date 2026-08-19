@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { trackPretest, trackPosttest } from "./learning-analytics"
 
 export async function recordPretestPosttest(siswaId: string, ujianId: string, tipe: "PRETEST" | "POSTTEST") {
   const ujian = await prisma.ujian.findUnique({ where: { id: ujianId } })
@@ -16,12 +17,14 @@ export async function recordPretestPosttest(siswaId: string, ujianId: string, ti
 
   if (tipe === "PRETEST") {
     if (existing) {
-      return prisma.pretestPosttest.update({
+      const result = await prisma.pretestPosttest.update({
         where: { id: existing.id },
         data: { pretestNilai: nilai.nilai },
       })
+      trackPretest(siswaId, undefined, ujian.mataPelajaranId ?? undefined, { ujianId, skor: nilai.nilai }).catch(() => {})
+      return result
     }
-    return prisma.pretestPosttest.create({
+    const result = await prisma.pretestPosttest.create({
       data: {
         siswaId,
         ujianId,
@@ -30,6 +33,8 @@ export async function recordPretestPosttest(siswaId: string, ujianId: string, ti
         pretestNilai: nilai.nilai,
       },
     })
+    trackPretest(siswaId, undefined, ujian.mataPelajaranId ?? undefined, { ujianId, skor: nilai.nilai }).catch(() => {})
+    return result
   } else {
     let record = existing
     if (!record) {
@@ -57,6 +62,9 @@ export async function recordPretestPosttest(siswaId: string, ujianId: string, ti
         nGain,
         tipe: "POSTTEST",
       },
+    }).then((result) => {
+      trackPosttest(siswaId, undefined, ujian.mataPelajaranId ?? undefined, { ujianId, pretest, posttest, nGain }).catch(() => {})
+      return result
     })
   }
 }

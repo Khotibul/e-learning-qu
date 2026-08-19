@@ -22,14 +22,19 @@ enum MasteryKategori {
 }
 
 enum AktivitasJenis {
+  LOGIN
+  LOGOUT
   MATERI_DIBUKA
   MATERI_SELESAI
   SOAL_DIKERJAKAN
+  LATIHAN_DIMULAI
   LATIHAN_SELESAI
   AI_CHAT
+  ASSESSMENT_DIMULAI
   ASSESSMENT_SELESAI
   PRETEST
   POSTTEST
+  REKOMENDASI_DIKLIK
 }
 
 enum RekomendasiTipe {
@@ -154,6 +159,7 @@ model Guru {
   penilaianEssay PenilaianEssay[]
   materis        Materi[]
   pengajaran     Pengajaran[]
+  interventions  Intervention[]
 
   @@map("guru")
 }
@@ -197,6 +203,7 @@ model Siswa {
   susResponses    SUSResponse[]
   aiEvaluations   AIEvaluation[]
   agentFeedbacks  AgentFeedback[]
+  interventions    Intervention[]
 
   @@map("siswa")
 }
@@ -289,6 +296,7 @@ model LearningActivity {
   mataPelajaranId String?        @db.Uuid
   targetId        String?
   detail          Json?
+  durationMs      Int?
   createdAt       DateTime       @default(now())
 
   siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
@@ -1120,4 +1128,42 @@ model AgentQualityMetrics {
 
   @@unique([agent, period])
   @@map("agent_quality_metrics")
+}
+
+enum InterventionStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum InterventionTipe {
+  REMEDIAL
+  TUGAS_TAMBAHAN
+  MENTORING
+  REKOMENDASI_MATERI
+  KONSULTASI
+  FOLLOW_UP
+}
+
+model Intervention {
+  id          String             @id @default(uuid()) @db.Uuid
+  siswaId     String             @db.Uuid
+  guruId      String             @db.Uuid
+  tipe        InterventionTipe
+  reason      String             @db.Text
+  action      String             @db.Text
+  deadline    DateTime?
+  status      InterventionStatus @default(OPEN)
+  notes       String?            @db.Text
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  guru  Guru  @relation(fields: [guruId], references: [id], onDelete: Cascade)
+
+  @@index([siswaId])
+  @@index([guruId])
+  @@index([status])
+  @@map("intervention")
 }

@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
+import { trackMateriOpened, trackMateriCompleted, trackAssessmentDimulai, trackAssessmentSelesai } from "@/lib/agents/learning-analytics"
 
 export async function getCurrentSiswa() {
   const session = await auth()
@@ -627,6 +628,24 @@ export async function getSiswaMateris() {
   }
 
   return Object.values(grouped).filter((g) => g.items.length > 0)
+}
+
+export async function trackOpenMateri(materiId: string) {
+  const session = await auth()
+  if (!session?.user?.id) return
+  const siswa = await prisma.siswa.findUnique({ where: { userId: session.user.id }, select: { id: true } })
+  if (!siswa) return
+  const materi = await prisma.materi.findUnique({ where: { id: materiId }, select: { mataPelajaranId: true } })
+  trackMateriOpened(siswa.id, materiId, materi?.mataPelajaranId ?? undefined).catch(() => {})
+}
+
+export async function trackCompleteMateri(materiId: string, durationMs?: number) {
+  const session = await auth()
+  if (!session?.user?.id) return
+  const siswa = await prisma.siswa.findUnique({ where: { userId: session.user.id }, select: { id: true } })
+  if (!siswa) return
+  const materi = await prisma.materi.findUnique({ where: { id: materiId }, select: { mataPelajaranId: true } })
+  trackMateriCompleted(siswa.id, materiId, materi?.mataPelajaranId ?? undefined, durationMs).catch(() => {})
 }
 
 // ─── STRUKTUR KELAS ──────────────────────────────────────────

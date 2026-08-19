@@ -8,11 +8,12 @@ import { runTutorAgent } from "@/lib/agents/tutor"
 import { generateQuiz, gradeQuiz } from "@/lib/agents/assessor"
 import { runHybridRecommender } from "@/lib/agents/hybrid-recommender"
 import { updateStudentModel, getStudentModelSummary } from "@/lib/agents/student-modeling"
-import { getPenguasaanOverview, updatePenguasaanAfterLatihan, updatePenguasaanAfterUjian } from "@/lib/agents/knowledge-tracing"
+import { getPenguasaanOverview, updatePenguasaanAfterLatihan } from "@/lib/agents/knowledge-tracing"
 import { getAdaptivePath, generateAdaptivePath } from "@/lib/agents/adaptive-learning"
 import { runEarlyWarning, getStudentWarnings } from "@/lib/agents/early-warning"
 import { explainRecommendation, explainMastery, explainEarlyWarning } from "@/lib/agents/explainable"
 import { recordPretestPosttest, getNGainForMapel, submitSUSSurvey, getSUSResults, getAIEvaluationSummary } from "@/lib/agents/evaluation"
+import { trackAiChat, trackLatihanDimulai, trackLatihanSelesai, trackPretest, trackPosttest } from "@/lib/agents/learning-analytics"
 import { submitFeedback, computeQualityMetrics, getRecentFeedback, getMessageFeedback } from "@/lib/agents/feedback"
 
 async function logAgent(siswaId: string, data: {
@@ -70,6 +71,7 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
     })
   }
   await prisma.chatMessage.create({ data: { sessionId: session.id, role: "siswa", konten: pesan } })
+  trackAiChat(siswa.id, session.id, input.mapelId ?? undefined).catch(() => {})
 
   const existingMessages = await prisma.chatMessage.findMany({
     where: { sessionId: session.id },
@@ -141,6 +143,7 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
               data: { siswaId: siswa.id, materiId: materi.id, soal: soal as never },
               include: { materi: { select: { judul: true } } },
             })
+            trackLatihanDimulai(siswa.id, latihan.id, input.mapelId ?? undefined).catch(() => {})
             jawaban = `Assessor Agent membuat ${soal.length} soal latihan adaptif untuk materi *"${materi.judul}"*.\n` +
               `📊 Level soal disesuaikan dengan riwayat belajarmu.\n\nKerjakan di bawah ini!`
           }
@@ -258,6 +261,7 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
       default: {
         const res = await runTutorAgent(queryToUse, {
           mapelId: input.mapelId || null,
+          kelasId: siswa.kelasId ?? null,
           history: chatHistory,
           studentId: siswa.id,
           masteryAvg: penguasaanOverview.rataSkor,
@@ -324,6 +328,7 @@ export async function aiJawabLatihan(latihanId: string, jawabanInput: Record<num
   })
 
   await updatePenguasaanAfterLatihan(siswa.id, latihan.materiId, hasil.skor)
+  trackLatihanSelesai(siswa.id, latihanId, latihan.materiId ?? undefined, { skor: hasil.skor }, Date.now() - start).catch(() => {})
 
   await logAgent(siswa.id, {
     agent: "assessor",

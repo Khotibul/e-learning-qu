@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
+import { trackAssessmentDimulai } from "@/lib/agents/learning-analytics"
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -99,6 +100,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
       if (j.raguRagu) savedRagu.push(j.soalId)
     }
+
+    trackAssessmentDimulai(siswa.id, id, ujian.mataPelajaranId ?? undefined).catch(() => {})
 
     return NextResponse.json({ success: true, savedAnswers, savedRagu })
   } catch (error) {
