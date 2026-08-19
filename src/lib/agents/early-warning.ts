@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { autoCreateInterventionsFromWarnings } from "./intervention-auto"
 
 export interface Warning {
   id: string
@@ -330,6 +331,15 @@ export async function runEarlyWarning(siswaId: string): Promise<WarningResult> {
     isResolved: w.isResolved,
     createdAt: w.createdAt,
   }))
+
+  const newWarningsForIntervention = validResults.filter((r) => r.severity === "HIGH" || r.severity === "CRITICAL")
+  if (newWarningsForIntervention.length > 0) {
+    try {
+      await autoCreateInterventionsFromWarnings(siswaId, newWarningsForIntervention)
+    } catch {
+      // Intervention auto-creation is best-effort
+    }
+  }
 
   return {
     warnings: mapped,

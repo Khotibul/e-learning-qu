@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import { trackAssessmentSelesai } from "@/lib/agents/learning-analytics"
 import { updatePenguasaanAfterUjian } from "@/lib/agents/knowledge-tracing"
+import { isAssessmentLocked, lockAssessment } from "@/lib/assessment-guard"
 
 const SUB_RE = /^(.+)::sub::(\d+)$/
 
@@ -36,6 +37,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     if (!ujian) {
       return NextResponse.json({ error: "Ujian not found" }, { status: 404 })
+    }
+
+    if (await isAssessmentLocked(id, siswa.id)) {
+      return NextResponse.json({ error: "Ujian ini sudah dinilai dan tidak dapat dikerjakan ulang" }, { status: 403 })
     }
 
     const subSoalItem = (s: any) => {
@@ -242,6 +247,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       jumlahSoal: flatNomor,
       isLatihan: ujian.isLatihan,
     }).catch(() => {})
+
+    lockAssessment(id, siswa.id).catch(() => {})
 
     return NextResponse.json({
       nilai: nilaiAkhir,

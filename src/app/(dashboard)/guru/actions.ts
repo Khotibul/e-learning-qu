@@ -7,6 +7,7 @@ import { redirect } from "next/navigation"
 import { unlink } from "fs/promises"
 import path from "path"
 import bcrypt from "bcryptjs"
+import { getSubmissionCount as getSubmissionCountGuard } from "@/lib/assessment-guard"
 
 export async function getCurrentGuru() {
   const session = await auth()
@@ -569,6 +570,11 @@ export async function resetUjian(id: string) {
     data: { status: "DRAFT" },
   })
   revalidatePath("/(dashboard)/guru/ujian")
+}
+
+export async function getUjianSubmissionCount(ujianId: string) {
+  await getCurrentGuru()
+  return getSubmissionCountGuard(ujianId)
 }
 
 // ─── NILAI ───────────────────────────────────────────────────

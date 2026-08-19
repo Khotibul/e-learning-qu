@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import { trackAssessmentDimulai } from "@/lib/agents/learning-analytics"
+import { isAssessmentLocked } from "@/lib/assessment-guard"
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -63,6 +64,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     if (ujian.status !== "AKTIF") {
       return NextResponse.json({ error: "Ujian tidak aktif" }, { status: 400 })
+    }
+
+    if (await isAssessmentLocked(id, siswa.id)) {
+      return NextResponse.json({ error: "Ujian ini sudah dinilai dan tidak dapat dikerjakan ulang" }, { status: 403 })
+    }
+
+    const alreadyGraded = await prisma.jawabanUjian.findFirst({
+      where: {
+        ujianId: id,
+        siswaId: siswa.id,
+        poin: { gt: 0 },
+      },
+    })
+    if (alreadyGraded) {
+      return NextResponse.json({ error: "Ujian ini sudah dinilai dan tidak dapat dikerjakan ulang" }, { status: 403 })
     }
 
     // ── Retake: clear old answers if bisaRetake is enabled ──

@@ -11,6 +11,7 @@ enum Role {
   ADMIN
   GURU
   SISWA
+  RESEARCHER
 }
 
 enum MasteryKategori {
@@ -74,6 +75,7 @@ enum StatusUjian {
   DRAFT
   AKTIF
   SELESAI
+  DITUTUP
 }
 
 model User {
@@ -158,6 +160,7 @@ model Guru {
   ujian          Ujian[]
   penilaianEssay PenilaianEssay[]
   materis        Materi[]
+  courses        Course[]
   pengajaran     Pengajaran[]
   interventions  Intervention[]
 
@@ -203,7 +206,7 @@ model Siswa {
   susResponses    SUSResponse[]
   aiEvaluations   AIEvaluation[]
   agentFeedbacks  AgentFeedback[]
-  interventions    Intervention[]
+  interventions   Intervention[]
 
   @@map("siswa")
 }
@@ -400,6 +403,7 @@ model MataPelajaran {
   nilai           Nilai[]
   Absensi         Absensi[]
   materis         Materi[]
+  courses         Course[]
   pengajaran      Pengajaran[]
   kompetensis     Kompetensi[]
   pretestPosttest PretestPosttest[]
@@ -532,14 +536,14 @@ model Ujian {
   updatedAt       DateTime    @updatedAt
   deletedAt       DateTime?
 
-  mataPelajaran MataPelajaran  @relation(fields: [mataPelajaranId], references: [id])
-  kelas         Kelas          @relation(fields: [kelasId], references: [id])
-  guru          Guru           @relation(fields: [guruId], references: [id])
-  tahunAjaran   TahunAjaran    @relation(fields: [tahunAjaranId], references: [id])
-  semester      Semester       @relation(fields: [semesterId], references: [id])
-  ujianSoal     UjianSoal[]
-  jawabanUjian  JawabanUjian[]
-  nilai         Nilai[]
+  mataPelajaran   MataPelajaran     @relation(fields: [mataPelajaranId], references: [id])
+  kelas           Kelas             @relation(fields: [kelasId], references: [id])
+  guru            Guru              @relation(fields: [guruId], references: [id])
+  tahunAjaran     TahunAjaran       @relation(fields: [tahunAjaranId], references: [id])
+  semester        Semester          @relation(fields: [semesterId], references: [id])
+  ujianSoal       UjianSoal[]
+  jawabanUjian    JawabanUjian[]
+  nilai           Nilai[]
   pretestPosttest PretestPosttest[]
 
   @@map("ujian")
@@ -819,6 +823,81 @@ model AbsensiSiswa {
   @@map("absensi_siswa")
 }
 
+model Course {
+  id          String    @id @default(uuid()) @db.Uuid
+  title       String
+  description String?   @db.Text
+  mapelId     String    @db.Uuid
+  guruId      String    @db.Uuid
+  isPublished Boolean   @default(false)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  mapel   MataPelajaran  @relation(fields: [mapelId], references: [id])
+  guru    Guru           @relation(fields: [guruId], references: [id])
+  modules CourseModule[]
+
+  @@index([mapelId])
+  @@map("course")
+}
+
+model CourseModule {
+  id          String    @id @default(uuid()) @db.Uuid
+  courseId    String    @db.Uuid
+  title       String
+  description String?   @db.Text
+  sortOrder   Int       @default(0)
+  isPublished Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons CourseLesson[]
+
+  @@index([courseId])
+  @@map("course_module")
+}
+
+model CourseLesson {
+  id          String    @id @default(uuid()) @db.Uuid
+  moduleId    String    @db.Uuid
+  title       String
+  description String?   @db.Text
+  content     String?   @db.Text
+  sortOrder   Int       @default(0)
+  isPublished Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  module    CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  materials CourseMaterial[]
+
+  @@index([moduleId])
+  @@map("course_lesson")
+}
+
+model CourseMaterial {
+  id        String    @id @default(uuid()) @db.Uuid
+  lessonId  String    @db.Uuid
+  title     String
+  content   String?   @db.Text
+  fileUrl   String?
+  fileType  String?
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  lesson CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+  @@map("course_material")
+}
+
 model Materi {
   id              String    @id @default(uuid()) @db.Uuid
   judul           String
@@ -919,7 +998,7 @@ model AgentLog {
   pesanError String?
   createdAt  DateTime @default(now())
 
-  siswa    Siswa?          @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  siswa     Siswa?          @relation(fields: [siswaId], references: [id], onDelete: SetNull)
   feedbacks AgentFeedback[]
 
   @@map("agent_log")
@@ -1006,20 +1085,20 @@ enum LearningStyleType {
 }
 
 model StudentProfile {
-  id              String          @id @default(uuid()) @db.Uuid
-  siswaId         String          @unique @db.Uuid
+  id              String            @id @default(uuid()) @db.Uuid
+  siswaId         String            @unique @db.Uuid
   gayaBelajar     LearningStyleType @default(VISUAL)
-  motivasi        Float           @default(0.5)
-  engagementScore Float           @default(0.5)
-  konsistensi     Float           @default(0)
-  waktuAktif      Int             @default(0)
-  totalSesi       Int             @default(0)
-  streak          Int             @default(0)
+  motivasi        Float             @default(0.5)
+  engagementScore Float             @default(0.5)
+  konsistensi     Float             @default(0)
+  waktuAktif      Int               @default(0)
+  totalSesi       Int               @default(0)
+  streak          Int               @default(0)
   lastActiveAt    DateTime?
   preferensiTopik Json?
-  updateKe        DateTime        @default(now())
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  updateKe        DateTime          @default(now())
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
 
@@ -1027,16 +1106,16 @@ model StudentProfile {
 }
 
 model EarlyWarning {
-  id          String   @id @default(uuid()) @db.Uuid
-  siswaId     String   @db.Uuid
-  tipe        String
-  severity    String   @default("MEDIUM")
-  message     String   @db.Text
-  skor        Float
-  detail      Json?
-  isResolved  Boolean  @default(false)
-  resolvedAt  DateTime?
-  createdAt   DateTime @default(now())
+  id         String    @id @default(uuid()) @db.Uuid
+  siswaId    String    @db.Uuid
+  tipe       String
+  severity   String    @default("MEDIUM")
+  message    String    @db.Text
+  skor       Float
+  detail     Json?
+  isResolved Boolean   @default(false)
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
 
@@ -1045,16 +1124,16 @@ model EarlyWarning {
 }
 
 model PretestPosttest {
-  id              String    @id @default(uuid()) @db.Uuid
-  siswaId         String    @db.Uuid
-  ujianId         String    @db.Uuid
-  mataPelajaranId String    @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  siswaId         String   @db.Uuid
+  ujianId         String   @db.Uuid
+  mataPelajaranId String   @db.Uuid
   tipe            String
   pretestNilai    Float?
   posttestNilai   Float?
   nGain           Float?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   siswa         Siswa         @relation(fields: [siswaId], references: [id], onDelete: Cascade)
   ujian         Ujian         @relation(fields: [ujianId], references: [id], onDelete: Cascade)
@@ -1065,12 +1144,12 @@ model PretestPosttest {
 }
 
 model SUSResponse {
-  id         String   @id @default(uuid()) @db.Uuid
-  siswaId    String   @db.Uuid
-  skor       Float
-  jawaban    Json
-  komentar   String?  @db.Text
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid()) @db.Uuid
+  siswaId   String   @db.Uuid
+  skor      Float
+  jawaban   Json
+  komentar  String?  @db.Text
+  createdAt DateTime @default(now())
 
   siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
 
@@ -1078,14 +1157,14 @@ model SUSResponse {
 }
 
 model AIEvaluation {
-  id          String   @id @default(uuid()) @db.Uuid
-  siswaId     String?  @db.Uuid
-  tipe        String
-  metrik      String
-  skor        Float
-  detail      Json?
-  periode     String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid()) @db.Uuid
+  siswaId   String?  @db.Uuid
+  tipe      String
+  metrik    String
+  skor      Float
+  detail    Json?
+  periode   String?
+  createdAt DateTime @default(now())
 
   siswa Siswa? @relation(fields: [siswaId], references: [id], onDelete: SetNull)
 
@@ -1094,19 +1173,19 @@ model AIEvaluation {
 }
 
 model AgentFeedback {
-  id          String   @id @default(uuid()) @db.Uuid
-  siswaId     String?  @db.Uuid
-  agentLogId  String?  @db.Uuid
-  messageId   String?  @db.Uuid
-  rating      Int
-  category    String?
-  comment     String?  @db.Text
-  helpful     Boolean?
-  accurate     Boolean?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid()) @db.Uuid
+  siswaId    String?  @db.Uuid
+  agentLogId String?  @db.Uuid
+  messageId  String?  @db.Uuid
+  rating     Int
+  category   String?
+  comment    String?  @db.Text
+  helpful    Boolean?
+  accurate   Boolean?
+  createdAt  DateTime @default(now())
 
-  siswa     Siswa?      @relation(fields: [siswaId], references: [id], onDelete: SetNull)
-  agentLog  AgentLog?   @relation(fields: [agentLogId], references: [id], onDelete: SetNull)
+  siswa    Siswa?    @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  agentLog AgentLog? @relation(fields: [agentLogId], references: [id], onDelete: SetNull)
 
   @@index([siswaId])
   @@index([agentLogId])
@@ -1114,17 +1193,17 @@ model AgentFeedback {
 }
 
 model AgentQualityMetrics {
-  id          String   @id @default(uuid()) @db.Uuid
-  agent       String
-  period      String
-  avgRating   Float
+  id            String   @id @default(uuid()) @db.Uuid
+  agent         String
+  period        String
+  avgRating     Float
   totalFeedback Int
-  helpfulPct  Float
-  accuratePct Float
+  helpfulPct    Float
+  accuratePct   Float
   avgResponseMs Int
-  successRate Float
-  detail      Json?
-  createdAt   DateTime @default(now())
+  successRate   Float
+  detail        Json?
+  createdAt     DateTime @default(now())
 
   @@unique([agent, period])
   @@map("agent_quality_metrics")
@@ -1147,17 +1226,17 @@ enum InterventionTipe {
 }
 
 model Intervention {
-  id          String             @id @default(uuid()) @db.Uuid
-  siswaId     String             @db.Uuid
-  guruId      String             @db.Uuid
-  tipe        InterventionTipe
-  reason      String             @db.Text
-  action      String             @db.Text
-  deadline    DateTime?
-  status      InterventionStatus @default(OPEN)
-  notes       String?            @db.Text
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id        String             @id @default(uuid()) @db.Uuid
+  siswaId   String             @db.Uuid
+  guruId    String             @db.Uuid
+  tipe      InterventionTipe
+  reason    String             @db.Text
+  action    String             @db.Text
+  deadline  DateTime?
+  status    InterventionStatus @default(OPEN)
+  notes     String?            @db.Text
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
   siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
   guru  Guru  @relation(fields: [guruId], references: [id], onDelete: Cascade)

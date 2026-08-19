@@ -39,6 +39,9 @@ export const NAV_ITEMS = {
     { label: "Guru", href: "/admin/guru", icon: "UserCheck" },
     { label: "Murid", href: "/admin/murid", icon: "Users" },
     { label: "Kelas", href: "/admin/kelas", icon: "DoorOpen" },
+    { label: "Jurusan", href: "/admin/jurusan", icon: "GraduationCap" },
+    { label: "Kompetensi", href: "/admin/kompetensi", icon: "Target" },
+    { label: "Courses", href: "/admin/courses", icon: "BookOpen" },
     { label: "Mata Pelajaran", href: "/admin/mapel", icon: "BookOpen" },
     { label: "Tahun Ajaran", href: "/admin/tahun-ajaran", icon: "Calendar" },
     { label: "Semester", href: "/admin/semester", icon: "CalendarRange" },
@@ -46,6 +49,7 @@ export const NAV_ITEMS = {
     { label: "Pengumuman", href: "/admin/pengumuman", icon: "Megaphone" },
     { label: "Nilai", href: "/admin/nilai", icon: "Award" },
     { label: "Pengaturan", href: "/admin/pengaturan", icon: "Settings" },
+    { label: "Researcher", href: "/admin/researcher", icon: "BarChart3" },
     { label: "Statistik", href: "/admin/statistik", icon: "BarChart3" },
   ],
   GURU: [

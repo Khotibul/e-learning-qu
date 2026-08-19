@@ -643,3 +643,167 @@ export async function getMapelRefs() {
     orderBy: { nama: "asc" },
   })
 }
+
+// ─── JURUSAN ──────────────────────────────────────────────
+
+export async function getJurussans(params: { search?: string; page?: number; limit?: number }) {
+  const { search, page = 1, limit = 10 } = params
+  const where: Record<string, unknown> = { deletedAt: null }
+  if (search) {
+    where.OR = [
+      { nama: { contains: search, mode: "insensitive" } },
+      { kode: { contains: search, mode: "insensitive" } },
+    ]
+  }
+  const [data, total] = await Promise.all([
+    prisma.jurusan.findMany({
+      where: where as any,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: { _count: { select: { siswas: true } } },
+    }),
+    prisma.jurusan.count({ where: where as any }),
+  ])
+  return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
+}
+
+export async function getJurusanRefs() {
+  return prisma.jurusan.findMany({
+    where: { deletedAt: null },
+    select: { id: true, nama: true, kode: true },
+    orderBy: { nama: "asc" },
+  })
+}
+
+export async function createJurusan(data: { kode: string; nama: string; deskripsi?: string }) {
+  const jurusan = await prisma.jurusan.create({
+    data: {
+      kode: data.kode,
+      nama: data.nama,
+      deskripsi: data.deskripsi || null,
+    },
+  })
+  revalidatePath("/(dashboard)/admin/jurusan")
+  return jurusan
+}
+
+export async function updateJurusan(
+  id: string,
+  data: { kode?: string; nama?: string; deskripsi?: string }
+) {
+  const jurusan = await prisma.jurusan.update({ where: { id }, data })
+  revalidatePath("/(dashboard)/admin/jurusan")
+  return jurusan
+}
+
+export async function deleteJurusan(id: string) {
+  await prisma.jurusan.update({ where: { id }, data: { deletedAt: new Date() } })
+  revalidatePath("/(dashboard)/admin/jurusan")
+}
+
+export async function assignSiswaToJurusan(jurusanId: string, siswaIds: string[]) {
+  await prisma.$transaction(async (tx) => {
+    await tx.siswa.updateMany({
+      where: { jurusanId },
+      data: { jurusanId: null },
+    })
+    if (siswaIds.length > 0) {
+      await tx.siswa.updateMany({
+        where: { id: { in: siswaIds } },
+        data: { jurusanId },
+      })
+    }
+  })
+  revalidatePath("/(dashboard)/admin/jurusan")
+}
+
+export async function getJurusanSiswa(jurusanId: string) {
+  return prisma.siswa.findMany({
+    where: { jurusanId, deletedAt: null },
+    select: { id: true, nama: true, nis: true },
+    orderBy: { nama: "asc" },
+  })
+}
+
+// ─── KOMPETENSI ──────────────────────────────────────────
+
+export async function getKompetensis(params: {
+  search?: string
+  page?: number
+  limit?: number
+  jurusanId?: string
+  mapelId?: string
+}) {
+  const { search, page = 1, limit = 10, jurusanId, mapelId } = params
+  const where: Record<string, unknown> = { deletedAt: null }
+  if (jurusanId) where.jurusanId = jurusanId
+  if (mapelId) where.mataPelajaranId = mapelId
+  if (search) {
+    where.OR = [
+      { nama: { contains: search, mode: "insensitive" } },
+      { kode: { contains: search, mode: "insensitive" } },
+    ]
+  }
+  const [data, total] = await Promise.all([
+    prisma.kompetensi.findMany({
+      where: where as any,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: [{ urutan: "asc" }, { createdAt: "desc" }],
+      include: {
+        jurusan: { select: { nama: true } },
+        mataPelajaran: { select: { nama: true } },
+        _count: { select: { soals: true } },
+      },
+    }),
+    prisma.kompetensi.count({ where: where as any }),
+  ])
+  return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
+}
+
+export async function createKompetensi(data: {
+  kode: string
+  nama: string
+  deskripsi?: string
+  jurusanId: string
+  mataPelajaranId?: string
+  tingkat?: number
+  urutan?: number
+}) {
+  const kompetensi = await prisma.kompetensi.create({
+    data: {
+      kode: data.kode,
+      nama: data.nama,
+      deskripsi: data.deskripsi || null,
+      jurusanId: data.jurusanId,
+      mataPelajaranId: data.mataPelajaranId || null,
+      tingkat: data.tingkat ?? 1,
+      urutan: data.urutan ?? 0,
+    },
+  })
+  revalidatePath("/(dashboard)/admin/kompetensi")
+  return kompetensi
+}
+
+export async function updateKompetensi(
+  id: string,
+  data: {
+    kode?: string
+    nama?: string
+    deskripsi?: string
+    jurusanId?: string
+    mataPelajaranId?: string
+    tingkat?: number
+    urutan?: number
+  }
+) {
+  const kompetensi = await prisma.kompetensi.update({ where: { id }, data })
+  revalidatePath("/(dashboard)/admin/kompetensi")
+  return kompetensi
+}
+
+export async function deleteKompetensi(id: string) {
+  await prisma.kompetensi.update({ where: { id }, data: { deletedAt: new Date() } })
+  revalidatePath("/(dashboard)/admin/kompetensi")
+}
