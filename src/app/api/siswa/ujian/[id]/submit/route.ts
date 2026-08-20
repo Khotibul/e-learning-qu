@@ -250,7 +250,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       isLatihan: ujian.isLatihan,
     }).catch(() => {})
 
-    lockAssessment(id, siswa.id).catch(() => {})
+    if (!ujian.bisaRetake) {
+      lockAssessment(id, siswa.id).catch(() => {})
+    }
 
     try {
       const activeSession = await getActiveSession(id, siswa.id)

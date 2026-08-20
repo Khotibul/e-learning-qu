@@ -64,7 +64,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     }
 
-    if (ujian.status !== "AKTIF" && !(ujian.status === "SELESAI" && ujian.bisaRetake)) {
+    if (ujian.status !== "AKTIF" && !(ujian.status === "SELESAI" && ujian.bisaRetake) && !(ujian.status === "DITUTUP" && ujian.bisaRetake)) {
       return NextResponse.json({ error: "Ujian tidak aktif" }, { status: 400 })
     }
 
@@ -75,6 +75,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       if (!existingNilai) {
         return NextResponse.json({ error: "Belum ada nilai untuk diretake" }, { status: 400 })
       }
+    }
+
+    // ── Retake: clear old data BEFORE locked/graded checks ──
+    if (ujian.bisaRetake) {
+      await prisma.jawabanUjian.deleteMany({
+        where: { ujianId: id, siswaId: siswa.id },
+      })
+      await prisma.nilai.deleteMany({
+        where: { ujianId: id, siswaId: siswa.id },
+      })
     }
 
     if (await isAssessmentLocked(id, siswa.id)) {
@@ -90,16 +100,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     })
     if (alreadyGraded) {
       return NextResponse.json({ error: "Ujian ini sudah dinilai dan tidak dapat dikerjakan ulang" }, { status: 403 })
-    }
-
-    // ── Retake: clear old answers if bisaRetake is enabled ──
-    if (ujian.bisaRetake) {
-      await prisma.jawabanUjian.deleteMany({
-        where: { ujianId: id, siswaId: siswa.id },
-      })
-      await prisma.nilai.deleteMany({
-        where: { ujianId: id, siswaId: siswa.id },
-      })
     }
 
     const existing = await prisma.jawabanUjian.findMany({
