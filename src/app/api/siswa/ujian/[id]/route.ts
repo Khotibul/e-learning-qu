@@ -105,6 +105,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       nilaiMinimum: ujian.nilaiMinimum,
       status: ujian.status,
       bisaRetake: ujian.bisaRetake,
+      maxTabSwitch: ujian.maxTabSwitch,
+      maxCheatingScore: ujian.maxCheatingScore,
       soal,
       parentMap,
     }

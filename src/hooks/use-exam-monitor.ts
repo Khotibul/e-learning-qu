@@ -110,12 +110,14 @@ interface UseExamMonitorOptions {
   sessionId: string | null
   ujianId: string
   isActive: boolean
+  maxTabSwitch?: number
+  maxCheatingScore?: number
   onCheatingDetected: (event: MonitorEvent) => void
   onAutoSubmit: () => void
 }
 
 export function useExamMonitor(options: UseExamMonitorOptions) {
-  const { sessionId, ujianId, isActive, onCheatingDetected, onAutoSubmit } = options
+  const { sessionId, ujianId, isActive, maxTabSwitch = 3, maxCheatingScore = 75, onCheatingDetected, onAutoSubmit } = options
   const [state, dispatch] = useReducer(reducer, initialState)
   const stateRef = useRef(state)
   stateRef.current = state
@@ -141,12 +143,12 @@ export function useExamMonitor(options: UseExamMonitorOptions) {
   const checkAutoSubmit = useCallback(
     (score: number, tabCount: number) => {
       if (autoSubmitTriggeredRef.current) return
-      if (score >= 75 || tabCount >= 3) {
+      if (score >= maxCheatingScore || tabCount >= maxTabSwitch) {
         autoSubmitTriggeredRef.current = true
         onAutoSubmit()
       }
     },
-    [onAutoSubmit]
+    [onAutoSubmit, maxCheatingScore, maxTabSwitch]
   )
 
   useEffect(() => {
@@ -278,7 +280,7 @@ export function useExamMonitor(options: UseExamMonitorOptions) {
       document.removeEventListener("keydown", handleKeyDown)
       document.removeEventListener("fullscreenchange", handleFullscreenChange)
     }
-  }, [isActive, reportEvent, onCheatingDetected, checkAutoSubmit])
+  }, [isActive, reportEvent, onCheatingDetected, checkAutoSubmit, maxTabSwitch, maxCheatingScore])
 
   const reset = useCallback(() => {
     dispatch({ type: "RESET" })

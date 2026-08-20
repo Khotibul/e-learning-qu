@@ -345,6 +345,8 @@ export async function createUjian(data: {
   disableCopy: boolean
   disablePaste: boolean
   bisaRetake?: boolean
+  maxTabSwitch?: number
+  maxCheatingScore?: number
   status?: string
   soalIds?: string[]
 }) {
@@ -377,6 +379,8 @@ export async function createUjian(data: {
       disableCopy: data.disableCopy,
       disablePaste: data.disablePaste,
       bisaRetake: data.bisaRetake ?? false,
+      maxTabSwitch: data.maxTabSwitch ?? 3,
+      maxCheatingScore: data.maxCheatingScore ?? 75,
       status: (data.status as any) || "DRAFT",
     },
   })
@@ -418,6 +422,8 @@ export async function updateUjian(
     disableCopy?: boolean
     disablePaste?: boolean
     bisaRetake?: boolean
+    maxTabSwitch?: number
+    maxCheatingScore?: number
     status?: string
     soalIds?: string[]
   }
@@ -449,6 +455,8 @@ export async function updateUjian(
   if (data.disableCopy !== undefined) updateData.disableCopy = data.disableCopy
   if (data.disablePaste !== undefined) updateData.disablePaste = data.disablePaste
   if (data.bisaRetake !== undefined) updateData.bisaRetake = data.bisaRetake
+  if (data.maxTabSwitch !== undefined) updateData.maxTabSwitch = data.maxTabSwitch
+  if (data.maxCheatingScore !== undefined) updateData.maxCheatingScore = data.maxCheatingScore
   if (data.status !== undefined) updateData.status = data.status as any
 
   await prisma.ujian.updateMany({
@@ -498,6 +506,9 @@ export async function duplicateUjian(id: string) {
       fullscreen: original.fullscreen,
       disableCopy: original.disableCopy,
       disablePaste: original.disablePaste,
+      bisaRetake: original.bisaRetake,
+      maxTabSwitch: original.maxTabSwitch,
+      maxCheatingScore: original.maxCheatingScore,
       status: "DRAFT",
     },
   })

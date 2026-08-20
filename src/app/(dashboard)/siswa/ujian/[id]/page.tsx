@@ -90,6 +90,8 @@ export default function UjianPengerjaanPage() {
     nilaiMinimum: number
     status: string
     bisaRetake: boolean
+    maxTabSwitch: number
+    maxCheatingScore: number
     soal: SoalData[]
   } | null>(null)
 
@@ -102,11 +104,9 @@ export default function UjianPengerjaanPage() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [tabSwitchCount, setTabSwitchCount] = useState(0)
   const [showAntiCheatWarning, setShowAntiCheatWarning] = useState(false)
-  const [showFullscreenExitWarning, setShowFullscreenExitWarning] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null)
-  const fullscreenCheckRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     async function fetchData() {
@@ -134,7 +134,6 @@ export default function UjianPengerjaanPage() {
     return () => {
       reset()
       if (autoSaveRef.current) clearInterval(autoSaveRef.current)
-      if (fullscreenCheckRef.current) clearInterval(fullscreenCheckRef.current)
     }
   }, [ujianId, router, reset])
 
@@ -158,15 +157,6 @@ export default function UjianPengerjaanPage() {
 
       setShowKonfirmasi(false)
       setHasStarted(true)
-
-      if (ujianData?.fullscreen && typeof document !== "undefined") {
-        try {
-          await document.documentElement.requestFullscreen()
-          setIsFullscreen(true)
-        } catch {
-          toast.error("Gagal masuk mode layar penuh. Silakan aktifkan manual.")
-        }
-      }
 
       setWaktuTersisa((ujianData?.durasi ?? 0) * 60)
       toast.success("Ujian dimulai! Selamat mengerjakan.")
@@ -235,31 +225,19 @@ export default function UjianPengerjaanPage() {
     handleSubmit()
   }, [handleSubmit])
 
-  const toggleFullscreen = useCallback(async () => {
+  const handleToggleFullscreen = useCallback(async () => {
     if (typeof document === "undefined") return
     if (document.fullscreenElement) {
       await document.exitFullscreen()
       setIsFullscreen(false)
     } else {
-      await document.documentElement.requestFullscreen()
-      setIsFullscreen(true)
+      try {
+        await document.documentElement.requestFullscreen()
+        setIsFullscreen(true)
+      } catch {
+        toast.error("Gagal masuk mode layar penuh.")
+      }
     }
-  }, [])
-
-  const handleRetryFullscreen = useCallback(async () => {
-    try {
-      await document.documentElement.requestFullscreen()
-      setIsFullscreen(true)
-      setShowFullscreenExitWarning(false)
-      toast.success("Kembali ke mode layar penuh")
-    } catch {
-      toast.error("Gagal masuk layar penuh. Periksa izin browser Anda.")
-    }
-  }, [])
-
-  const handleDismissFullscreenWarning = useCallback(() => {
-    setShowFullscreenExitWarning(false)
-    toast.error("Mode layar penuh dinonaktifkan. Ujian tetap berjalan tanpa layar penuh.")
   }, [])
 
   useEffect(() => {
@@ -269,8 +247,9 @@ export default function UjianPengerjaanPage() {
       if (document.hidden) {
         setTabSwitchCount((prev) => {
           const newCount = prev + 1
-          if (newCount >= 3) {
-            toast.error("Anda telah berpindah tab sebanyak 3 kali. Ujian akan dikumpulkan.")
+          const limit = ujianData?.maxTabSwitch ?? 3
+          if (newCount >= limit) {
+            toast.error(`Anda telah berpindah tab sebanyak ${newCount} kali. Ujian akan dikumpulkan.`)
             handleSubmit()
           } else {
             setShowAntiCheatWarning(true)
@@ -284,7 +263,7 @@ export default function UjianPengerjaanPage() {
 
     document.addEventListener("visibilitychange", handleVisibility)
     return () => document.removeEventListener("visibilitychange", handleVisibility)
-  }, [hasStarted, submitted, handleSubmit])
+  }, [hasStarted, submitted, handleSubmit, ujianData?.maxTabSwitch])
 
   useEffect(() => {
     if (!hasStarted || submitted) return
@@ -319,21 +298,10 @@ export default function UjianPengerjaanPage() {
       if (e.key === "F12" || (e.ctrlKey && e.shiftKey && e.key === "I")) {
         e.preventDefault()
       }
-      if (e.key === "Escape" && ujianData?.fullscreen && isFullscreen) {
-        e.preventDefault()
-        toast.error("Anda tidak bisa keluar dari mode layar penuh selama ujian")
-      }
     }
 
     const handleFullscreenChange = () => {
-      if (ujianData?.fullscreen && hasStarted && !submitted) {
-        if (!document.fullscreenElement) {
-          setShowFullscreenExitWarning(true)
-          setIsFullscreen(false)
-        } else {
-          setIsFullscreen(true)
-        }
-      }
+      setIsFullscreen(!!document.fullscreenElement)
     }
 
     document.addEventListener("copy", handleCopy)
@@ -360,21 +328,12 @@ export default function UjianPengerjaanPage() {
       return e.returnValue
     }
 
-    const handlePopState = () => {
-      if (!submitted) {
-        router.push(`/siswa/ujian/${ujianId}`)
-        toast.error("Dilarang kembali selama ujian berlangsung!")
-      }
-    }
-
     window.addEventListener("beforeunload", handleBeforeUnload)
-    window.addEventListener("popstate", handlePopState)
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload)
-      window.removeEventListener("popstate", handlePopState)
     }
-  }, [hasStarted, submitted, ujianId, router])
+  }, [hasStarted, submitted])
 
   if (loading) {
     return (
@@ -503,54 +462,6 @@ export default function UjianPengerjaanPage() {
         </div>
       )}
 
-      {showFullscreenExitWarning && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-md p-6 space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="rounded-full bg-destructive/10 p-3 shrink-0">
-                <AlertTriangle className="h-6 w-6 text-destructive" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-semibold text-lg">Mode Layar Penuh Diaktifkan</h3>
-                <p className="text-sm text-muted-foreground">
-                  Anda telah keluar dari mode layar penuh. Ujian ini mewajibkan mode layar penuh.
-                  Kembali ke layar penuh untuk melanjutkan, atau kumpulkan ujian sekarang.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                variant="default"
-                className="flex-1"
-                onClick={handleRetryFullscreen}
-              >
-                <Monitor className="h-4 w-4 mr-2" />
-                Kembali ke Fullscreen
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={handleDismissFullscreenWarning}
-              >
-                Lanjutkan Tanpa Fullscreen
-              </Button>
-              <Button
-                variant="destructive"
-                className="flex-1"
-                onClick={() => {
-                  setShowFullscreenExitWarning(false)
-                  setShowConfirmSubmit(true)
-                }}
-                disabled={isSubmitting}
-              >
-                <Send className="h-4 w-4 mr-2" />
-                Kumpulkan Ujian
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
-
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center justify-between px-4 md:px-6 h-14">
           <div className="flex items-center gap-3 min-w-0">
@@ -566,7 +477,7 @@ export default function UjianPengerjaanPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={toggleFullscreen}
+                onClick={handleToggleFullscreen}
                 className="hidden md:flex gap-1.5"
               >
                 <Monitor className="h-4 w-4" />

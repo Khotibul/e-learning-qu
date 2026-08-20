@@ -534,6 +534,8 @@ model Ujian {
   disableCopy     Boolean     @default(true)
   disablePaste    Boolean     @default(true)
   bisaRetake      Boolean     @default(false)
+  maxTabSwitch    Int         @default(3)
+  maxCheatingScore Int        @default(75)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   deletedAt       DateTime?

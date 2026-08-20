@@ -80,6 +80,8 @@ interface UjianData {
   disableCopy: boolean
   disablePaste: boolean
   bisaRetake: boolean
+  maxTabSwitch: number
+  maxCheatingScore: number
   ujianSoal: { soal: BankSoalRef & { mataPelajaran: { nama: string } }; nomor: number }[]
 }
 
@@ -130,6 +132,8 @@ export function UjianFormClient({
   const [disableCopy, setDisableCopy] = useState(ujian?.disableCopy ?? true)
   const [disablePaste, setDisablePaste] = useState(ujian?.disablePaste ?? true)
   const [bisaRetake, setBisaRetake] = useState(ujian?.bisaRetake ?? false)
+  const [maxTabSwitch, setMaxTabSwitch] = useState(ujian?.maxTabSwitch ?? 3)
+  const [maxCheatingScore, setMaxCheatingScore] = useState(ujian?.maxCheatingScore ?? 75)
   const [selectedSoalIds, setSelectedSoalIds] = useState<string[]>(
     ujian?.ujianSoal.map((us) => us.soal.id) ?? []
   )
@@ -209,6 +213,8 @@ export function UjianFormClient({
         disableCopy,
         disablePaste,
         bisaRetake,
+        maxTabSwitch,
+        maxCheatingScore,
         soalIds: selectedSoalIds,
         status: isNew ? "DRAFT" : undefined,
       }
@@ -404,6 +410,44 @@ export function UjianFormClient({
                   <Switch checked={item.value} onCheckedChange={item.set} />
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Pengaturan Anti-Cheat</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="maxTabSwitch">Batas Pindah Tab</Label>
+                <p className="text-xs text-muted-foreground">Siswa akan otomatis mengumpulkan ujian setelah melebihi batas ini</p>
+                <Input
+                  id="maxTabSwitch"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={maxTabSwitch}
+                  onChange={(e) => setMaxTabSwitch(Number(e.target.value))}
+                />
+                <Badge variant={maxTabSwitch <= 2 ? "destructive" : maxTabSwitch <= 5 ? "warning" : "secondary"} className="text-[10px]">
+                  {maxTabSwitch <= 2 ? "Ketat" : maxTabSwitch <= 5 ? "Sedang" : "Longgar"}
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maxCheatingScore">Batas Skor Kecurangan</Label>
+                <p className="text-xs text-muted-foreground">Skor 0-100, otomatis mengumpulkan jika melebihi batas ini</p>
+                <Input
+                  id="maxCheatingScore"
+                  type="number"
+                  min={10}
+                  max={100}
+                  value={maxCheatingScore}
+                  onChange={(e) => setMaxCheatingScore(Number(e.target.value))}
+                />
+                <Badge variant={maxCheatingScore <= 50 ? "destructive" : maxCheatingScore <= 75 ? "warning" : "secondary"} className="text-[10px]">
+                  {maxCheatingScore <= 50 ? "Sangat Ketat" : maxCheatingScore <= 75 ? "Sedang" : "Longgar"}
+                </Badge>
+              </div>
             </div>
           </CardContent>
         </Card>
