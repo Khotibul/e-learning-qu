@@ -66,6 +66,7 @@ export const NAV_ITEMS = {
     { label: "Nilai", href: "/guru/nilai", icon: "Award" },
     { label: "Analitik", href: "/guru/analitik", icon: "BarChart3" },
     { label: "Intervensi", href: "/guru/intervensi", icon: "ShieldCheck" },
+    { label: "Anti-Cheat", href: "/guru/anti-cheat", icon: "Shield" },
     { label: "Pengaturan", href: "/guru/pengaturan", icon: "Settings" },
   ],
   SISWA: [

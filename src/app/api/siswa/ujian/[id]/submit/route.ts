@@ -4,6 +4,8 @@ import { NextResponse } from "next/server"
 import { trackAssessmentSelesai } from "@/lib/agents/learning-analytics"
 import { updatePenguasaanAfterUjian } from "@/lib/agents/knowledge-tracing"
 import { isAssessmentLocked, lockAssessment } from "@/lib/assessment-guard"
+import { submitExamSession, getActiveSession } from "@/lib/exam/session"
+import { logExamAudit } from "@/lib/exam/audit"
 
 const SUB_RE = /^(.+)::sub::(\d+)$/
 
@@ -249,6 +251,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }).catch(() => {})
 
     lockAssessment(id, siswa.id).catch(() => {})
+
+    try {
+      const activeSession = await getActiveSession(id, siswa.id)
+      if (activeSession) {
+        const submitResult = await submitExamSession(activeSession.id)
+        await logExamAudit({
+          ujianId: id,
+          siswaId: siswa.id,
+          sessionId: activeSession.id,
+          action: "SESSION_SUBMITTED",
+          actorId: siswa.userId,
+          actorRole: "SISWA",
+          detail: { nilai: nilaiAkhir, durationMs: submitResult.durationMs },
+        })
+      }
+    } catch {}
 
     return NextResponse.json({
       nilai: nilaiAkhir,

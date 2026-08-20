@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import { trackAssessmentDimulai } from "@/lib/agents/learning-analytics"
 import { isAssessmentLocked } from "@/lib/assessment-guard"
+import { createExamSession } from "@/lib/exam/session"
+import { logExamAudit } from "@/lib/exam/audit"
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -119,7 +121,32 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     trackAssessmentDimulai(siswa.id, id, ujian.mataPelajaranId ?? undefined).catch(() => {})
 
-    return NextResponse.json({ success: true, savedAnswers, savedRagu })
+    let sessionId: string | null = null
+    let serverTime = Date.now()
+    try {
+      const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || undefined
+      const ua = req.headers.get("user-agent") || undefined
+      const result = await createExamSession({
+        ujianId: id,
+        siswaId: siswa.id,
+        ipAddress: ip ?? undefined,
+        userAgent: ua ?? undefined,
+      })
+      sessionId = result.sessionId
+      serverTime = result.serverTime
+      await logExamAudit({
+        ujianId: id,
+        siswaId: siswa.id,
+        sessionId,
+        action: "SESSION_STARTED",
+        actorId: siswa.userId,
+        actorRole: "SISWA",
+        detail: { ipAddress: ip, userAgent: ua },
+        ipAddress: ip ?? undefined,
+      })
+    } catch {}
+
+    return NextResponse.json({ success: true, savedAnswers, savedRagu, sessionId, serverTime })
   } catch (error) {
     console.error("Error starting ujian:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

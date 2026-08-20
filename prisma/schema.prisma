@@ -206,7 +206,9 @@ model Siswa {
   susResponses    SUSResponse[]
   aiEvaluations   AIEvaluation[]
   agentFeedbacks  AgentFeedback[]
-  interventions   Intervention[]
+  interventions    Intervention[]
+  examSessions     ExamSession[]
+  examAuditLogs    ExamAuditLog[]
 
   @@map("siswa")
 }
@@ -545,6 +547,8 @@ model Ujian {
   jawabanUjian    JawabanUjian[]
   nilai           Nilai[]
   pretestPosttest PretestPosttest[]
+  examSessions    ExamSession[]
+  examAuditLogs   ExamAuditLog[]
 
   @@map("ujian")
 }
@@ -1245,4 +1249,125 @@ model Intervention {
   @@index([guruId])
   @@index([status])
   @@map("intervention")
+}
+
+enum CheatingType {
+  TAB_SWITCH
+  WINDOW_BLUR
+  COPY_ATTEMPT
+  PASTE_ATTEMPT
+  RIGHT_CLICK
+  DEVTOOLS
+  FULLSCREEN_EXIT
+  KEYBOARD_SHORTCUT
+  SCREENSHOT
+  MULTI_DEVICE
+  TIME_ANOMALY
+  PASTE_DETECTED
+}
+
+enum CheatingSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model ExamSession {
+  id              String    @id @default(uuid()) @db.Uuid
+  ujianId         String    @db.Uuid
+  siswaId         String    @db.Uuid
+  startedAt       DateTime  @default(now())
+  submittedAt     DateTime?
+  serverStartedAt DateTime  @default(now())
+  serverSubmitAt  DateTime?
+  totalDurationMs Int?
+  ipAddress       String?
+  userAgent       String?
+  browserInfo     Json?
+  tabSwitchCount  Int       @default(0)
+  totalBlurMs     Int       @default(0)
+  cheatingScore   Int       @default(0)
+  isFlagged       Boolean   @default(false)
+  flagReason      String?
+  status          String    @default("IN_PROGRESS") // IN_PROGRESS, SUBMITTED, TIMED_OUT, FLAGGED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  ujian           Ujian           @relation(fields: [ujianId], references: [id], onDelete: Cascade)
+  siswa           Siswa           @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  cheatingEvents  CheatingEvent[]
+  auditLogs       ExamAuditLog[]
+
+  @@unique([ujianId, siswaId])
+  @@index([ujianId])
+  @@index([siswaId])
+  @@index([status])
+  @@map("exam_session")
+}
+
+model CheatingEvent {
+  id              String          @id @default(uuid()) @db.Uuid
+  sessionId       String          @db.Uuid
+  type            CheatingType
+  severity        CheatingSeverity @default(MEDIUM)
+  message         String          @db.Text
+  detail          Json?
+  timestamp       DateTime        @default(now())
+  clientTimestamp DateTime?
+  createdAt       DateTime        @default(now())
+
+  session ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([type])
+  @@index([severity])
+  @@map("cheating_event")
+}
+
+enum ExamAuditAction {
+  EXAM_CREATED
+  EXAM_UPDATED
+  EXAM_DELETED
+  EXAM_STARTED
+  EXAM_PAUSED
+  EXAM_RESUMED
+  EXAM_SUBMITTED
+  EXAM_TIMED_OUT
+  EXAM_ACTIVATED
+  EXAM_DEACTIVATED
+  EXAM_RESET
+  SESSION_STARTED
+  SESSION_SUBMITTED
+  SESSION_TIMED_OUT
+  ANSWER_SAVED
+  ANSWER_AUTOSAVED
+  CHEATING_DETECTED
+  CHEATING_CLEARED
+  CHEATING_ESCALATED
+  GRADE_ASSIGNED
+  GRADE_UPDATED
+}
+
+model ExamAuditLog {
+  id          String          @id @default(uuid()) @db.Uuid
+  ujianId     String          @db.Uuid
+  siswaId     String?         @db.Uuid
+  sessionId   String?         @db.Uuid
+  action      ExamAuditAction
+  actorId     String          @db.Uuid
+  actorRole   String          @db.VarChar(20)
+  detail      Json?
+  ipAddress   String?
+  createdAt   DateTime        @default(now())
+
+  ujian   Ujian         @relation(fields: [ujianId], references: [id], onDelete: Cascade)
+  siswa   Siswa?        @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  session ExamSession?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([ujianId])
+  @@index([siswaId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("exam_audit_log")
 }

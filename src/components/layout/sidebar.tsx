@@ -9,7 +9,7 @@ import {
   LayoutDashboard, UserCheck, Users, DoorOpen, BookOpen,
   Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3, Settings,
   Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy,
-  GraduationCap, ShieldCheck, Wallet, Gavel, Bot, X, Target
+  GraduationCap, ShieldCheck, Wallet, Gavel, Bot, X, Target, Shield
 } from "lucide-react"
 import type { Role } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button"
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, UserCheck, Users, DoorOpen, BookOpen,
   Calendar, CalendarRange, CalendarClock, Megaphone, Award, BarChart3, Settings,
-  Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy, GraduationCap, ShieldCheck, Wallet, Gavel, Bot, Target,
+  Database, FileQuestion, ClipboardList, ClipboardCheck, FileText, Trophy, GraduationCap, ShieldCheck, Wallet, Gavel, Bot, Target, Shield,
 }
 
 interface SidebarProps {
