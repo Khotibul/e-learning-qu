@@ -23,12 +23,14 @@ const statusLabels: Record<string, string> = {
   DRAFT: "Draft",
   AKTIF: "Aktif",
   SELESAI: "Selesai",
+  DITUTUP: "Ditutup",
 }
 
 const statusColors: Record<string, string> = {
   DRAFT: "secondary",
   AKTIF: "success",
-  SELESAI: "info",
+  SELESAI: "warning",
+  DITUTUP: "destructive",
 }
 
 interface UjianItem {
@@ -173,10 +175,10 @@ export function UjianManagementClient() {
                 className="pl-9"
               />
             </div>
-            <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1) }}>
+            <Select value={status || "ALL"} onValueChange={(v) => { setStatus(v === "ALL" ? "" : v); setPage(1) }}>
               <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Semua Status</SelectItem>
+                <SelectItem value="ALL">Semua Status</SelectItem>
                 {Object.entries(statusLabels).map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v}</SelectItem>
                 ))}

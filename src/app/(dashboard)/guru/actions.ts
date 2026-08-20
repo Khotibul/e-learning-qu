@@ -120,7 +120,7 @@ export async function createSoal(data: {
       kategoriId: undefined,
     },
   })
-  revalidatePath("/(dashboard)/guru/soal")
+  revalidatePath("/guru/soal")
   return soal
 }
 
@@ -154,7 +154,9 @@ export async function updateSoal(
   if (data.mataPelajaranId !== undefined) updateData.mataPelajaranId = data.mataPelajaranId
 
   if (data.subSoal !== undefined) {
-    const subSoal = data.subSoal.filter((s) => s.pertanyaan.trim())
+    const subSoal = Array.isArray(data.subSoal)
+      ? data.subSoal.filter((s) => s.pertanyaan?.trim())
+      : []
     updateData.subSoal = subSoal.length > 0 ? subSoal : null
     updateData.jawaban = subSoal.length > 0
       ? JSON.stringify(subSoal.map((s) => s.jawaban))
@@ -168,7 +170,7 @@ export async function updateSoal(
     where: { id, guruId: guru.id, deletedAt: null },
     data: updateData,
   })
-  revalidatePath("/(dashboard)/guru/soal")
+  revalidatePath("/guru/soal")
   return { success: true }
 }
 
@@ -178,7 +180,7 @@ export async function deleteSoal(id: string) {
     where: { id, guruId: guru.id, deletedAt: null },
     data: { deletedAt: new Date() },
   })
-  revalidatePath("/(dashboard)/guru/soal")
+  revalidatePath("/guru/soal")
 }
 
 export async function duplicateSoal(id: string) {
@@ -205,7 +207,7 @@ export async function duplicateSoal(id: string) {
     guruId: guru.id,
   }
   const soal = await prisma.soal.create({ data })
-  revalidatePath("/(dashboard)/guru/soal")
+  revalidatePath("/guru/soal")
   return soal
 }
 
@@ -407,7 +409,7 @@ export async function createUjian(data: {
     })
   }
 
-  revalidatePath("/(dashboard)/guru/ujian")
+  revalidatePath("/guru/ujian")
   return ujian
 }
 
@@ -503,7 +505,7 @@ export async function updateUjian(
     }
   }
 
-  revalidatePath("/(dashboard)/guru/ujian")
+  revalidatePath("/guru/ujian")
 }
 
 export async function duplicateUjian(id: string) {
@@ -539,6 +541,7 @@ export async function duplicateUjian(id: string) {
       bisaRetake: original.bisaRetake,
       maxTabSwitch: original.maxTabSwitch,
       maxCheatingScore: original.maxCheatingScore,
+      tipe: original.tipe,
       status: "DRAFT",
     },
   })
@@ -553,7 +556,7 @@ export async function duplicateUjian(id: string) {
     })
   }
 
-  revalidatePath("/(dashboard)/guru/ujian")
+  revalidatePath("/guru/ujian")
   return ujian
 }
 
@@ -563,7 +566,7 @@ export async function deleteUjian(id: string) {
     where: { id, guruId: guru.id, deletedAt: null },
     data: { deletedAt: new Date() },
   })
-  revalidatePath("/(dashboard)/guru/ujian")
+  revalidatePath("/guru/ujian")
 }
 
 export async function startUjian(id: string) {
@@ -580,7 +583,7 @@ export async function startUjian(id: string) {
     where: { id, guruId: guru.id, deletedAt: null },
     data: { status: "AKTIF" },
   })
-  revalidatePath("/(dashboard)/guru/ujian")
+  revalidatePath("/guru/ujian")
 }
 
 export async function stopUjian(id: string) {
@@ -595,7 +598,7 @@ export async function stopUjian(id: string) {
     where: { id, guruId: guru.id, deletedAt: null },
     data: { status: "SELESAI" },
   })
-  revalidatePath("/(dashboard)/guru/ujian")
+  revalidatePath("/guru/ujian")
 }
 
 export async function resetUjian(id: string) {
@@ -610,7 +613,7 @@ export async function resetUjian(id: string) {
     where: { id, guruId: guru.id, deletedAt: null },
     data: { status: "DRAFT" },
   })
-  revalidatePath("/(dashboard)/guru/ujian")
+  revalidatePath("/guru/ujian")
 }
 
 export async function getUjianSubmissionCount(ujianId: string) {
@@ -691,7 +694,7 @@ export async function gradeEssay(
       },
     })
   }
-  revalidatePath("/(dashboard)/guru/nilai")
+  revalidatePath("/guru/nilai")
 }
 
 // ─── ANALITIK ────────────────────────────────────────────────
@@ -917,7 +920,7 @@ export async function createGuruMurid(data: {
       include: { user: true },
     })
   })
-  revalidatePath("/(dashboard)/guru/murid")
+  revalidatePath("/guru/murid")
   return siswa
 }
 
@@ -949,7 +952,7 @@ export async function updateGuruMurid(
     }
     return result
   })
-  revalidatePath("/(dashboard)/guru/murid")
+  revalidatePath("/guru/murid")
   return updated
 }
 
@@ -965,7 +968,7 @@ export async function deleteGuruMurid(id: string) {
     if (pengajarans.length === 0) throw new Error("Anda tidak memiliki akses ke murid ini")
   }
   await prisma.siswa.update({ where: { id }, data: { deletedAt: new Date() } })
-  revalidatePath("/(dashboard)/guru/murid")
+  revalidatePath("/guru/murid")
 }
 
 // ─── REFS ────────────────────────────────────────────────────
@@ -1049,7 +1052,7 @@ export async function updateGuruProfile(data: {
     }
     return guru
   })
-  revalidatePath("/(dashboard)/guru/pengaturan")
+  revalidatePath("/guru/pengaturan")
   return result
 }
 
@@ -1120,7 +1123,7 @@ export async function createMateri(data: {
       guruId: guru.id,
     },
   })
-  revalidatePath("/(dashboard)/guru/materi")
+  revalidatePath("/guru/materi")
   return materi
 }
 
@@ -1130,7 +1133,7 @@ export async function deleteMateri(id: string) {
     where: { id, guruId: guru.id, deletedAt: null },
     data: { deletedAt: new Date() },
   })
-  revalidatePath("/(dashboard)/guru/materi")
+  revalidatePath("/guru/materi")
 }
 
 // ─── WALI KELAS ──────────────────────────────────────────────
@@ -1163,7 +1166,7 @@ export async function updateSiswaJabatan(siswaId: string, jabatan: string | null
     where: { id: siswaId },
     data: { jabatan: jabatan || null },
   })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1193,7 +1196,7 @@ export async function createJadwalPiket(kelasId: string, siswaId: string, hari: 
   await prisma.jadwalPiket.create({
     data: { kelasId, siswaId, hari },
   })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1204,7 +1207,7 @@ export async function deleteJadwalPiket(id: string) {
   })
   if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
   await prisma.jadwalPiket.delete({ where: { id } })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1245,7 +1248,7 @@ export async function createIuran(data: { kelasId: string; nama: string; nominal
       deskripsi: data.deskripsi || null,
     },
   })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1256,7 +1259,7 @@ export async function deleteIuran(id: string) {
   })
   if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
   await prisma.iuran.update({ where: { id }, data: { deletedAt: new Date() } })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1279,7 +1282,7 @@ export async function recordPembayaranIuran(iuranId: string, siswaId: string) {
     update: { jumlah: iuran.nominal, status: "LUNAS", tanggalBayar: new Date() },
     create: { iuranId, siswaId, jumlah: iuran.nominal, status: "LUNAS" },
   })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1300,7 +1303,7 @@ export async function confirmPembayaranIuran(iuranId: string, siswaId: string) {
     where: { id: existing.id },
     data: { status: "LUNAS", jumlah: iuran.nominal, tanggalBayar: new Date() },
   })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1313,7 +1316,7 @@ export async function rejectPembayaranIuran(iuranId: string, siswaId: string) {
   if (!iuran || iuran.kelas.guruId !== guru.id) throw new Error("Akses ditolak")
 
   await prisma.pembayaranIuran.deleteMany({ where: { iuranId, siswaId } })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1355,7 +1358,7 @@ export async function createDenda(data: {
       deskripsi: data.deskripsi || null,
     },
   })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1366,7 +1369,7 @@ export async function deleteDenda(id: string) {
   })
   if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
   await prisma.denda.update({ where: { id }, data: { deletedAt: new Date() } })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1383,7 +1386,7 @@ export async function recordPembayaranDenda(dendaId: string, siswaId: string, ju
     update: { jumlah, status: "LUNAS", tanggalBayar: new Date() },
     create: { dendaId, siswaId, jumlah, status: "LUNAS" },
   })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1419,7 +1422,7 @@ export async function createPengeluaran(data: {
       tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
     },
   })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1430,7 +1433,7 @@ export async function deletePengeluaran(id: string) {
   })
   if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
   await prisma.pengeluaranKelas.update({ where: { id }, data: { deletedAt: new Date() } })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1514,7 +1517,7 @@ export async function createJadwalPelajaranGuru(data: {
   if (data.jamSelesai <= data.jamMulai) throw new Error("Jam selesai harus setelah jam mulai")
 
   await prisma.jadwalPelajaran.create({ data })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1542,7 +1545,7 @@ export async function updateJadwalPelajaranGuru(
       ...(data.jamSelesai !== undefined && { jamSelesai: data.jamSelesai }),
     },
   })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1553,7 +1556,7 @@ export async function deleteJadwalPelajaranGuru(id: string) {
   })
   if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
   await prisma.jadwalPelajaran.update({ where: { id }, data: { deletedAt: new Date() } })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1606,7 +1609,7 @@ export async function createPelanggaran(data: {
       tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
     },
   })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1638,7 +1641,7 @@ export async function updatePelanggaran(
       tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
     },
   })
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1650,7 +1653,7 @@ export async function deletePelanggaran(id: string) {
   if (!item || item.kelas.guruId !== (await getCurrentGuru()).id) throw new Error("Akses ditolak")
   await prisma.pelanggaran.update({ where: { id }, data: { deletedAt: new Date() } })
   await deleteUploadFile(item.fotoUrl)
-  revalidatePath("/(dashboard)/guru/wali-kelas")
+  revalidatePath("/guru/wali-kelas")
   return { success: true }
 }
 
@@ -1709,7 +1712,7 @@ export async function createPelanggaranBK(data: {
       tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
     },
   })
-  revalidatePath("/(dashboard)/guru/pelanggaran")
+  revalidatePath("/guru/pelanggaran")
   return { success: true }
 }
 
@@ -1744,7 +1747,7 @@ export async function updatePelanggaranBK(
       tanggal: data.tanggal ? new Date(data.tanggal) : new Date(),
     },
   })
-  revalidatePath("/(dashboard)/guru/pelanggaran")
+  revalidatePath("/guru/pelanggaran")
   return { success: true }
 }
 
@@ -1754,7 +1757,7 @@ export async function deletePelanggaranBK(id: string) {
   if (!item) throw new Error("Pelanggaran tidak ditemukan")
   await prisma.pelanggaran.update({ where: { id }, data: { deletedAt: new Date() } })
   await deleteUploadFile(item.fotoUrl)
-  revalidatePath("/(dashboard)/guru/pelanggaran")
+  revalidatePath("/guru/pelanggaran")
   return { success: true }
 }
 

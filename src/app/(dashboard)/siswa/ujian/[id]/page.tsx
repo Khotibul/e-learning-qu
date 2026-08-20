@@ -225,18 +225,14 @@ export default function UjianPengerjaanPage() {
     handleSubmit()
   }, [handleSubmit])
 
-  const handleToggleFullscreen = useCallback(async () => {
+  const handleToggleFullscreen = useCallback(() => {
     if (typeof document === "undefined") return
     if (document.fullscreenElement) {
-      await document.exitFullscreen()
-      setIsFullscreen(false)
+      document.exitFullscreen().catch(() => {})
     } else {
-      try {
-        await document.documentElement.requestFullscreen()
-        setIsFullscreen(true)
-      } catch {
-        toast.error("Gagal masuk mode layar penuh.")
-      }
+      document.documentElement.requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch(() => toast.error("Gagal masuk mode layar penuh."))
     }
   }, [])
 
@@ -320,7 +316,7 @@ export default function UjianPengerjaanPage() {
       document.removeEventListener("keydown", handleKeyDown)
       document.removeEventListener("fullscreenchange", handleFullscreenChange)
     }
-  }, [hasStarted, submitted, ujianData, isFullscreen])
+  }, [hasStarted, submitted, ujianData])
 
   useEffect(() => {
     if (!hasStarted || submitted) return

@@ -316,6 +316,7 @@ export function UjianFormClient({
                   <Label htmlFor="mapel">Mata Pelajaran</Label>
                   <Select value={mataPelajaranId} onValueChange={(val) => {
                     setMataPelajaranId(val)
+                    setSelectedSoalIds([])
                     const matchingKelas = mapels.find((m) => m.id === val)?.kelasId
                     if (matchingKelas && matchingKelas !== kelasId) {
                       setKelasId(matchingKelas)

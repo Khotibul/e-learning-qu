@@ -56,7 +56,8 @@ interface MapelRef {
   id: string
   nama: string
   kode: string
-  kelas: { id: string; nama: string }
+  kelasId: string
+  kelasNama: string
 }
 
 interface SoalData {
@@ -255,7 +256,7 @@ export function SoalFormClient({
         bab: bab || undefined,
         tags: tags || undefined,
         mataPelajaranId,
-        subSoal: undefined,
+        subSoal: [],
       }
 
       if (isNew) {
@@ -323,9 +324,9 @@ export function SoalFormClient({
               <Select value={mataPelajaranId} onValueChange={setMataPelajaranId}>
                 <SelectTrigger id="mapel"><SelectValue placeholder="Pilih Mapel" /></SelectTrigger>
                 <SelectContent>
-                  {mapels.map((m) => (
+                  {mapels.filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i).map((m) => (
                     <SelectItem key={m.id} value={m.id}>
-                      {m.nama} ({m.kelas.nama})
+                      {m.nama}
                     </SelectItem>
                   ))}
                 </SelectContent>

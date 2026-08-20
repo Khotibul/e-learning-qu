@@ -66,7 +66,8 @@ interface MapelRef {
   id: string
   nama: string
   kode: string
-  kelas: { id: string; nama: string }
+  kelasId: string
+  kelasNama: string
 }
 
 interface OcrSoal {
@@ -366,28 +367,28 @@ export function SoalManagementClient() {
                 className="pl-9"
               />
             </div>
-            <Select value={jenisSoal} onValueChange={(v) => { setJenisSoal(v); setPage(1) }}>
+            <Select value={jenisSoal || "ALL"} onValueChange={(v) => { setJenisSoal(v === "ALL" ? "" : v); setPage(1) }}>
               <SelectTrigger><SelectValue placeholder="Jenis Soal" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Semua Jenis</SelectItem>
+                <SelectItem value="ALL">Semua Jenis</SelectItem>
                 {Object.entries(jenisSoalLabels).map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={tingkatKesulitan} onValueChange={(v) => { setTingkatKesulitan(v); setPage(1) }}>
+            <Select value={tingkatKesulitan || "ALL"} onValueChange={(v) => { setTingkatKesulitan(v === "ALL" ? "" : v); setPage(1) }}>
               <SelectTrigger><SelectValue placeholder="Tingkat Kesulitan" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Semua Tingkat</SelectItem>
+                <SelectItem value="ALL">Semua Tingkat</SelectItem>
                 {Object.entries(tingkatLabels).map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={mataPelajaranId} onValueChange={(v) => { setMataPelajaranId(v); setPage(1) }}>
+            <Select value={mataPelajaranId || "ALL"} onValueChange={(v) => { setMataPelajaranId(v === "ALL" ? "" : v); setPage(1) }}>
               <SelectTrigger><SelectValue placeholder="Mata Pelajaran" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Semua Mapel</SelectItem>
+                <SelectItem value="ALL">Semua Mapel</SelectItem>
                 {mapels.map((m) => (
                   <SelectItem key={m.id} value={m.id}>{m.nama}</SelectItem>
                 ))}
