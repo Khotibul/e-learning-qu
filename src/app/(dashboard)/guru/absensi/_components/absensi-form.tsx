@@ -11,7 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import {
-  Save, Loader2, Calendar,
+  Save, Loader2, Calendar, Check,
 } from "lucide-react"
 import { getGuruJadwalByDate, getAbsensiByKelasAndDate, saveAbsensi } from "../actions"
 
@@ -41,6 +41,7 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
   const [absensiData, setAbsensiData] = useState<AbsensiRecord[]>([])
   const [absensiForm, setAbsensiForm] = useState<Record<string, Record<string, string>>>({})
   const [saving, setSaving] = useState<string | null>(null)
+  const [saved, setSaved] = useState<Set<string>>(new Set())
   const [loadingJadwal, setLoadingJadwal] = useState(false)
 
   const kelasMap = useMemo(() => {
@@ -64,6 +65,7 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
 
   const loadJadwal = async () => {
     setLoadingJadwal(true)
+    setSaved(new Set())
     try {
       const jadwal = await getGuruJadwalByDate(tanggal)
       setJadwalList(jadwal as any)
@@ -107,7 +109,12 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
     })
   }, [absensiData, jadwalList, kelasMap])
 
+  const clearSaved = (key: string) => {
+    setSaved((prev) => { const next = new Set(prev); next.delete(key); return next })
+  }
+
   const handleStatusChange = (jadwalKey: string, siswaId: string, status: string) => {
+    clearSaved(jadwalKey)
     setAbsensiForm((prev) => ({
       ...prev,
       [jadwalKey]: { ...(prev[jadwalKey] || {}), [siswaId]: status },
@@ -115,6 +122,7 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
   }
 
   const handleMarkAll = (jadwalKey: string, status: string, siswas: SiswaItem[]) => {
+    clearSaved(jadwalKey)
     const form: Record<string, string> = {}
     siswas.forEach((s) => { form[s.id] = status })
     setAbsensiForm((prev) => ({ ...prev, [jadwalKey]: form }))
@@ -126,7 +134,8 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
       const form = absensiForm[jd._key] || {}
       const siswaStatus = Object.entries(form).map(([siswaId, status]) => ({ siswaId, status }))
       await saveAbsensi(jd.kelas.id, jd.mataPelajaran.id, tanggal, siswaStatus)
-      toast.success(`Absensi ${jd.kelas.nama} - ${jd.mataPelajaran.nama} disimpan`)
+      setSaved((prev) => new Set(prev).add(jd._key))
+      toast.success(`Absensi ${jd.kelas.nama} - ${jd.mataPelajaran.nama} tersimpan`)
     } catch {
       toast.error("Gagal menyimpan")
     } finally {
@@ -197,9 +206,9 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
                           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleMarkAll(jd._key, "HADIR", activeSiswa)}>
                             Semua Hadir
                           </Button>
-                          <Button size="sm" className="h-8 text-xs sm:text-sm" onClick={() => handleSave(jd)} disabled={saving === jd._key}>
-                            {saving === jd._key && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                            Simpan
+                          <Button size="sm" className={`h-8 text-xs sm:text-sm ${saved.has(jd._key) ? "bg-green-600 hover:bg-green-700" : ""}`} onClick={() => handleSave(jd)} disabled={saving === jd._key}>
+                            {saving === jd._key ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : saved.has(jd._key) && <Check className="h-3 w-3 mr-1" />}
+                            {saved.has(jd._key) ? "Tersimpan" : "Simpan"}
                           </Button>
                         </div>
                       </div>
