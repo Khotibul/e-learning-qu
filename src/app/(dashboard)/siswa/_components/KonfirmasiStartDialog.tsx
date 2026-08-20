@@ -9,6 +9,8 @@ interface KonfirmasiStartDialogProps {
   mapel: string
   jumlahSoal: number
   durasi: number
+  fullscreen?: boolean
+  disableCopy?: boolean
   onStart: () => void
   onCancel: () => void
 }
@@ -18,6 +20,8 @@ export function KonfirmasiStartDialog({
   mapel,
   jumlahSoal,
   durasi,
+  fullscreen,
+  disableCopy,
   onStart,
   onCancel,
 }: KonfirmasiStartDialogProps) {
@@ -52,14 +56,18 @@ export function KonfirmasiStartDialog({
               Perhatian!
             </p>
             <ul className="space-y-1 text-xs text-amber-700 dark:text-amber-400">
-              <li className="flex items-center gap-1.5">
-                <Monitor className="h-3 w-3" />
-                Ujian akan masuk mode layar penuh
-              </li>
-              <li className="flex items-center gap-1.5">
-                <ShieldCheck className="h-3 w-3" />
-                Copy-paste akan dinonaktifkan
-              </li>
+              {fullscreen && (
+                <li className="flex items-center gap-1.5">
+                  <Monitor className="h-3 w-3" />
+                  Mode layar penuh tersedia (klik tombol Fullscreen)
+                </li>
+              )}
+              {disableCopy !== false && (
+                <li className="flex items-center gap-1.5">
+                  <ShieldCheck className="h-3 w-3" />
+                  Copy-paste akan dinonaktifkan
+                </li>
+              )}
               <li className="flex items-center gap-1.5">
                 <AlertTriangle className="h-3 w-3" />
                 Jangan keluar dari halaman ujian

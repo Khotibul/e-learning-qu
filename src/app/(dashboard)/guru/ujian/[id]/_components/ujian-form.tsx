@@ -22,7 +22,8 @@ interface MapelRef {
   id: string
   nama: string
   kode: string
-  kelas: { id: string; nama: string }
+  kelasId: string
+  kelasNama: string
 }
 
 interface KelasRef {
@@ -140,6 +141,16 @@ export function UjianFormClient({
   const [soalSearch, setSoalSearch] = useState("")
   const [saving, setSaving] = useState(false)
 
+  const availableMapels = kelasId
+    ? mapels.filter((m) => m.kelasId === kelasId)
+    : mapels
+  const availableKelas = mataPelajaranId
+    ? kelass.filter((k) => mapels.some((m) => m.id === mataPelajaranId && m.kelasId === k.id))
+    : kelass
+  const availableBankSoal = mataPelajaranId
+    ? bankSoal.filter((s) => s.mataPelajaranId === mataPelajaranId)
+    : bankSoal
+
   const countSoalItems = (s: BankSoalRef) => {
     if (s.subSoal && Array.isArray(s.subSoal)) {
       const valid = s.subSoal.filter((a: any) => a.pertanyaan?.trim())
@@ -148,13 +159,13 @@ export function UjianFormClient({
     return 1
   }
 
-  const filteredBankSoal = bankSoal.filter(
+  const filteredBankSoal = availableBankSoal.filter(
     (s) =>
       s.pertanyaan.toLowerCase().includes(soalSearch.toLowerCase()) &&
       !selectedSoalIds.includes(s.id)
   )
 
-  const selectedSoals = bankSoal.filter((s) => selectedSoalIds.includes(s.id))
+  const selectedSoals = availableBankSoal.filter((s) => selectedSoalIds.includes(s.id))
 
   const toggleSoal = (id: string) => {
     setSelectedSoalIds((prev) =>
@@ -303,10 +314,16 @@ export function UjianFormClient({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="mapel">Mata Pelajaran</Label>
-                  <Select value={mataPelajaranId} onValueChange={setMataPelajaranId}>
+                  <Select value={mataPelajaranId} onValueChange={(val) => {
+                    setMataPelajaranId(val)
+                    const matchingKelas = mapels.find((m) => m.id === val)?.kelasId
+                    if (matchingKelas && matchingKelas !== kelasId) {
+                      setKelasId(matchingKelas)
+                    }
+                  }}>
                     <SelectTrigger id="mapel"><SelectValue placeholder="Pilih" /></SelectTrigger>
                     <SelectContent>
-                      {mapels.map((m) => (
+                      {availableMapels.filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i).map((m) => (
                         <SelectItem key={m.id} value={m.id}>{m.nama}</SelectItem>
                       ))}
                     </SelectContent>
@@ -314,10 +331,16 @@ export function UjianFormClient({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="kelas">Kelas</Label>
-                  <Select value={kelasId} onValueChange={setKelasId}>
+                  <Select value={kelasId} onValueChange={(val) => {
+                    setKelasId(val)
+                    if (mataPelajaranId) {
+                      const stillAvailable = mapels.some((m) => m.id === mataPelajaranId && m.kelasId === val)
+                      if (!stillAvailable) setMataPelajaranId("")
+                    }
+                  }}>
                     <SelectTrigger id="kelas"><SelectValue placeholder="Pilih" /></SelectTrigger>
                     <SelectContent>
-                      {kelass.map((k) => (
+                      {availableKelas.map((k) => (
                         <SelectItem key={k.id} value={k.id}>{k.nama}</SelectItem>
                       ))}
                     </SelectContent>

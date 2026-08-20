@@ -352,6 +352,18 @@ export async function createUjian(data: {
 }) {
   const guru = await getCurrentGuru()
 
+  const pengajaran = await prisma.pengajaran.findFirst({
+    where: {
+      guruId: guru.id,
+      mataPelajaranId: data.mataPelajaranId,
+      kelasId: data.kelasId,
+      deletedAt: null,
+    },
+  })
+  if (!pengajaran) {
+    throw new Error("Anda tidak mengampu mata pelajaran ini di kelas tersebut")
+  }
+
   const tanggalDate = new Date(data.tanggal)
   const jamMulaiDate = new Date(`${data.tanggal}T${data.jamMulai}`)
   const jamSelesaiDate = new Date(`${data.tanggal}T${data.jamSelesai}`)
@@ -429,6 +441,24 @@ export async function updateUjian(
   }
 ) {
   const guru = await getCurrentGuru()
+
+  if (data.mataPelajaranId || data.kelasId) {
+    const checkMapel = data.mataPelajaranId
+    const checkKelas = data.kelasId
+    if (checkMapel && checkKelas) {
+      const pengajaran = await prisma.pengajaran.findFirst({
+        where: {
+          guruId: guru.id,
+          mataPelajaranId: checkMapel,
+          kelasId: checkKelas,
+          deletedAt: null,
+        },
+      })
+      if (!pengajaran) {
+        throw new Error("Anda tidak mengampu mata pelajaran ini di kelas tersebut")
+      }
+    }
+  }
 
   const updateData: Record<string, any> = {}
   if (data.nama !== undefined) updateData.nama = data.nama
@@ -946,10 +976,13 @@ export async function getGuruMapelRefs() {
     where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
     include: { mataPelajaran: { select: { id: true, nama: true, kode: true } }, kelas: { select: { id: true, nama: true } } },
   })
-  const seen = new Set<string>()
-  return pengajarans
-    .map((p) => ({ ...p.mataPelajaran, kelas: p.kelas }))
-    .filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)))
+  return pengajarans.map((p) => ({
+    id: p.mataPelajaran.id,
+    nama: p.mataPelajaran.nama,
+    kode: p.mataPelajaran.kode,
+    kelasId: p.kelas.id,
+    kelasNama: p.kelas.nama,
+  }))
 }
 
 export async function getGuruKelasRefs() {

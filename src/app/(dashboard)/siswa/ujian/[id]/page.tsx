@@ -245,25 +245,28 @@ export default function UjianPengerjaanPage() {
 
     const handleVisibility = () => {
       if (document.hidden) {
-        setTabSwitchCount((prev) => {
-          const newCount = prev + 1
-          const limit = ujianData?.maxTabSwitch ?? 3
-          if (newCount >= limit) {
-            toast.error(`Anda telah berpindah tab sebanyak ${newCount} kali. Ujian akan dikumpulkan.`)
-            handleSubmit()
-          } else {
-            setShowAntiCheatWarning(true)
-            toast.error(`Peringatan! Jangan tinggalkan halaman ujian. (${newCount}x)`)
-            setTimeout(() => setShowAntiCheatWarning(false), 5000)
-          }
-          return newCount
-        })
+        setTabSwitchCount((prev) => prev + 1)
       }
     }
 
     document.addEventListener("visibilitychange", handleVisibility)
     return () => document.removeEventListener("visibilitychange", handleVisibility)
-  }, [hasStarted, submitted, handleSubmit, ujianData?.maxTabSwitch])
+  }, [hasStarted, submitted])
+
+  useEffect(() => {
+    if (!hasStarted || submitted || tabSwitchCount === 0) return
+
+    const limit = ujianData?.maxTabSwitch ?? 3
+    if (tabSwitchCount >= limit) {
+      toast.error(`Anda telah berpindah tab sebanyak ${tabSwitchCount} kali. Ujian akan dikumpulkan.`)
+      handleSubmit()
+    } else {
+      setShowAntiCheatWarning(true)
+      toast.error(`Peringatan! Jangan tinggalkan halaman ujian. (${tabSwitchCount}x)`)
+      const timer = setTimeout(() => setShowAntiCheatWarning(false), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [tabSwitchCount, hasStarted, submitted, handleSubmit, ujianData?.maxTabSwitch])
 
   useEffect(() => {
     if (!hasStarted || submitted) return
@@ -396,6 +399,8 @@ export default function UjianPengerjaanPage() {
           mapel={ujianData.mapel}
           jumlahSoal={ujianData.jumlahSoal}
           durasi={ujianData.durasi}
+          fullscreen={ujianData.fullscreen}
+          disableCopy={ujianData.disableCopy}
           onStart={startUjian}
           onCancel={() => router.push("/siswa/ujian")}
         />
@@ -478,7 +483,7 @@ export default function UjianPengerjaanPage() {
                 variant="ghost"
                 size="sm"
                 onClick={handleToggleFullscreen}
-                className="hidden md:flex gap-1.5"
+                className="flex gap-1.5"
               >
                 <Monitor className="h-4 w-4" />
                 {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
