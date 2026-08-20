@@ -379,19 +379,28 @@ export function UjianFormClient({
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Pengaturan Keamanan</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Pengaturan Keamanan & Fitur</CardTitle></CardHeader>
           <CardContent>
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
               {[
-                { label: "Acak Soal", value: randomSoal, set: setRandomSoal },
-                { label: "Acak Jawaban", value: randomJawaban, set: setRandomJawaban },
-                { label: "Fullscreen", value: fullscreen, set: setFullscreen },
-                { label: "Nonaktifkan Copy", value: disableCopy, set: setDisableCopy },
-                { label: "Nonaktifkan Paste", value: disablePaste, set: setDisablePaste },
-                { label: "Bisa Retake", value: bisaRetake, set: setBisaRetake },
+                { label: "Acak Soal", desc: "Urutan soal berbeda untuk setiap siswa", value: randomSoal, set: setRandomSoal, icon: "🔀" },
+                { label: "Acak Jawaban", desc: "Pilihan jawaban diacak per soal", value: randomJawaban, set: setRandomJawaban, icon: "🎲" },
+                { label: "Fullscreen", desc: "Paksa layar penuh saat mengerjakan", value: fullscreen, set: setFullscreen, icon: "🖥️" },
+                { label: "Nonaktifkan Copy", desc: "Mencegah siswa menyalin soal", value: disableCopy, set: setDisableCopy, icon: "🚫" },
+                { label: "Nonaktifkan Paste", desc: "Mencegah siswa menempel jawaban", value: disablePaste, set: setDisablePaste, icon: "📋" },
+                { label: "Bisa Retake", desc: "Izinkan siswa mengerjakan ulang", value: bisaRetake, set: setBisaRetake, icon: "🔄" },
               ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between rounded-xl border p-3">
-                  <span className="text-sm font-medium">{item.label}</span>
+                <div key={item.label} className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${item.value ? "bg-primary/5 border-primary/20" : "bg-muted/30"}`}>
+                  <span className="text-lg">{item.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{item.label}</span>
+                      <Badge variant={item.value ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                        {item.value ? "AKTIF" : "NONAKTIF"}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                  </div>
                   <Switch checked={item.value} onCheckedChange={item.set} />
                 </div>
               ))}

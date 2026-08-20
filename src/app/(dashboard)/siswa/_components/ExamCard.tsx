@@ -88,9 +88,15 @@ export function ExamCard({ id, nama, mapel, kelas, tanggal, durasi, status, suda
           <Button variant="outline" className="w-full" disabled>
             Sudah Dikerjakan
           </Button>
-        ) : status === "AKTIF" || (sudahDikerjakan && bisaRetake && status === "AKTIF") ? (
-          <Link href={`/siswa/ujian/${id}`}>
-            <Button className="w-full">{sudahDikerjakan ? "Kerjakan Lagi" : "Kerjakan"}</Button>
+        ) : sudahDikerjakan && bisaRetake ? (
+          <Link href={`/siswa/ujian/${id}`} className="w-full">
+            <Button className="w-full" variant={status === "AKTIF" ? "default" : "outline"}>
+              Kerjakan Lagi
+            </Button>
+          </Link>
+        ) : status === "AKTIF" ? (
+          <Link href={`/siswa/ujian/${id}`} className="w-full">
+            <Button className="w-full">Kerjakan</Button>
           </Link>
         ) : (
           <Button variant="outline" className="w-full" disabled>

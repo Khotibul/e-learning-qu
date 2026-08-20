@@ -64,8 +64,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     }
 
-    if (ujian.status !== "AKTIF") {
+    if (ujian.status !== "AKTIF" && !(ujian.status === "SELESAI" && ujian.bisaRetake)) {
       return NextResponse.json({ error: "Ujian tidak aktif" }, { status: 400 })
+    }
+
+    if (ujian.status === "SELESAI" && ujian.bisaRetake) {
+      const existingNilai = await prisma.nilai.findFirst({
+        where: { ujianId: id, siswaId: siswa.id },
+      })
+      if (!existingNilai) {
+        return NextResponse.json({ error: "Belum ada nilai untuk diretake" }, { status: 400 })
+      }
     }
 
     if (await isAssessmentLocked(id, siswa.id)) {
