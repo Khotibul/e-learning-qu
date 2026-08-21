@@ -377,10 +377,22 @@ export async function resolveWarning(warningId: string) {
   })
 }
 
-export async function getAtRiskStudents() {
+export async function getAtRiskStudents(kelasIds?: string[]) {
+  // Scope opsional: tanpa filter = seluruh sistem (untuk admin/researcher).
+  // Guru HARUS mengirim kelasIds miliknya agar tidak melihat siswa guru lain.
+  const warningWhere: Record<string, unknown> = {
+    isResolved: false,
+    severity: { in: ["HIGH", "CRITICAL"] },
+  }
+  if (kelasIds && kelasIds.length > 0) {
+    warningWhere.siswa = { kelasId: { in: kelasIds } }
+  } else if (kelasIds && kelasIds.length === 0) {
+    return []
+  }
+
   const unresolved = await prisma.earlyWarning.groupBy({
     by: ["siswaId"],
-    where: { isResolved: false, severity: { in: ["HIGH", "CRITICAL"] } },
+    where: warningWhere as any,
     _count: { _all: true },
     _max: { severity: true },
   })
@@ -392,8 +404,15 @@ export async function getAtRiskStudents() {
   })
 
   const siswaIds = sorted.map((s) => s.siswaId).filter(Boolean) as string[]
+  if (siswaIds.length === 0) return []
+
+  const siswaWhere: Record<string, unknown> = { id: { in: siswaIds } }
+  if (kelasIds && kelasIds.length > 0) {
+    siswaWhere.kelasId = { in: kelasIds }
+  }
+
   const siswaList = await prisma.siswa.findMany({
-    where: { id: { in: siswaIds } },
+    where: siswaWhere as any,
     select: { id: true, nama: true, nis: true, kelas: { select: { nama: true } } },
   })
 

@@ -45,6 +45,12 @@ export interface GuruDashboardStats {
   ujianAktif: number
   latihanAktif: number
   totalSoal: number
+  rataNilai: number
+  rataMastery: number
+  riskHigh: number
+  riskMedium: number
+  topAtRisk: { id: string; nama: string; kelas: string; severity: string; message: string }[]
+  aiInsight: string[]
 }
 
 export interface SiswaDashboardStats {

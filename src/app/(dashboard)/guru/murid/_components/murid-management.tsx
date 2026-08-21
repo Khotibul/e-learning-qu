@@ -70,6 +70,12 @@ interface Murid {
   kelas: { nama: string; tingkat: number } | null
 }
 
+interface MuridInsight {
+  mastery: number
+  riskLevel: string
+  averageScore: number
+}
+
 interface KelasRef {
   id: string
   nama: string
@@ -98,6 +104,7 @@ export function MuridManagement(props: Props) {
 
   const [tab, setTab] = useState(props.initialTab || "saya")
   const [data, setData] = useState<Murid[]>(props.initialData)
+  const [insights, setInsights] = useState<Record<string, MuridInsight>>({})
   const [total, setTotal] = useState(props.initialTotal)
   const [totalPages, setTotalPages] = useState(props.initialTotalPages)
   const [page, setPage] = useState(props.initialPage)
@@ -127,8 +134,10 @@ export function MuridManagement(props: Props) {
       let result
       if (tab === "pendaftar") {
         result = await getGuruPendingMurids({ search: debouncedSearch, page, limit: 10 })
+        setInsights({})
       } else {
         result = await getGuruMurids({ search: debouncedSearch, page, limit: 10, kelasId: kelasId || undefined })
+        setInsights((result as any).insights ?? {})
       }
       setData(result.data as Murid[])
       setTotal(result.total)
@@ -249,6 +258,39 @@ export function MuridManagement(props: Props) {
     {
       header: "Kelas",
       cell: ({ row }) => row.original.kelas?.nama || "-",
+    },
+    {
+      header: "Mastery",
+      cell: ({ row }) => {
+        const ins = insights[row.original.id]
+        if (!ins) return <span className="text-muted-foreground">—</span>
+        const color = ins.mastery >= 70 ? "text-emerald-600" : ins.mastery >= 40 ? "text-amber-600" : "text-red-600"
+        return (
+          <div className="flex items-center gap-2 min-w-[90px]">
+            <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
+              <div
+                className={`h-full rounded-full ${ins.mastery >= 70 ? "bg-emerald-500" : ins.mastery >= 40 ? "bg-amber-500" : "bg-red-500"}`}
+                style={{ width: `${ins.mastery}%` }}
+              />
+            </div>
+            <span className={`text-xs font-medium tabular-nums ${color}`}>{ins.mastery}%</span>
+          </div>
+        )
+      },
+    },
+    {
+      header: "Risk",
+      cell: ({ row }) => {
+        const ins = insights[row.original.id]
+        if (!ins) return <span className="text-muted-foreground">—</span>
+        const variant = ins.riskLevel === "Prioritas Intervensi" || ins.riskLevel === "Risiko Tinggi"
+          ? "destructive"
+          : ins.riskLevel === "Perlu Perhatian" ? "warning" : "success"
+        const short = ins.riskLevel === "Prioritas Intervensi" ? "Intervensi"
+          : ins.riskLevel === "Risiko Tinggi" ? "Tinggi"
+          : ins.riskLevel === "Perlu Perhatian" ? "Perhatian" : "Aman"
+        return <Badge variant={variant} className="text-[10px]">{short}</Badge>
+      },
     },
     {
       header: "Email",

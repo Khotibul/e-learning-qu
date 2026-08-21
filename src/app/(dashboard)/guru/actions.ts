@@ -24,8 +24,12 @@ export async function getCurrentGuru() {
 export async function getGuruDashboardStats() {
   const guru = await getCurrentGuru()
 
-  const [kelasCount, mapelCount, siswaCount, ujianAktif, latihanAktif, totalSoal] =
+  const [kelasList, kelasCount, mapelCount, siswaCount, ujianAktif, latihanAktif, totalSoal] =
     await Promise.all([
+      prisma.kelas.findMany({
+        where: { guruId: guru.id, deletedAt: null },
+        select: { id: true },
+      }),
       prisma.kelas.count({ where: { guruId: guru.id, deletedAt: null } }),
       prisma.pengajaran.count({ where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } } }),
       prisma.siswa.count({
@@ -40,7 +44,109 @@ export async function getGuruDashboardStats() {
       prisma.soal.count({ where: { guruId: guru.id, deletedAt: null } }),
     ])
 
-  return { kelasCount, mapelCount, siswaCount, ujianAktif, latihanAktif, totalSoal }
+  // ── Insight dashboard (deterministik, batched — tanpa LLM) ──
+  const pengajaranKelas = await prisma.pengajaran.findMany({
+    where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
+    select: { kelasId: true },
+    distinct: ["kelasId"],
+  })
+  const allowedKelasIds = [...new Set([...kelasList.map((k) => k.id), ...pengajaranKelas.map((p) => p.kelasId)])]
+
+  let rataNilai = 0
+  let rataMastery = 0
+  let riskHigh = 0
+  let riskMedium = 0
+  const topAtRisk: { id: string; nama: string; kelas: string; severity: string; message: string }[] = []
+  const aiInsight: string[] = []
+
+  if (allowedKelasIds.length > 0) {
+    const [nilaiAgg, penguasaanAgg, warnings] = await Promise.all([
+      prisma.nilai.findMany({
+        where: { deletedAt: null, siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null }, ujian: { guruId: guru.id } },
+        select: { nilai: true },
+      }),
+      prisma.penguasaanKompetensi.findMany({
+        where: { siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null } },
+        select: { skor: true, kompetensi: { select: { nama: true, mataPelajaranId: true } } },
+      }),
+      prisma.earlyWarning.findMany({
+        where: { isResolved: false, siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null } },
+        orderBy: [{ severity: "desc" }, { createdAt: "desc" }],
+        select: {
+          severity: true,
+          message: true,
+          siswa: { select: { id: true, nama: true, kelas: { select: { nama: true } } } },
+        },
+        take: 100,
+      }),
+    ])
+
+    if (nilaiAgg.length > 0) {
+      rataNilai = Math.round(nilaiAgg.reduce((s, n) => s + n.nilai, 0) / nilaiAgg.length)
+    }
+    if (penguasaanAgg.length > 0) {
+      rataMastery = Math.round(penguasaanAgg.reduce((s, p) => s + p.skor, 0) / penguasaanAgg.length)
+    }
+
+    riskHigh = warnings.filter((w) => w.severity === "HIGH" || w.severity === "CRITICAL").length
+    riskMedium = warnings.filter((w) => w.severity === "MEDIUM").length
+
+    // Maks 1 entri per siswa (warning terparah sudah diurut duluan)
+    const seenSiswa = new Set<string>()
+    for (const w of warnings) {
+      if (w.severity !== "HIGH" && w.severity !== "CRITICAL") continue
+      if (seenSiswa.has(w.siswa.id)) continue
+      seenSiswa.add(w.siswa.id)
+      topAtRisk.push({
+        id: w.siswa.id,
+        nama: w.siswa.nama,
+        kelas: w.siswa.kelas?.nama ?? "-",
+        severity: w.severity,
+        message: w.message,
+      })
+      if (topAtRisk.length >= 3) break
+    }
+
+    // AI Insight deterministik dari data nyata (bukan LLM, bukan random)
+    const kompAgg = new Map<string, { total: number; count: number }>()
+    for (const p of penguasaanAgg) {
+      const cur = kompAgg.get(p.kompetensi.nama) ?? { total: 0, count: 0 }
+      cur.total += p.skor
+      cur.count++
+      kompAgg.set(p.kompetensi.nama, cur)
+    }
+    const terlemah = [...kompAgg.entries()]
+      .map(([nama, v]) => ({ nama, avg: v.total / v.count }))
+      .filter((k) => k.avg < 50)
+      .sort((a, b) => a.avg - b.avg)[0]
+    if (terlemah) {
+      aiInsight.push(`Penguasaan "${terlemah.nama}" rata-rata hanya ${Math.round(terlemah.avg)}% — perlu perhatian di kelas Anda.`)
+    }
+    if (riskHigh > 0) {
+      aiInsight.push(`${riskHigh} siswa berada di zona risiko tinggi dan membutuhkan intervensi.`)
+    }
+    if (rataNilai > 0 && rataNilai < 65) {
+      aiInsight.push(`Rata-rata nilai kelas Anda ${rataNilai} — di bawah target 65. Pertimbangkan review materi.`)
+    }
+    if (aiInsight.length === 0) {
+      aiInsight.push("Belum ada pola yang mengkhawatirkan. Pertahankan ritme belajar kelas Anda.")
+    }
+  }
+
+  return {
+    kelasCount,
+    mapelCount,
+    siswaCount,
+    ujianAktif,
+    latihanAktif,
+    totalSoal,
+    rataNilai,
+    rataMastery,
+    riskHigh,
+    riskMedium,
+    topAtRisk,
+    aiInsight,
+  }
 }
 
 // ─── SOAL ────────────────────────────────────────────────────
@@ -828,7 +934,18 @@ export async function getGuruMurids(params: {
     }),
     prisma.siswa.count({ where: where as any }),
   ])
-  return { data, total, page, limit, totalPages: Math.ceil(total / limit) }
+
+  // Insight per siswa utk kolom Mastery/Risk (batched aggregator, tanpa N+1)
+  const { getTeacherStudentInsights } = await import("@/lib/agents/teacher-analytics")
+  const insights = await getTeacherStudentInsights(guru.id, {
+    siswaIds: data.map((s) => s.id),
+  })
+  const insightMap: Record<string, { mastery: number; riskLevel: string; averageScore: number }> = {}
+  for (const i of insights) {
+    insightMap[i.studentId] = { mastery: i.mastery, riskLevel: i.riskLevel, averageScore: i.averageScore }
+  }
+
+  return { data, total, page, limit, totalPages: Math.ceil(total / limit), insights: insightMap }
 }
 
 export async function getGuruPendingMurids(params: {

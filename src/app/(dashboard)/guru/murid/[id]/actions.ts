@@ -21,7 +21,21 @@ export async function getStudentDetail(siswaId: string) {
       user: { select: { name: true, email: true } },
     },
   })
-  if (!siswa) redirect("/guru/murid")
+  if (!siswa || !siswa.kelasId) redirect("/guru/murid")
+
+  // OWNERSHIP CHECK (fix IDOR): siswa harus berada di kelas yang diajar guru
+  // (pengajaran) ATAU guru adalah wali kelasnya.
+  const [mengajar, jadiWali] = await Promise.all([
+    prisma.pengajaran.findFirst({
+      where: { guruId: guru.id, kelasId: siswa.kelasId, deletedAt: null },
+      select: { id: true },
+    }),
+    prisma.kelas.findFirst({
+      where: { id: siswa.kelasId, guruId: guru.id, deletedAt: null },
+      select: { id: true },
+    }),
+  ])
+  if (!mengajar && !jadiWali) redirect("/guru/murid")
 
   const [nilaiList, penguasaanList, learningActivities, agentLogs, earlyWarnings, latihanList, rekomendasiList, profile] = await Promise.all([
     prisma.nilai.findMany({
@@ -76,6 +90,11 @@ export async function getStudentDetail(siswaId: string) {
   const kompetensiTerlemah = penguasaanList.length > 0 ? penguasaanList[penguasaanList.length - 1] : null
 
   const openWarnings = earlyWarnings.filter((w) => !w.isResolved).length
+
+  // Phase 17: insight agregat (strengths/weaknesses/rekomendasi) utk siswa ini
+  const { getTeacherStudentInsights } = await import("@/lib/agents/teacher-analytics")
+  const insights = await getTeacherStudentInsights(guru.id, { siswaIds: [siswaId] })
+  const insight = insights[0] ?? null
 
   return {
     siswa: {
@@ -152,5 +171,14 @@ export async function getStudentDetail(siswaId: string) {
       status: r.status,
       createdAt: r.createdAt.toISOString(),
     })),
+    insight: insight ? {
+      progress: insight.progress,
+      mastery: insight.mastery,
+      engagement: insight.engagement,
+      riskLevel: insight.riskLevel,
+      strengths: insight.strengths,
+      weaknesses: insight.weaknesses,
+      recommendations: insight.recommendations,
+    } : null,
   }
 }

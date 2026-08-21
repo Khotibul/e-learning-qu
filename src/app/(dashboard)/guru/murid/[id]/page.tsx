@@ -36,7 +36,7 @@ async function StudentDetailContent({ id }: { id: string }) {
     notFound()
   }
 
-  const { siswa, stats, kompetensiTerkuat, kompetensiTerlemah, nilaiList, penguasaanList, activities, warnings, agentLogs, rekomendasi } = data
+  const { siswa, stats, kompetensiTerkuat, kompetensiTerlemah, nilaiList, penguasaanList, activities, warnings, agentLogs, rekomendasi, insight } = data
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
@@ -106,6 +106,81 @@ async function StudentDetailContent({ id }: { id: string }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Insight & Rekomendasi Tindakan (agregat agent, tanpa detail teknis) */}
+      {insight && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Lightbulb className="h-5 w-5 text-primary" /> AI Insight &amp; Rekomendasi
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-3 mb-4">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Progress Materi</p>
+                <p className="text-xl font-bold">{insight.progress}%</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Engagement</p>
+                <p className="text-xl font-bold">{insight.engagement}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Risk Level</p>
+                <Badge variant={
+                  insight.riskLevel === "Prioritas Intervensi" || insight.riskLevel === "Risiko Tinggi"
+                    ? "destructive"
+                    : insight.riskLevel === "Perlu Perhatian" ? "warning" : "success"
+                }>
+                  {insight.riskLevel}
+                </Badge>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 mb-4">
+              <div>
+                <p className="text-sm font-medium mb-1.5">Kekuatan</p>
+                {insight.strengths.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Belum ada kompetensi yang dikuasai baik</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {insight.strengths.map((s) => (
+                      <li key={s} className="text-sm flex items-center gap-1.5">
+                        <TrendingUp className="h-3.5 w-3.5 text-emerald-500" /> {s}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1.5">Perlu Penguatan</p>
+                {insight.weaknesses.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Tidak ada — semua kompetensi di atas 60%</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {insight.weaknesses.map((w) => (
+                      <li key={w} className="text-sm flex items-center gap-1.5">
+                        <TrendingDown className="h-3.5 w-3.5 text-red-500" /> {w}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+            <Separator className="mb-4" />
+            <p className="text-sm font-medium mb-2">Rekomendasi Tindakan</p>
+            <ol className="space-y-1.5">
+              {insight.recommendations.map((r, i) => (
+                <li key={i} className="text-sm flex items-start gap-2">
+                  <span className="rounded-full bg-primary/10 text-primary text-[10px] font-bold h-5 w-5 flex items-center justify-center shrink-0 mt-0.5">
+                    {i + 1}
+                  </span>
+                  {r}
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
