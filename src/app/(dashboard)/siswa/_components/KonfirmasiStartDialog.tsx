@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertTriangle, Clock, FileText, Monitor, ShieldCheck } from "lucide-react"
+import { AlertTriangle, Clock, FileText, ShieldCheck, MonitorCheck } from "lucide-react"
 
 interface KonfirmasiStartDialogProps {
   nama: string
@@ -58,8 +58,8 @@ export function KonfirmasiStartDialog({
             <ul className="space-y-1 text-xs text-amber-700 dark:text-amber-400">
               {fullscreen && (
                 <li className="flex items-center gap-1.5">
-                  <Monitor className="h-3 w-3" />
-                  Mode layar penuh tersedia (klik tombol Fullscreen)
+                  <MonitorCheck className="h-3 w-3" />
+                  Mode layar penuh otomatis aktif saat ujian dimulai
                 </li>
               )}
               {disableCopy !== false && (
