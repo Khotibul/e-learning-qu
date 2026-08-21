@@ -585,6 +585,15 @@ export default function UjianPengerjaanPage() {
 
       {/* Mobile Bottom Navigation */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-3 pb-safe">
+        <SoalNavigation
+          jumlahSoal={ujianData.jumlahSoal}
+          currentNomor={currentNomor}
+          answers={answers}
+          raguRagu={raguRagu}
+          soalIds={soalIds}
+          onSelect={handleNavigate}
+          answeredCount={answeredCount}
+        />
         <div className="mx-auto max-w-3xl grid grid-cols-3 gap-2">
           <Button
             variant="outline"
@@ -595,15 +604,6 @@ export default function UjianPengerjaanPage() {
           >
             <ChevronLeft className="h-4 w-4" />
             Sebelumnya
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowReview(true)}
-            className="h-10 gap-1.5"
-          >
-            <Eye className="h-4 w-4" />
-            Review
           </Button>
           <Button
             variant="outline"
