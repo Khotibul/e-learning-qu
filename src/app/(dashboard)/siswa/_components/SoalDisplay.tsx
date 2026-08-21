@@ -49,26 +49,24 @@ export function SoalDisplay({ soal, jawaban, onJawab, isRaguRagu }: SoalDisplayP
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">
-              Soal Nomor {soal.nomor}
-            </span>
-            <Badge variant="outline">{jenisLabel[soal.jenisSoal] || soal.jenisSoal}</Badge>
-            {soal.tingkatKesulitan && (
-              <Badge variant={tingkatWarna[soal.tingkatKesulitan] ?? "secondary"}>
-                {tingkatLabel[soal.tingkatKesulitan] ?? soal.tingkatKesulitan}
-              </Badge>
-            )}
-            <Badge variant="outline">{soal.poin} poin</Badge>
-          </div>
-          {isRaguRagu && (
-            <Badge variant="warning" className="flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3" />
-              Ragu-ragu
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground">
+            Soal Nomor {soal.nomor}
+          </span>
+          <Badge variant="outline">{jenisLabel[soal.jenisSoal] || soal.jenisSoal}</Badge>
+          {soal.tingkatKesulitan && (
+            <Badge variant={tingkatWarna[soal.tingkatKesulitan] ?? "secondary"}>
+              {tingkatLabel[soal.tingkatKesulitan] ?? soal.tingkatKesulitan}
             </Badge>
           )}
+          <Badge variant="outline">{soal.poin} poin</Badge>
         </div>
+        {isRaguRagu && (
+          <Badge variant="warning" className="flex w-fit items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            Ragu-ragu
+          </Badge>
+        )}
 
         {soal.soalInduk && (
           <p className="text-xs text-muted-foreground italic">{soal.soalInduk}</p>
@@ -85,7 +83,7 @@ export function SoalDisplay({ soal, jawaban, onJawab, isRaguRagu }: SoalDisplayP
               <div key={opt.label}>
                 <Label
                   htmlFor={optId}
-                  className={`flex items-center gap-3 rounded-lg border p-4 cursor-pointer transition-all hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/5 ${
+                  className={`flex items-center gap-3 rounded-lg border p-4 cursor-pointer transition-all active:scale-[0.98] hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/5 ${
                     jawaban === opt.label ? "border-primary bg-primary/5" : ""
                   }`}
                 >
@@ -107,7 +105,7 @@ export function SoalDisplay({ soal, jawaban, onJawab, isRaguRagu }: SoalDisplayP
             <div key={opt.value}>
               <Label
                 htmlFor={`tf-${opt.value}`}
-                className={`flex items-center gap-3 rounded-lg border p-4 cursor-pointer transition-all hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/5 ${
+                className={`flex items-center gap-3 rounded-lg border p-4 cursor-pointer transition-all active:scale-[0.98] hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/5 ${
                   jawaban === opt.value ? "border-primary bg-primary/5" : ""
                 }`}
               >

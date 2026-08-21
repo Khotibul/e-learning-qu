@@ -85,21 +85,21 @@ export function ExamCard({ id, nama, mapel, kelas, tanggal, durasi, status, suda
       </CardContent>
       <CardFooter className="pt-2">
         {sudahDikerjakan && !bisaRetake ? (
-          <Button variant="outline" className="w-full py-3" disabled>
+          <Button variant="outline" className="w-full py-3 active:scale-[0.98] transition-transform" disabled>
             Sudah Dikerjakan
           </Button>
         ) : sudahDikerjakan && bisaRetake ? (
           <Link href={`/siswa/ujian/${id}`} className="w-full">
-            <Button className="w-full py-3" variant={status === "AKTIF" ? "default" : "outline"}>
+            <Button className="w-full py-3 active:scale-[0.98] transition-transform" variant={status === "AKTIF" ? "default" : "outline"}>
               Kerjakan Lagi
             </Button>
           </Link>
         ) : status === "AKTIF" ? (
           <Link href={`/siswa/ujian/${id}`} className="w-full">
-            <Button className="w-full py-3">Kerjakan</Button>
+            <Button className="w-full py-3 active:scale-[0.98] transition-transform">Kerjakan</Button>
           </Link>
         ) : (
-          <Button variant="outline" className="w-full py-3" disabled>
+          <Button variant="outline" className="w-full py-3 active:scale-[0.98] transition-transform" disabled>
             {status === "DRAFT" ? "Belum Tersedia" : "Selesai"}
           </Button>
         )}
@@ -107,3 +107,4 @@ export function ExamCard({ id, nama, mapel, kelas, tanggal, durasi, status, suda
     </Card>
   )
 }
+

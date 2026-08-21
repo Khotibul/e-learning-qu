@@ -44,10 +44,10 @@ export function HasilUjian({ nilai, totalPoin, perolehPoin, jumlahSoal, jumlahBe
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <div className={cn("text-6xl font-bold", warnaGrade)}>
+              <div className={cn("text-5xl sm:text-6xl font-bold", warnaGrade)}>
                 {nilai}
               </div>
-              <p className="text-lg text-muted-foreground">
+              <p className="text-base sm:text-lg text-muted-foreground">
                 Grade: <span className={cn("font-bold", warnaGrade)}>{grade}</span>
               </p>
             </div>
@@ -93,21 +93,21 @@ export function HasilUjian({ nilai, totalPoin, perolehPoin, jumlahSoal, jumlahBe
                     : "border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800"
                 )}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   {soal.isCorrect ? (
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
                   ) : (
-                    <XCircle className="h-5 w-5 text-red-500" />
+                    <XCircle className="h-5 w-5 text-red-500 shrink-0" />
                   )}
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-medium">Soal {soal.nomor}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground truncate">
                       {soal.isCorrect ? "Jawaban benar" : `Jawaban: ${soal.jawaban || "-"} | Benar: ${soal.jawabanBenar}`}
                     </p>
                   </div>
                 </div>
                 <span className={cn(
-                  "text-sm font-bold tabular-nums",
+                  "text-sm font-bold tabular-nums shrink-0",
                   soal.isCorrect ? "text-emerald-600" : "text-red-600"
                 )}>
                   {soal.isCorrect ? `+${soal.poin}` : "0"}
@@ -117,22 +117,22 @@ export function HasilUjian({ nilai, totalPoin, perolehPoin, jumlahSoal, jumlahBe
           </CardContent>
         </Card>
 
-        <div className="flex justify-center gap-4 flex-wrap">
-          <Link href="/siswa">
-            <Button variant="outline">
+        <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
+          <Link href="/siswa" className="w-full sm:w-auto">
+            <Button variant="outline" className="w-full py-3 sm:py-2">
               <Home className="h-4 w-4" />
               Kembali ke Dashboard
             </Button>
           </Link>
-          <Link href="/siswa/nilai">
-            <Button>
+          <Link href="/siswa/nilai" className="w-full sm:w-auto">
+            <Button className="w-full py-3 sm:py-2">
               <RotateCcw className="h-4 w-4" />
               Lihat Nilai
             </Button>
           </Link>
           {bisaRetake && ujianId && (
-            <Link href={`/siswa/ujian/${ujianId}`}>
-              <Button variant="default">
+            <Link href={`/siswa/ujian/${ujianId}`} className="w-full sm:w-auto">
+              <Button variant="default" className="w-full py-3 sm:py-2">
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Kerjakan Lagi
               </Button>

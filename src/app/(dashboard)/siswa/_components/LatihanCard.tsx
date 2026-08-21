@@ -55,12 +55,12 @@ export function LatihanCard({ id, nama, mapel, jumlahSoal, durasi, sudahDikerjak
       </CardContent>
       <CardFooter className="pt-2">
         {sudahDikerjakan && !bisaRetake ? (
-          <Button variant="outline" className="w-full py-3" disabled>
+          <Button variant="outline" className="w-full py-3 active:scale-[0.98] transition-transform" disabled>
             Sudah Dikerjakan
           </Button>
         ) : (
           <Link href={`/siswa/ujian/${id}`}>
-            <Button className="w-full py-3">
+            <Button className="w-full py-3 active:scale-[0.98] transition-transform">
               {sudahDikerjakan ? "Kerjakan Lagi" : "Kerjakan"}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
@@ -70,3 +70,4 @@ export function LatihanCard({ id, nama, mapel, jumlahSoal, durasi, sudahDikerjak
     </Card>
   )
 }
+

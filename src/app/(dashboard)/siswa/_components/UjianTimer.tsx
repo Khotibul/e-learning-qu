@@ -56,16 +56,16 @@ export function UjianTimer({ durasiMenit, onTimeUp, isPaused }: UjianTimerProps)
   const progress = (waktuTersisa / (durasiMenit * 60)) * 100
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         {warning ? (
-          <AlertTriangle className="h-5 w-5 text-red-500 animate-pulse" />
+          <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 animate-pulse" />
         ) : (
-          <Clock className="h-5 w-5 text-primary" />
+          <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
         )}
         <span
           className={cn(
-            "font-mono text-xl font-bold tabular-nums",
+            "font-mono text-base sm:text-xl font-bold tabular-nums",
             warning ? "text-red-500" : "text-foreground"
           )}
         >

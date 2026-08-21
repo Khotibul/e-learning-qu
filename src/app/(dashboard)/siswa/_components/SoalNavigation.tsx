@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { HelpCircle, CheckCircle2, AlertCircle } from "lucide-react"
+import { HelpCircle, CheckCircle2, AlertCircle, LayoutGrid } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -13,6 +13,7 @@ interface SoalNavigationProps {
   soalIds: string[]
   onSelect: (nomor: number) => void
   answeredCount: number
+  variant?: "sidebar" | "compact"
 }
 
 export function SoalNavigation({
@@ -23,6 +24,7 @@ export function SoalNavigation({
   soalIds,
   onSelect,
   answeredCount,
+  variant = "sidebar",
 }: SoalNavigationProps) {
   const getStatus = (index: number) => {
     const soalId = soalIds[index]
@@ -67,7 +69,7 @@ export function SoalNavigation({
             key={i}
             onClick={() => onSelect(i + 1)}
             className={cn(
-              "relative h-10 w-full rounded-lg text-sm font-medium transition-all flex items-center justify-center",
+              "relative h-10 w-full rounded-lg text-sm font-medium transition-all flex items-center justify-center active:scale-90",
               statusStyles[status]
             )}
           >
@@ -101,6 +103,43 @@ export function SoalNavigation({
       </div>
     </div>
   )
+
+  if (variant === "compact") {
+    return (
+      <Dialog>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            className="h-10 px-3 rounded-lg border bg-secondary flex items-center justify-center gap-1.5 text-sm font-medium transition-all active:scale-95 hover:bg-secondary/80"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            <span className="tabular-nums">{currentNomor}/{jumlahSoal}</span>
+          </button>
+        </DialogTrigger>
+        <DialogContent className="p-0 max-h-[80vh] sm:max-w-[90vw] fixed bottom-0 left-0 right-0 top-auto translate-y-0 rounded-t-2xl border-t-0 shadow-xl">
+          <DialogHeader className="p-4 border-b flex flex-row items-center justify-between">
+            <DialogTitle className="text-lg font-semibold">Navigasi Soal</DialogTitle>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Badge variant="secondary" className="text-xs">
+                {answeredCount}/{jumlahSoal} Terjawab
+              </Badge>
+              {raguRagu.length > 0 && (
+                <Badge variant="warning" className="text-xs">
+                  {raguRagu.length} Ragu-ragu
+                </Badge>
+              )}
+            </div>
+          </DialogHeader>
+          <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-5 gap-2">
+              {renderButtons()}
+            </div>
+            {renderLegend()}
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   return (
     <div className="space-y-3">

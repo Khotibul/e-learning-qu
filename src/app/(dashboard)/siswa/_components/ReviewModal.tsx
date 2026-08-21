@@ -44,8 +44,8 @@ export function ReviewModal({ items, onClose, onConfirm, isSubmitting }: ReviewM
             </Button>
           </CardHeader>
 
-          <div className="px-6 pb-4">
-            <div className="flex gap-4 text-sm">
+          <div className="px-4 sm:px-6 pb-4">
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 Terjawab: {answered}
@@ -63,7 +63,7 @@ export function ReviewModal({ items, onClose, onConfirm, isSubmitting }: ReviewM
 
           <Separator />
 
-          <ScrollArea className="flex-1 px-6 py-4">
+          <ScrollArea className="flex-1 px-4 sm:px-6 py-4">
             <div className="space-y-3">
               {items.map((item) => (
                 <div
@@ -114,21 +114,21 @@ export function ReviewModal({ items, onClose, onConfirm, isSubmitting }: ReviewM
 
           <Separator />
 
-          <div className="flex items-center justify-between gap-4 p-6">
-            <Button variant="outline" onClick={onClose}>
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-6">
+            <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
               Kembali
             </Button>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               {unanswered > 0 && (
-                <p className="text-sm text-amber-600 dark:text-amber-400">
-                  {unanswered} soalbelum dijawab
+                <p className="text-sm text-amber-600 dark:text-amber-400 text-center">
+                  {unanswered} soal belum dijawab
                 </p>
               )}
               <Button
                 onClick={onConfirm}
                 disabled={isSubmitting}
                 variant={unanswered > 0 ? "destructive" : "success"}
-                className="min-w-[140px]"
+                className="w-full sm:min-w-[140px] py-3 sm:py-2"
               >
                 {isSubmitting ? "Mengumpulkan..." : "Kumpulkan Jawaban"}
               </Button>
