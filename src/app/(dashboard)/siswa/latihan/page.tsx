@@ -57,7 +57,7 @@ export default async function LatihanListPage() {
           <p className="text-muted-foreground">Latihan belum dimulai</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {latihans.map((latihan) => (
             <LatihanCard
               key={latihan.id}

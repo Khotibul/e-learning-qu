@@ -97,12 +97,12 @@ export default async function UjianListPage({ searchParams }: PageProps) {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Ujian</h1>
           <p className="text-muted-foreground">Daftar ujian yang tersedia</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {filterOptions.map((opt) => (
             <a
               key={opt}
               href={opt === "SEMUA" ? "/siswa/ujian" : `/siswa/ujian?status=${opt}`}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 (status ?? "SEMUA") === opt
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -119,7 +119,7 @@ export default async function UjianListPage({ searchParams }: PageProps) {
           <p className="text-muted-foreground">Ujian belum dimulai</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {ujians.map((ujian) => (
             <ExamCard
               key={ujian.id}

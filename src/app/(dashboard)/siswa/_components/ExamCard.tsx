@@ -37,15 +37,15 @@ export function ExamCard({ id, nama, mapel, kelas, tanggal, durasi, status, suda
   return (
     <Card className="transition-all hover:shadow-md">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <CardTitle className="text-base">{nama}</CardTitle>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="space-y-1 min-w-0">
+            <CardTitle className="text-base truncate">{nama}</CardTitle>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <BookOpen className="h-3.5 w-3.5" />
-              {mapel}
+              <BookOpen className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{mapel}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {sudahDikerjakan && (
               <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
                 <CheckCircle className="h-3 w-3 mr-1" />
@@ -62,19 +62,19 @@ export function ExamCard({ id, nama, mapel, kelas, tanggal, durasi, status, suda
       <CardContent className="pb-3">
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <CalendarDays className="h-4 w-4" />
-            <span>{formatDateOnly(tanggal)}</span>
+            <CalendarDays className="h-4 w-4 shrink-0" />
+            <span className="truncate">{formatDateOnly(tanggal)}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Clock className="h-4 w-4" />
+            <Clock className="h-4 w-4 shrink-0" />
             <span>{durasi} menit</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
-            <FileText className="h-4 w-4" />
+            <FileText className="h-4 w-4 shrink-0" />
             <span>{jumlahSoal} soal</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
-            <span>Kelas: {kelas}</span>
+            <span className="truncate">Kelas: {kelas}</span>
           </div>
         </div>
         {nilaiMinimum != null && nilaiMinimum > 0 && (
@@ -83,23 +83,23 @@ export function ExamCard({ id, nama, mapel, kelas, tanggal, durasi, status, suda
           </p>
         )}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="pt-2">
         {sudahDikerjakan && !bisaRetake ? (
-          <Button variant="outline" className="w-full" disabled>
+          <Button variant="outline" className="w-full py-3" disabled>
             Sudah Dikerjakan
           </Button>
         ) : sudahDikerjakan && bisaRetake ? (
           <Link href={`/siswa/ujian/${id}`} className="w-full">
-            <Button className="w-full" variant={status === "AKTIF" ? "default" : "outline"}>
+            <Button className="w-full py-3" variant={status === "AKTIF" ? "default" : "outline"}>
               Kerjakan Lagi
             </Button>
           </Link>
         ) : status === "AKTIF" ? (
           <Link href={`/siswa/ujian/${id}`} className="w-full">
-            <Button className="w-full">Kerjakan</Button>
+            <Button className="w-full py-3">Kerjakan</Button>
           </Link>
         ) : (
-          <Button variant="outline" className="w-full" disabled>
+          <Button variant="outline" className="w-full py-3" disabled>
             {status === "DRAFT" ? "Belum Tersedia" : "Selesai"}
           </Button>
         )}
