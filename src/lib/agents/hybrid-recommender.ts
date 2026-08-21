@@ -29,7 +29,7 @@ function buildStudentVector(data: {
   const maxGap = nilais.length > 0 ? (Math.max(...nilais) - Math.min(...nilais)) / 100 : 0
 
   const styleVec = data.gayaBelajar === "VISUAL" ? [1, 0, 0]
-    : data.gayaBelajar === "AUDITORI" ? [0, 1, 0]
+    : data.gayaBelajar === "AUDITORY" ? [0, 1, 0]
     : data.gayaBelajar === "KINESTHETIC" ? [0, 0, 1]
     : [0.33, 0.33, 0.34]
 
@@ -54,7 +54,7 @@ function contentBasedRecommender(
     avgPenguasaan: number | null
     hasLatihan: boolean
   }[],
-  weakMapelIds: Set<string>
+  weakMapelNames: Set<string>
 ): Rekomendasi[] {
   const results: Rekomendasi[] = []
 
@@ -69,7 +69,9 @@ function contentBasedRecommender(
       score += (60 - m.avgPenguasaan) / 60 * 0.3
     }
 
-    if (weakMapelIds.has(materis.find((mm) => mm.id === m.id)?.mapelNama || "")) {
+    // Bandingkan berdasarkan NAMA mapel (bukan ID — bug lama membandingkan
+    // set berisi ID dengan nama sehingga boost tidak pernah aktif)
+    if (weakMapelNames.has(m.mapelNama)) {
       score += 0.2
     }
 
@@ -248,6 +250,14 @@ export async function runHybridRecommender(
     if (avg < 75) weakMapelIds.add(mid)
   }
 
+  // Konversi ID→nama untuk content-based scorer (fix: set lama berisi ID
+  // tetapi dibandingkan dengan nama mapel)
+  const weakMapelNames = new Set(
+    materiList
+      .filter((m) => weakMapelIds.has(m.mataPelajaranId))
+      .map((m) => m.mataPelajaran.nama)
+  )
+
   const studentVec = buildStudentVector({
     nilaiPerMapel: nilaiMap,
     penguasaanPerKompetensi: penguasaanMap,
@@ -265,7 +275,7 @@ export async function runHybridRecommender(
     hasLatihan: m.latihanAI.length > 0,
   }))
 
-  const contentResults = contentBasedRecommender(studentVec, materiData, weakMapelIds)
+  const contentResults = contentBasedRecommender(studentVec, materiData, weakMapelNames)
 
   let collabResults: Rekomendasi[] = []
   try {

@@ -179,11 +179,11 @@ export function retrieveTopKKeyword(chunks: ChunkLike[], query: string, k = 5): 
     .sort((a, b) => b.skor - a.skor)
     .slice(0, k)
 
-  if (sorted.length === 0 && chunks.length > 0) {
-    const recencySorted = [...chunks].sort((a, b) => b.index - a.index)
-    return recencySorted.slice(0, Math.min(3, k)).map((c) => ({ chunk: c, skor: 0.05 }))
-  }
-
+  // TIDAK ada fallback "recency" di sini.
+  // Fallback lama mengarang hasil dengan skor 0.05 dari chunk terakhir
+  // sehingga konteks IRRELEVAN tetap dikirim ke LLM dan jawaban Tutor
+  // tidak sesuai materi (bug audit RAG — smoking gun).
+  // Kosong = kosong: caller yang memutuskan respons terkendali.
   return sorted
 }
 

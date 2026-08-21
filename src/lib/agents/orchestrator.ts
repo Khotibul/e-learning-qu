@@ -22,7 +22,10 @@ const RULE_PATTERNS: [RegExp, AgentIntent][] = [
   [/\b(penguasaan|kompetensi|mastery|seberapa kuat|kuasai|skor mastery|level belajar|capaian)\b/i, "mastery"],
   [/\b(analitik|statistik|grafik|analytics|data belajar|ringkasan belajar|progres belajar|perkembangan)\b/i, "analytics"],
   [/\b(peringatan|warning|at risk|bermasalah|tidak aktif|nilai turun|motivasi rendah|early warning|stres|kesulitan)\b/i, "warning"],
-  [/\b(kenapa.*(?:direkomendasikan|dipilih|dipakai)|penjelasan|alasan|explain|bagaimana.*keputusan|mengapa)\b/i, "explain"],
+  // HANYA untuk menjelaskan keputusan AI — bukan pertanyaan konten umum.
+  // Pola generik seperti "mengapa/penjelasan" menyebabkan pertanyaan materi
+  // salah route ke explain agent (bug audit C2).
+  [/((kenapa|mengapa|apa alasan)[^?]{0,40}(direkomendasikan|dipilih|dipakai|muncul))|(jelaskan (alasan|keputusan)|(alasan|penjelasan) (rekomendasi|jawaban|sistem ai))/i, "explain"],
 ]
 
 const GREETING_PATTERN = /^(hai|halo|hi|hey|selamat|hello|pagi|siang|sore|malam|permisi|permintaan|mohon)[\s!.,]*$/i
@@ -35,11 +38,15 @@ function ruleBasedDetect(query: string): { primary: AgentIntent; confidence: num
   let best: AgentIntent = "tutor"
   let bestConfidence = 0.3
 
-  for (const [pattern, intent] of RULE_PATTERNS) {
-    if (pattern.test(t)) {
-      const negated = NEGATION_PATTERN.test(t.split(pattern.source.split("\\b")[0])[0] || "")
-      if (!negated) {
-        const conf = 0.7 + Math.random() * 0.1
+  for (const [pattern, intent] of [RULE_PATTERNS[0], ...RULE_PATTERNS.slice(1)] as [RegExp, AgentIntent][]) {
+    const m = pattern.exec(t)
+    if (m) {
+      // Cek negasi pada teks SEBELUM match (bukan karakter pertama query — bug lama)
+      const before = t.slice(Math.max(0, (m.index ?? 0) - 30), m.index ?? 0)
+      if (!NEGATION_PATTERN.test(before)) {
+        // Deterministik — Math.random() membuat confidence tidak bisa diuji/dilacak.
+        // explain lebih spesifik dari recommender/tutor → prioritas lebih tinggi.
+        const conf = intent === "explain" ? 0.85 : 0.75
         if (conf > bestConfidence) {
           best = intent
           bestConfidence = conf
@@ -77,7 +84,7 @@ export async function detectIntent(
     const prompt = `Analisis pesan siswa dalam konteks pembelajaran. Tentukan:
 1. primaryIntent: satu dari [tutor, assessor, recommender, adaptive, mastery, analytics, warning, explain, greeting]
 2. secondaryIntent: intent sekunder jika ada (atau null)
-3. mentionedMateri: judul materi yang disebutkan secara spesifik (atau null)
+3. mentionedMateri: ID materi yang spesifik disebutkan siswa (salin persis id dari daftar di bawah; jika tidak ada yang disebut, null)
 4. confidence: 0-1
 5. rewrittenQuery: perjelas/standardisasi query siswa (typo fix, singkatan diperpanjang)
 
@@ -119,10 +126,17 @@ Keluarkan HANYA JSON valid: {"primaryIntent":"...","secondaryIntent":null,"menti
     const primary = validIntents.includes(parsed.primaryIntent) ? parsed.primaryIntent : ruleResult.primary
     const secondary = parsed.secondaryIntent && validIntents.includes(parsed.secondaryIntent) ? parsed.secondaryIntent : null
 
+    // Validasi kontrak: mentionedMateri HARUS id yang ada di daftar.
+    // Jika LLM mengembalikan judul/teks lain, jatuh ke deteksi lokal (berbasis id).
+    const validIds = new Set((opts?.materis || []).map((m) => m.id))
+    const llmMateri = typeof parsed.mentionedMateri === "string" && validIds.has(parsed.mentionedMateri)
+      ? parsed.mentionedMateri
+      : null
+
     return {
       primary,
       secondary,
-      mentionedMateri: parsed.mentionedMateri || extractMateriMentionLocal(query, opts?.materis || []),
+      mentionedMateri: llmMateri || extractMateriMentionLocal(query, opts?.materis || []),
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : ruleResult.confidence,
       rewrittenQuery: typeof parsed.rewrittenQuery === "string" && parsed.rewrittenQuery.length > 5 ? parsed.rewrittenQuery : query,
     }

@@ -34,7 +34,7 @@ function getDifficultyLevel(masteryAvg: number): string {
 function buildAdaptiveSystemPrompt(masteryAvg: number, learningStyle: string, streakDays: number): string {
   const difficulty = getDifficultyLevel(masteryAvg)
   const styleHint = learningStyle === "VISUAL" ? "Gunakan analogi visual, diagram teks, dan perbandingan."
-    : learningStyle === "AUDITORI" ? "Gunakan penjelasan naratif, langkah-langkah verbal, dan analogi sehari-hari."
+    : learningStyle === "AUDITORY" ? "Gunakan penjelasan naratif, langkah-langkah verbal, dan analogi sehari-hari."
     : learningStyle === "KINESTHETIC" ? "Berikan contoh praktis, latihan langkah demi langkah, dan simulasi."
     : "Gunakan pendekatan seimbang dengan contoh bervariasi."
 
@@ -222,15 +222,16 @@ export async function runTutorAgent(
 
   const hasil = retrieveHybrid(chunks as ChunkLike[], query, queryEmbedding, 5, 0.6)
 
-  if (hasil.length === 0) {
+  // Relevance gate: hasil di bawah ambang = TIDAK RELEVAN, jangan dipakai
+  // sebagai konteks LLM (sebelumnya konteks sampah menghasilkan jawaban
+  // yang tidak sesuai materi — keluhan utama audit RAG).
+  const MIN_RELEVANCE = 0.12
+  if (hasil.length === 0 || hasil[0].skor < MIN_RELEVANCE) {
     const fallbackChunks = chunks.slice(0, 3).map((c) => ({ chunk: c, skor: 0 }))
-    const konteks = fallbackChunks
-      .map((h, i) => `[S${i + 1}] (${(h.chunk as any).materi?.mataPelajaran?.nama ?? ""} - ${(h.chunk as any).materi?.judul ?? ""})\n${h.chunk.text}`)
-      .join("\n\n---\n\n")
 
     return {
       agent: "tutor",
-      jawaban: `Maaf, saya tidak menemukan konten yang relevan dengan pertanyaanmu "${query.slice(0, 100)}".\n\nNamun berikut materi yang tersedia:\n\n${fallbackChunks.map((h) => `• **${(h.chunk as any).materi?.judul ?? ""}** (${(h.chunk as any).materi?.mataPelajaran?.nama ?? ""})`).join("\n")}\n\nCoba jelaskan pertanyaanmu dengan kata-kata yang berbeda, atau pilih materi spesifik.`,
+      jawaban: `Maaf, saya tidak menemukan konten yang relevan dengan pertanyaanmu "${query.slice(0, 100)}" di materi yang tersedia.\n\nNamun berikut materi yang tersedia:\n\n${fallbackChunks.map((h) => `• **${(h.chunk as any).materi?.judul ?? ""}** (${(h.chunk as any).materi?.mataPelajaran?.nama ?? ""})`).join("\n")}\n\nCoba jelaskan pertanyaanmu dengan kata-kata yang berbeda, atau pilih materi spesifik.`,
       sumber: fallbackChunks.map((h) => ({
         materiId: h.chunk.materiId,
         judul: (h.chunk as any).materi?.judul ?? "",

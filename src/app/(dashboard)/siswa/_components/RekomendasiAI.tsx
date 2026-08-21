@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sparkles, BookOpen } from "lucide-react"
-import { runRecommenderAgent } from "@/lib/agents/recommender"
+import { runHybridRecommender } from "@/lib/agents/hybrid-recommender"
 
 export default async function RekomendasiAI() {
   const session = await auth()
@@ -12,9 +12,9 @@ export default async function RekomendasiAI() {
   const siswa = await prisma.siswa.findUnique({ where: { userId: session.user.id } })
   if (!siswa) return null
 
-  let hasil = null
+  let hasil: Awaited<ReturnType<typeof runHybridRecommender>> | null = null
   try {
-    hasil = await runRecommenderAgent(siswa.id)
+    hasil = await runHybridRecommender(siswa.id)
   } catch (e) {
     console.error("Rekomendasi gagal:", e)
   }
@@ -30,8 +30,8 @@ export default async function RekomendasiAI() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {rekomendasi.map((r: any, i: number) => (
-          <div key={i} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+        {rekomendasi.map((r, i) => (
+          <div key={r.materiId} className="flex items-start justify-between gap-3 rounded-lg border p-3">
             <div className="flex items-start gap-3">
               <div className="rounded-lg bg-primary/10 p-2 text-primary">
                 <BookOpen className="h-4 w-4" />
@@ -39,9 +39,15 @@ export default async function RekomendasiAI() {
               <div>
                 <p className="text-sm font-medium">{r.judul}</p>
                 <p className="text-xs text-muted-foreground">{r.mapel}</p>
+                {r.alasan && (
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.alasan}</p>
+                )}
               </div>
             </div>
-            <Badge variant="secondary" className="text-[10px] shrink-0">{r.skor}%</Badge>
+            {/* skorRelevansi 0-1 → persen; field `skor` tidak ada di kontrak (bug lama: undefined%) */}
+            <Badge variant="secondary" className="text-[10px] shrink-0">
+              {Math.round(r.skorRelevansi * 100)}%
+            </Badge>
           </div>
         ))}
         <p className="text-xs text-muted-foreground">

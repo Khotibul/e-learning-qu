@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
+import { auth } from "@/lib/auth"
 import { getCurrentSiswa } from "../actions"
 import { detectIntent, extractMateriMention, buildConversationHistory, type DetectedIntent } from "@/lib/agents/orchestrator"
 import { runTutorAgent } from "@/lib/agents/tutor"
@@ -54,10 +55,24 @@ export async function aiIndexData() {
   return { sessions, mapels }
 }
 
+async function requireRole(...roles: string[]) {
+  const session = await auth()
+  if (!session?.user || !roles.includes((session.user as any).role)) {
+    throw new Error("Unauthorized")
+  }
+  return session
+}
+
 export async function aiChat(input: { sessionId?: string | null; mapelId?: string | null; pesan: string }) {
   const siswa = await getCurrentSiswa()
   if (!siswa) redirect("/login")
   const start = Date.now()
+  // Phase 17 Observability: traceId untuk melacak satu siklus orchestration
+  const traceId = crypto.randomUUID().slice(0, 8)
+  const trace = (step: string, detail?: string) =>
+    console.log(`[AI TRACE ${traceId}] ${step}${detail ? ` — ${detail}` : ""}`)
+
+  trace("orchestrator start", `mapel=${input.mapelId ?? "all"}`)
   const pesan = input.pesan.trim()
   if (!pesan) throw new Error("Pesan kosong")
 
@@ -90,6 +105,7 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
   const intentResult: DetectedIntent = await detectIntent(pesan, { history: chatHistory, materis })
   const intent = intentResult.primary
   const queryToUse = intentResult.rewrittenQuery || pesan
+  trace("intent detected", `${intent} (conf=${intentResult.confidence.toFixed(2)})`)
   let jawaban = ""
   let sumber: unknown = null
   let latihan: any = null
@@ -116,37 +132,72 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
       case "assessor": {
         agent = "assessor"
         const mention = intentResult.mentionedMateri
-        const materi = materis.find((m) => m.id === mention) || materis[0]
+        const materi = materis.find((m) => m.id === mention)
+
+        // Guard kontrak: tanpa materi target yang jelas, JANGAN pilih
+        // materis[0] secara arbitrer (bug audit M2) — minta siswa memilih.
         if (!materi) {
-          jawaban = "Belum ada materi untuk dibuatkan latihan. Pilih mata pelajaran yang memiliki materi terlebih dahulu."
-        } else {
-          const chunks = await prisma.materiChunk.findMany({
-            where: { materiId: materi.id },
-            orderBy: { index: "asc" },
-          })
-          if (chunks.length === 0) {
-            jawaban = `Materi "${materi.judul}" belum diindeks ke knowledge base AI. Minta guru untuk mengindeksnya.`
-          } else {
-            const latihanHistory = await prisma.latihanAI.findMany({
-              where: { siswaId: siswa.id, materiId: materi.id },
+          if (materis.length === 1) {
+            const satu = materis[0]
+            const chunksSatu = await prisma.materiChunk.findMany({
+              where: { materiId: satu.id },
+              orderBy: { index: "asc" },
+            })
+            if (chunksSatu.length === 0) {
+              jawaban = `Materi "${satu.judul}" belum diindeks ke knowledge base AI. Minta guru untuk mengindeksnya.`
+              break
+            }
+            const histSatu = await prisma.latihanAI.findMany({
+              where: { siswaId: siswa.id, materiId: satu.id },
               select: { skor: true },
               orderBy: { createdAt: "desc" },
               take: 5,
             })
-
-            const soal = await generateQuiz(chunks.map((c) => c.text), {
-              history: latihanHistory.filter((l) => l.skor != null).map((l) => ({ skor: l.skor! })),
+            const soalSatu = await generateQuiz(chunksSatu.map((c) => c.text), {
+              history: histSatu.filter((l) => l.skor != null).map((l) => ({ skor: l.skor! })),
               learningStyle: modelSummary.profile.gayaBelajar,
             })
-            if (soal.length === 0) throw new Error("Gagal membuat soal")
+            if (soalSatu.length === 0) throw new Error("Gagal membuat soal")
             latihan = await prisma.latihanAI.create({
-              data: { siswaId: siswa.id, materiId: materi.id, soal: soal as never },
+              data: { siswaId: siswa.id, materiId: satu.id, soal: soalSatu as never },
               include: { materi: { select: { judul: true } } },
             })
             trackLatihanDimulai(siswa.id, latihan.id, input.mapelId ?? undefined).catch(() => {})
-            jawaban = `Assessor Agent membuat ${soal.length} soal latihan adaptif untuk materi *"${materi.judul}"*.\n` +
-              `📊 Level soal disesuaikan dengan riwayat belajarmu.\n\nKerjakan di bawah ini!`
+            jawaban = `Assessor Agent membuat ${soalSatu.length} soal latihan adaptif untuk materi *"${satu.judul}"*.\n\nKerjakan di bawah ini!`
+            break
           }
+
+          const daftar = materis.slice(0, 5).map((m, i) => `${i + 1}. ${m.judul}`).join("\n")
+          jawaban = `Materi mana yang ingin kamu latih? Sebutkan judulnya, contoh: *"buatkan latihan [judul materi]"*.\n\nMateri tersedia:\n${daftar}`
+          break
+        }
+
+        const chunks = await prisma.materiChunk.findMany({
+          where: { materiId: materi.id },
+          orderBy: { index: "asc" },
+        })
+        if (chunks.length === 0) {
+          jawaban = `Materi "${materi.judul}" belum diindeks ke knowledge base AI. Minta guru untuk mengindeksnya.`
+        } else {
+          const latihanHistory = await prisma.latihanAI.findMany({
+            where: { siswaId: siswa.id, materiId: materi.id },
+            select: { skor: true },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+          })
+
+          const soal = await generateQuiz(chunks.map((c) => c.text), {
+            history: latihanHistory.filter((l) => l.skor != null).map((l) => ({ skor: l.skor! })),
+            learningStyle: modelSummary.profile.gayaBelajar,
+          })
+          if (soal.length === 0) throw new Error("Gagal membuat soal")
+          latihan = await prisma.latihanAI.create({
+            data: { siswaId: siswa.id, materiId: materi.id, soal: soal as never },
+            include: { materi: { select: { judul: true } } },
+          })
+          trackLatihanDimulai(siswa.id, latihan.id, input.mapelId ?? undefined).catch(() => {})
+          jawaban = `Assessor Agent membuat ${soal.length} soal latihan adaptif untuk materi *"${materi.judul}"*.\n` +
+            `📊 Level soal disesuaikan dengan riwayat belajarmu.\n\nKerjakan di bawah ini!`
         }
         break
       }
@@ -283,11 +334,13 @@ export async function aiChat(input: { sessionId?: string | null; mapelId?: strin
       durasiMs: Date.now() - start,
       sukses: true,
     })
+    trace("agent done", `${agent} in ${Date.now() - start}ms`)
 
     if (intent === "tutor" || intent === "greeting") {
       autoEarlyWarning(siswa.id)
     }
   } catch (e: any) {
+    trace("FAILED", e?.message?.slice(0, 200))
     await logAgent(siswa.id, {
       agent,
       tipe: intent,
@@ -471,6 +524,8 @@ export async function submitFeedbackAction(input: {
 }
 
 export async function getAgentQualityAction(agent: string, period: string) {
+  // Metrik kualitas agent = data agregat sensitif → hanya ADMIN/GURU/RESEARCHER
+  await requireRole("ADMIN", "GURU", "RESEARCHER")
   return computeQualityMetrics(agent, period)
 }
 
@@ -481,7 +536,12 @@ export async function getRecentFeedbackAction() {
 }
 
 export async function getMessageFeedbackAction(messageId: string) {
-  return getMessageFeedback(messageId)
+  const siswa = await getCurrentSiswa()
+  if (!siswa) redirect("/login")
+  const feedback = await getMessageFeedback(messageId)
+  // Ownership check: feedback hanya boleh dibaca pemiliknya
+  if (feedback && feedback.siswaId !== siswa.id) return null
+  return feedback
 }
 
 export async function submitSUSSurveyAction(jawaban: number[], komentar?: string) {
@@ -491,9 +551,17 @@ export async function submitSUSSurveyAction(jawaban: number[], komentar?: string
 }
 
 export async function getSUSResultsAction() {
-  return getSUSResults()
+  // Siswa melihat AGREGAT saja; rincian per-siswa (nama/skor/komentar)
+  // hanya untuk ADMIN/GURU/RESEARCHER (fix kebocoran privasi audit M3)
+  const session = await auth()
+  const role = (session?.user as any)?.role
+  const hasil = await getSUSResults()
+  if (role === "ADMIN" || role === "GURU" || role === "RESEARCHER") return hasil
+  return { ...hasil, results: [] }
 }
 
 export async function getAIEvaluationSummaryAction(periode?: string) {
+  // Ringkasan evaluasi AI lintas-siswa → hanya role berprivilese
+  await requireRole("ADMIN", "GURU", "RESEARCHER")
   return getAIEvaluationSummary(periode)
 }

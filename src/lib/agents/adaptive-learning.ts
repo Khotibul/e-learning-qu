@@ -43,6 +43,17 @@ export async function generateAdaptivePath(siswaId: string): Promise<AdaptivePat
     const completed = allItems.filter((i) => i.status === "SELESAI").length
     const progres = allItems.length > 0 ? (completed / allItems.length) * 100 : 0
 
+    // Difficulty harus dari mastery nyata, bukan hardcode "medium"
+    // maupun progres completion (bug audit H3/H4)
+    const penguasaan = await prisma.penguasaanKompetensi.findMany({
+      where: { siswaId },
+      select: { kompetensiId: true, skor: true },
+    })
+    const masteryMap = new Map(penguasaan.map((p) => [p.kompetensiId, p.skor]))
+    const avgMastery = penguasaan.length > 0
+      ? penguasaan.reduce((s, p) => s + p.skor, 0) / penguasaan.length
+      : 0
+
     const stuckItems = allItems.filter((i) => i.status === "PENDING" && (i as any).failedAttempts > 0)
     const isStuck = stuckItems.length >= 2
 
@@ -55,13 +66,15 @@ export async function generateAdaptivePath(siswaId: string): Promise<AdaptivePat
         materiId: i.materiId,
         kompetensiId: i.kompetensiId,
         judul: (i as any).materi?.judul || (i as any).kompetensi?.nama || i.jenis,
-        difficulty: "medium",
+        difficulty: getDifficultyFromMastery(
+          (i.kompetensiId ? masteryMap.get(i.kompetensiId) : undefined) ?? avgMastery
+        ),
         status: i.status,
         urutan: i.urutan,
         prasyarat: [],
       })),
       progres,
-      currentDifficulty: getDifficultyFromMastery(progres),
+      currentDifficulty: getDifficultyFromMastery(avgMastery),
       isStuck,
       stuckCount: stuckItems.length,
     }

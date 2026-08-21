@@ -231,6 +231,29 @@ export async function getStudentModelSummary(siswaId: string) {
     return { profile: model, isNew: true }
   }
 
+  // Hitung trend & velocity dari data nyata — jangan hardcode
+  // "stabil"/0 saat profile sudah ada (bug audit M1)
+  const [nilaiHistory, recentActivities] = await Promise.all([
+    prisma.nilai.findMany({
+      where: { siswaId, deletedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: { nilai: true },
+    }),
+    prisma.learningActivity.findMany({
+      where: {
+        siswaId,
+        createdAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
+      },
+      select: { createdAt: true },
+    }),
+  ])
+
+  const trendNilai = computeTrend(nilaiHistory.map((n) => n.nilai))
+  const uniqueDays = new Set(
+    recentActivities.map((a) => new Date(a.createdAt).toISOString().split("T")[0])
+  )
+  const learningVelocity = Math.min(1, recentActivities.length / (Math.max(1, uniqueDays.size) * 3))
+
   return {
     profile: {
       gayaBelajar: profile.gayaBelajar as StudentModel["gayaBelajar"],
@@ -239,8 +262,8 @@ export async function getStudentModelSummary(siswaId: string) {
       konsistensi: profile.konsistensi,
       streak: profile.streak,
       totalSesi: profile.totalSesi,
-      learningVelocity: 0,
-      trendNilai: "stabil" as const,
+      learningVelocity,
+      trendNilai,
     },
     isNew: false,
   }

@@ -180,17 +180,27 @@ export async function generateContentWithHistory(
       return text.trim()
     } catch (e: any) {
       lastError = e
-      if (attempt < MAX_RETRIES) {
+      // Hanya retry error transien (429/5xx). Error permanen (400/401/403,
+      // respons kosong, JSON rusak) tidak akan membaik dengan retry.
+      const msg = e?.message || ""
+      if (attempt < MAX_RETRIES && (msg.includes("429") || msg.includes("503") || msg.includes("500"))) {
         await sleep(BASE_DELAY * Math.pow(2, attempt))
         continue
       }
+      throw e
     }
   }
   throw lastError || new Error("Gemini: semua retry gagal")
 }
 
-export async function embedText(text: string): Promise<number[]> {
+export async function embedText(
+  text: string,
+  opts?: { taskType?: "RETRIEVAL_QUERY" | "RETRIEVAL_DOCUMENT" }
+): Promise<number[]> {
   if (!GEMINI_KEY) throw new Error("GOOGLE_GEMINI_API_KEY tidak diatur")
+  // Dokumen materi harus RETRIEVAL_DOCUMENT; query siswa RETRIEVAL_QUERY.
+  // Sebelumnya keduanya QUERY → kualitas pencocokan semantik menurun.
+  const taskType = opts?.taskType ?? "RETRIEVAL_QUERY"
 
   let lastError: Error | null = null
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -202,7 +212,7 @@ export async function embedText(text: string): Promise<number[]> {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             content: { parts: [{ text: text.slice(0, 9000) }] },
-            taskType: "RETRIEVAL_QUERY",
+            taskType,
           }),
         }
       )
@@ -223,10 +233,12 @@ export async function embedText(text: string): Promise<number[]> {
       return values
     } catch (e: any) {
       lastError = e
-      if (attempt < MAX_RETRIES) {
+      const msg = e?.message || ""
+      if (attempt < MAX_RETRIES && (msg.includes("429") || msg.includes("503") || msg.includes("500"))) {
         await sleep(BASE_DELAY * Math.pow(2, attempt))
         continue
       }
+      throw e
     }
   }
   throw lastError || new Error("Gemini embed: semua retry gagal")

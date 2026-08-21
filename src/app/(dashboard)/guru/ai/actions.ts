@@ -53,7 +53,8 @@ export async function indexMateri(materiId: string) {
     let embedding: number[] = []
     if (geminiEnabled() && !failedEmbed) {
       try {
-        embedding = await embedText(bagian[i])
+        // Dokumen materi pakai RETRIEVAL_DOCUMENT (query siswa tetap RETRIEVAL_QUERY)
+        embedding = await embedText(bagian[i], { taskType: "RETRIEVAL_DOCUMENT" })
       } catch (e) {
         console.error("Embed gagal:", e)
         failedEmbed = true
