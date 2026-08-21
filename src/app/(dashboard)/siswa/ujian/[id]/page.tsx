@@ -580,28 +580,6 @@ export default function UjianPengerjaanPage() {
             onSelect={handleNavigate}
             answeredCount={answeredCount}
           />
-
-          <Separator />
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={() => setShowReview(true)}
-            >
-              <Eye className="h-4 w-4" />
-              Review
-            </Button>
-            <Button
-              size="sm"
-              className="flex-1"
-              onClick={() => setShowReview(true)}
-            >
-              <Send className="h-4 w-4" />
-              Kumpul
-            </Button>
-          </div>
         </aside>
       </div>
 
