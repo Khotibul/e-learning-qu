@@ -1,6 +1,6 @@
 "use client"
 
-import { useSession } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { motion } from "framer-motion"
@@ -79,10 +79,10 @@ export default function HomePage() {
             else if (role === "SISWA") router.push("/siswa")
             else router.push("/register")
           } else {
-            router.push("/register")
+            signOut({ callbackUrl: "/" })
           }
         })
-        .catch(() => router.push("/register"))
+        .catch(() => signOut({ callbackUrl: "/" }))
     }
   }, [session, status, router])
 
