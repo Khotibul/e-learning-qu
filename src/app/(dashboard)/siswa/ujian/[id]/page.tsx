@@ -16,7 +16,6 @@ import {
   Eye,
   Send,
   Loader2,
-  Monitor,
   ShieldCheck,
   BookOpen,
 } from "lucide-react"
@@ -101,7 +100,6 @@ export default function UjianPengerjaanPage() {
   const [showReview, setShowReview] = useState(false)
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
   const [hasil, setHasil] = useState<HasilData | null>(null)
-  const [isFullscreen, setIsFullscreen] = useState(false)
   const [tabSwitchCount, setTabSwitchCount] = useState(0)
   const [showAntiCheatWarning, setShowAntiCheatWarning] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -157,6 +155,16 @@ export default function UjianPengerjaanPage() {
 
       setShowKonfirmasi(false)
       setHasStarted(true)
+
+      // Auto-enter fullscreen if enabled by guru
+      if (ujianData?.fullscreen && typeof document !== "undefined") {
+        try {
+          await document.documentElement.requestFullscreen()
+        } catch {
+          // Browser may block auto-fullscreen without user gesture
+          // User can manually enable if needed
+        }
+      }
 
       setWaktuTersisa((ujianData?.durasi ?? 0) * 60)
       toast.success("Ujian dimulai! Selamat mengerjakan.")
@@ -225,17 +233,6 @@ export default function UjianPengerjaanPage() {
     handleSubmit()
   }, [handleSubmit])
 
-  const handleToggleFullscreen = useCallback(() => {
-    if (typeof document === "undefined") return
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {})
-    } else {
-      document.documentElement.requestFullscreen()
-        .then(() => setIsFullscreen(true))
-        .catch(() => toast.error("Gagal masuk mode layar penuh."))
-    }
-  }, [])
-
   useEffect(() => {
     if (!hasStarted || submitted) return
 
@@ -299,22 +296,16 @@ export default function UjianPengerjaanPage() {
       }
     }
 
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement)
-    }
-
     document.addEventListener("copy", handleCopy)
     document.addEventListener("paste", handlePaste)
     document.addEventListener("contextmenu", handleContextMenu)
     document.addEventListener("keydown", handleKeyDown)
-    document.addEventListener("fullscreenchange", handleFullscreenChange)
 
     return () => {
       document.removeEventListener("copy", handleCopy)
       document.removeEventListener("paste", handlePaste)
       document.removeEventListener("contextmenu", handleContextMenu)
       document.removeEventListener("keydown", handleKeyDown)
-      document.removeEventListener("fullscreenchange", handleFullscreenChange)
     }
   }, [hasStarted, submitted, ujianData])
 
@@ -474,18 +465,6 @@ export default function UjianPengerjaanPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            {ujianData.fullscreen && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleToggleFullscreen}
-                className="flex gap-1.5"
-              >
-                <Monitor className="h-4 w-4" />
-                {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-              </Button>
-            )}
-
             <UjianTimer
               durasiMenit={ujianData.durasi}
               onTimeUp={handleTimeUp}
