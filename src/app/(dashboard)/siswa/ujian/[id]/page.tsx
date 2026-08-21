@@ -599,6 +599,7 @@ export default function UjianPengerjaanPage() {
             raguRagu={raguRagu}
             soalIds={soalIds}
             onSelect={handleNavigate}
+            answeredCount={answeredCount}
           />
 
           <Separator />
@@ -623,6 +624,61 @@ export default function UjianPengerjaanPage() {
             </Button>
           </div>
         </aside>
+      </div>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-3 pb-safe">
+        <div className="mx-auto max-w-3xl grid grid-cols-3 gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleNavigate(currentNomor - 1)}
+            disabled={currentNomor <= 1}
+            className="h-10 gap-1.5"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Sebelumnya
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowReview(true)}
+            className="h-10 gap-1.5"
+          >
+            <Eye className="h-4 w-4" />
+            Review
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleNavigate(currentNomor + 1)}
+            disabled={currentNomor >= ujianData.jumlahSoal}
+            className="h-10 gap-1.5"
+          >
+            Selanjutnya
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Button
+            variant={raguRagu.includes(currentSoal?.id ?? "") ? "warning" : "outline"}
+            size="sm"
+            onClick={() => currentSoal && toggleRaguRagu(currentSoal.id)}
+            className="h-10 gap-1.5"
+            disabled={!currentSoal}
+          >
+            <Flag className="h-4 w-4" />
+            {raguRagu.includes(currentSoal?.id ?? "") ? "Tandai Sudah" : "Ragu-ragu"}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setShowReview(true)}
+            className="h-10 gap-1.5 bg-primary text-primary-foreground"
+          >
+            <Send className="h-4 w-4" />
+            Kumpulkan
+          </Button>
+        </div>
       </div>
     </div>
   )
