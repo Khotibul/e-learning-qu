@@ -1004,6 +1004,15 @@ export async function getGuruKelasRefs() {
   })
 }
 
+export async function getGuruWaliKelasRefs() {
+  const guru = await getCurrentGuru()
+  return prisma.kelas.findMany({
+    where: { guruId: guru.id, deletedAt: null },
+    select: { id: true, nama: true, tingkat: true },
+    orderBy: [{ tingkat: "asc" }, { nama: "asc" }],
+  })
+}
+
 export async function getBankSoalRefs() {
   const guru = await getCurrentGuru()
   return prisma.soal.findMany({

@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { getUjian, getGuruMapelRefs, getGuruKelasRefs, getBankSoalRefs } from "../../actions"
+import { getUjian, getGuruMapelRefs, getGuruKelasRefs, getGuruWaliKelasRefs, getBankSoalRefs } from "../../actions"
 import { getSemesterRefs, getTahunAjaranRefs } from "../../../admin/actions"
 import { UjianFormClient } from "./_components/ujian-form"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -12,9 +12,10 @@ async function UjianFormContent({ params }: { params: Promise<{ id: string }> })
   const isNew = id === "new"
   let ujian = null
 
-  const [mapels, kelass, semesters, tahunAjarans, bankSoal] = await Promise.all([
+  const [mapels, kelass, waliKelass, semesters, tahunAjarans, bankSoal] = await Promise.all([
     getGuruMapelRefs(),
     getGuruKelasRefs(),
+    getGuruWaliKelasRefs(),
     getSemesterRefs(),
     getTahunAjaranRefs(),
     getBankSoalRefs(),
@@ -30,6 +31,7 @@ async function UjianFormContent({ params }: { params: Promise<{ id: string }> })
       ujian={ujian as any}
       mapels={mapels as any}
       kelass={kelass as any}
+      waliKelass={waliKelass as any}
       semesters={semesters as any}
       tahunAjarans={tahunAjarans as any}
       bankSoal={bankSoal as any}

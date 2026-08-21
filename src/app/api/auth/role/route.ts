@@ -66,6 +66,12 @@ export const POST = auth(async (req) => {
     }
 
     const userId = req.auth!.user.id
+
+    const existingUser = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
+    if (!existingUser) {
+      return NextResponse.json({ error: "User tidak ditemukan. Silakan daftar ulang." }, { status: 404 })
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: userId },

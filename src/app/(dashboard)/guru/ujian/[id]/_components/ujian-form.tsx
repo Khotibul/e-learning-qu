@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Save, ArrowLeft, Search, Plus, X } from "lucide-react"
 import { toast } from "react-hot-toast"
@@ -27,6 +27,12 @@ interface MapelRef {
 }
 
 interface KelasRef {
+  id: string
+  nama: string
+  tingkat: number
+}
+
+interface WaliKelasRef {
   id: string
   nama: string
   tingkat: number
@@ -90,6 +96,7 @@ export function UjianFormClient({
   ujian,
   mapels,
   kelass,
+  waliKelass,
   semesters,
   tahunAjarans,
   bankSoal,
@@ -98,6 +105,7 @@ export function UjianFormClient({
   ujian: UjianData | null
   mapels: MapelRef[]
   kelass: KelasRef[]
+  waliKelass: WaliKelasRef[]
   semesters: SemesterRef[]
   tahunAjarans: TahunAjaranRef[]
   bankSoal: (BankSoalRef & { mataPelajaran: { nama: string } })[]
@@ -140,6 +148,30 @@ export function UjianFormClient({
   )
   const [soalSearch, setSoalSearch] = useState("")
   const [saving, setSaving] = useState(false)
+
+  const isWaliKelas = kelasId ? waliKelass.some((k) => k.id === kelasId) : false
+  const canEnableFullscreen = isWaliKelas
+
+  const syncFullscreenWithAntiCheat = () => {
+    const isStrictAntiCheat = maxTabSwitch <= 2 || maxCheatingScore <= 50
+    if (isStrictAntiCheat && canEnableFullscreen) {
+      setFullscreen(true)
+    } else if (!isStrictAntiCheat) {
+      setFullscreen(false)
+    }
+  }
+
+  useEffect(() => {
+    if (canEnableFullscreen) {
+      syncFullscreenWithAntiCheat()
+    }
+  }, [maxTabSwitch, maxCheatingScore, canEnableFullscreen])
+
+  useEffect(() => {
+    if (!canEnableFullscreen && fullscreen) {
+      setFullscreen(false)
+    }
+  }, [canEnableFullscreen, fullscreen])
 
   const availableMapels = kelasId
     ? mapels.filter((m) => m.kelasId === kelasId)
@@ -413,25 +445,30 @@ export function UjianFormClient({
           <CardContent>
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
               {[
-                { label: "Acak Soal", desc: "Urutan soal berbeda untuk setiap siswa", value: randomSoal, set: setRandomSoal, icon: "🔀" },
-                { label: "Acak Jawaban", desc: "Pilihan jawaban diacak per soal", value: randomJawaban, set: setRandomJawaban, icon: "🎲" },
-                { label: "Fullscreen", desc: "Paksa layar penuh saat mengerjakan", value: fullscreen, set: setFullscreen, icon: "🖥️" },
-                { label: "Nonaktifkan Copy", desc: "Mencegah siswa menyalin soal", value: disableCopy, set: setDisableCopy, icon: "🚫" },
-                { label: "Nonaktifkan Paste", desc: "Mencegah siswa menempel jawaban", value: disablePaste, set: setDisablePaste, icon: "📋" },
-                { label: "Bisa Retake", desc: "Izinkan siswa mengerjakan ulang", value: bisaRetake, set: setBisaRetake, icon: "🔄" },
+                { label: "Acak Soal", desc: "Urutan soal berbeda untuk setiap siswa", value: randomSoal, set: setRandomSoal, icon: "🔀", disabled: false },
+                { label: "Acak Jawaban", desc: "Pilihan jawaban diacak per soal", value: randomJawaban, set: setRandomJawaban, icon: "🎲", disabled: false },
+                { label: "Fullscreen", desc: "Paksa layar penuh saat mengerjakan", value: fullscreen, set: setFullscreen, icon: "🖥️", disabled: !canEnableFullscreen },
+                { label: "Nonaktifkan Copy", desc: "Mencegah siswa menyalin soal", value: disableCopy, set: setDisableCopy, icon: "🚫", disabled: false },
+                { label: "Nonaktifkan Paste", desc: "Mencegah siswa menempel jawaban", value: disablePaste, set: setDisablePaste, icon: "📋", disabled: false },
+                { label: "Bisa Retake", desc: "Izinkan siswa mengerjakan ulang", value: bisaRetake, set: setBisaRetake, icon: "🔄", disabled: false },
               ].map((item) => (
-                <div key={item.label} className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${item.value ? "bg-primary/5 border-primary/20" : "bg-muted/30"}`}>
+                <div key={item.label} className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${item.value ? "bg-primary/5 border-primary/20" : "bg-muted/30"} ${item.disabled ? "opacity-50 cursor-not-allowed" : ""}`}>
                   <span className="text-lg">{item.icon}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{item.label}</span>
-                      <Badge variant={item.value ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
-                        {item.value ? "AKTIF" : "NONAKTIF"}
-                      </Badge>
+                      {item.disabled && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Hanya Wali Kelas</Badge>
+                      )}
+                      {!item.disabled && (
+                        <Badge variant={item.value ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                          {item.value ? "AKTIF" : "NONAKTIF"}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
                   </div>
-                  <Switch checked={item.value} onCheckedChange={item.set} />
+                  <Switch checked={item.value} onCheckedChange={item.disabled ? undefined : item.set} disabled={item.disabled} />
                 </div>
               ))}
             </div>
@@ -473,6 +510,22 @@ export function UjianFormClient({
                 </Badge>
               </div>
             </div>
+            {canEnableFullscreen && (maxTabSwitch <= 2 || maxCheatingScore <= 50) && (
+              <div className="mt-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                <p className="text-xs text-blue-800 dark:text-blue-300 flex items-center gap-1">
+                  <span>ℹ️</span>
+                  Mode anti-cheat ketat terdeteksi — Fullscreen diaktifkan otomatis
+                </p>
+              </div>
+            )}
+            {!canEnableFullscreen && (
+              <div className="mt-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                <p className="text-xs text-amber-800 dark:text-amber-300 flex items-center gap-1">
+                  <span>⚠️</span>
+                  Fullscreen hanya tersedia untuk Wali Kelas. Anda bukan wali kelas untuk kelas ini.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
