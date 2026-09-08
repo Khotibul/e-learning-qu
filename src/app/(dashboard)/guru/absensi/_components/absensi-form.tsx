@@ -43,7 +43,9 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
   const [absensiForm, setAbsensiForm] = useState<Record<string, Record<string, string>>>({})
   const [saving, setSaving] = useState<string | null>(null)
   const [saved, setSaved] = useState<Set<string>>(new Set())
+  const [savedAt, setSavedAt] = useState<Map<string, string>>(new Map())
   const [loadingJadwal, setLoadingJadwal] = useState(false)
+  const [savingKelas, setSavingKelas] = useState<string | null>(null)
 
   const kelasMap = useMemo(() => {
     const m: Record<string, { nama: string; siswas: SiswaItem[] }> = {}
@@ -67,6 +69,7 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
   const loadJadwal = async () => {
     setLoadingJadwal(true)
     setSaved(new Set())
+    setSavedAt(new Map())
     try {
       const jadwal = await getGuruJadwalByDate(tanggal)
       setJadwalList(jadwal as any)
@@ -82,6 +85,19 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
         }
       }
       setAbsensiData(allAbsensi)
+      // Tandai yang sudah tersimpan di DB agar tombol langsung "Tersimpan" (1x simpan)
+      const initialSaved = new Set<string>()
+      const initialSavedAt = new Map<string, string>()
+      for (const jd of jadwal as any as JadwalItem[]) {
+        const exists = (allAbsensi as any).find((a: any) => a.mataPelajaranId === jd.mataPelajaran.id && a.kelasId === jd.kelas.id)
+        if (exists) {
+          initialSaved.add(jd._key)
+          const ts = exists.updatedAt || exists.createdAt
+          if (ts) initialSavedAt.set(jd._key, new Date(ts).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }))
+        }
+      }
+      setSaved(initialSaved)
+      setSavedAt(initialSavedAt)
     } catch {
       toast.error("Gagal memuat jadwal")
     } finally {
@@ -112,6 +128,7 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
 
   const clearSaved = (key: string) => {
     setSaved((prev) => { const next = new Set(prev); next.delete(key); return next })
+    setSavedAt((prev) => { const next = new Map(prev); next.delete(key); return next })
   }
 
   const handleStatusChange = (jadwalKey: string, siswaId: string, status: string) => {
@@ -130,17 +147,55 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
   }
 
   const handleSave = async (jd: JadwalItem) => {
+    if (saved.has(jd._key)) {
+      toast.success("Absensi sudah tersimpan")
+      return
+    }
     setSaving(jd._key)
     try {
       const form = absensiForm[jd._key] || {}
       const siswaStatus = Object.entries(form).map(([siswaId, status]) => ({ siswaId, status }))
       await saveAbsensi(jd.kelas.id, jd.mataPelajaran.id, tanggal, siswaStatus)
+      const now = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
       setSaved((prev) => new Set(prev).add(jd._key))
+      setSavedAt((prev) => { const next = new Map(prev); next.set(jd._key, now); return next })
       toast.success(`Absensi ${jd.kelas.nama} - ${jd.mataPelajaran.nama} tersimpan`)
     } catch {
       toast.error("Gagal menyimpan")
     } finally {
       setSaving(null)
+    }
+  }
+
+  const handleSaveAllKelas = async (kelasId: string, items: JadwalItem[]) => {
+    const toSave = items.filter((jd) => !saved.has(jd._key))
+    if (toSave.length === 0) {
+      toast.success("Semua mapel kelas ini sudah tersimpan")
+      return
+    }
+    setSavingKelas(kelasId)
+    try {
+      for (const jd of toSave) {
+        const form = absensiForm[jd._key] || {}
+        const siswaStatus = Object.entries(form).map(([siswaId, status]) => ({ siswaId, status }))
+        await saveAbsensi(jd.kelas.id, jd.mataPelajaran.id, tanggal, siswaStatus)
+      }
+      const now = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+      setSaved((prev) => {
+        const next = new Set(prev)
+        toSave.forEach((jd) => next.add(jd._key))
+        return next
+      })
+      setSavedAt((prev) => {
+        const next = new Map(prev)
+        toSave.forEach((jd) => next.set(jd._key, now))
+        return next
+      })
+      toast.success(`Absensi ${kelasList.find((k) => k.id === kelasId)?.nama ?? ""} tersimpan (${toSave.length} mapel)`)
+    } catch {
+      toast.error("Gagal menyimpan semua")
+    } finally {
+      setSavingKelas(null)
     }
   }
 
@@ -184,11 +239,28 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
           const rataHarian = rekapHarian.length > 0 ? Math.round(rekapHarian.reduce((a, b) => a + b.persentase, 0) / rekapHarian.length) : 0
           return (
             <div key={kelasId} className="space-y-4">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                {kelasInfo.nama}
-                <Badge variant="secondary" className="text-xs">{kelasInfo.siswas.length} siswa</Badge>
-                <Badge variant="outline" className="text-xs">{totalMapelHari} mapel hari ini</Badge>
-              </h2>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  {kelasInfo.nama}
+                  <Badge variant="secondary" className="text-xs">{kelasInfo.siswas.length} siswa</Badge>
+                  <Badge variant="outline" className="text-xs">{totalMapelHari} mapel hari ini</Badge>
+                  {items.every((jd) => saved.has(jd._key)) && items.length > 0 && (
+                    <Badge className="bg-emerald-600 text-white text-xs gap-1"><Check className="h-3 w-3" /> Tersimpan</Badge>
+                  )}
+                </h2>
+                {items.length > 1 && (
+                  <Button
+                    size="sm"
+                    variant={items.every((jd) => saved.has(jd._key)) ? "secondary" : "default"}
+                    className={`h-8 text-xs ${items.every((jd) => saved.has(jd._key)) ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`}
+                    onClick={() => handleSaveAllKelas(kelasId, items)}
+                    disabled={savingKelas === kelasId || items.every((jd) => saved.has(jd._key))}
+                  >
+                    {savingKelas === kelasId ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : items.every((jd) => saved.has(jd._key)) ? <Check className="h-3 w-3 mr-1" /> : <Save className="h-3 w-3 mr-1" />}
+                    {items.every((jd) => saved.has(jd._key)) ? "Semua Tersimpan" : `Simpan Semua (${items.filter((jd) => !saved.has(jd._key)).length})`}
+                  </Button>
+                )}
+              </div>
               <Card className="border-primary/20 bg-primary/[0.02]">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center gap-2">
@@ -250,14 +322,26 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
                             <Badge className="text-[10px] bg-red-100 text-red-700">{statusCount.ALPA} Alpa</Badge>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleMarkAll(jd._key, "HADIR", activeSiswa)}>
-                            Semua Hadir
-                          </Button>
-                          <Button size="sm" className={`h-8 text-xs sm:text-sm ${saved.has(jd._key) ? "bg-green-600 hover:bg-green-700" : ""}`} onClick={() => handleSave(jd)} disabled={saving === jd._key}>
-                            {saving === jd._key ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : saved.has(jd._key) && <Check className="h-3 w-3 mr-1" />}
-                            {saved.has(jd._key) ? "Tersimpan" : "Simpan"}
-                          </Button>
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleMarkAll(jd._key, "HADIR", activeSiswa)} disabled={saved.has(jd._key)}>
+                              Semua Hadir
+                            </Button>
+                            <Button
+                              size="sm"
+                              className={`h-8 text-xs sm:text-sm ${saved.has(jd._key) ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`}
+                              onClick={() => handleSave(jd)}
+                              disabled={saving === jd._key || saved.has(jd._key)}
+                            >
+                              {saving === jd._key ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : saved.has(jd._key) ? <Check className="h-3 w-3 mr-1" /> : <Save className="h-3 w-3 mr-1" />}
+                              {saved.has(jd._key) ? "Tersimpan" : "Simpan 1x"}
+                            </Button>
+                          </div>
+                          {saved.has(jd._key) && (
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                              <Check className="h-3 w-3" /> Tersimpan {savedAt.get(jd._key) ? `• ${savedAt.get(jd._key)}` : ""}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </CardHeader>
