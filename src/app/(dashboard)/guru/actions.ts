@@ -60,14 +60,14 @@ export async function getGuruDashboardStats() {
   const aiInsight: string[] = []
 
   if (allowedKelasIds.length > 0) {
-    const [nilaiAgg, penguasaanAgg, warnings] = await Promise.all([
-      prisma.nilai.findMany({
+    const [nilaiStats, masteryStats, warnings, kompGroups] = await Promise.all([
+      prisma.nilai.aggregate({
         where: { deletedAt: null, siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null }, ujian: { guruId: guru.id } },
-        select: { nilai: true },
+        _avg: { nilai: true },
       }),
-      prisma.penguasaanKompetensi.findMany({
+      prisma.penguasaanKompetensi.aggregate({
         where: { siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null } },
-        select: { skor: true, kompetensi: { select: { nama: true, mataPelajaranId: true } } },
+        _avg: { skor: true },
       }),
       prisma.earlyWarning.findMany({
         where: { isResolved: false, siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null } },
@@ -79,14 +79,17 @@ export async function getGuruDashboardStats() {
         },
         take: 100,
       }),
+      prisma.penguasaanKompetensi.groupBy({
+        by: ["kompetensiId"],
+        where: { siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null } },
+        _avg: { skor: true },
+        orderBy: { _avg: { skor: "asc" } },
+        take: 5,
+      }),
     ])
 
-    if (nilaiAgg.length > 0) {
-      rataNilai = Math.round(nilaiAgg.reduce((s, n) => s + n.nilai, 0) / nilaiAgg.length)
-    }
-    if (penguasaanAgg.length > 0) {
-      rataMastery = Math.round(penguasaanAgg.reduce((s, p) => s + p.skor, 0) / penguasaanAgg.length)
-    }
+    if (nilaiStats._avg.nilai != null) rataNilai = Math.round(nilaiStats._avg.nilai)
+    if (masteryStats._avg.skor != null) rataMastery = Math.round(masteryStats._avg.skor)
 
     riskHigh = warnings.filter((w) => w.severity === "HIGH" || w.severity === "CRITICAL").length
     riskMedium = warnings.filter((w) => w.severity === "MEDIUM").length
@@ -107,18 +110,16 @@ export async function getGuruDashboardStats() {
       if (topAtRisk.length >= 3) break
     }
 
-    // AI Insight deterministik dari data nyata (bukan LLM, bukan random)
-    const kompAgg = new Map<string, { total: number; count: number }>()
-    for (const p of penguasaanAgg) {
-      const cur = kompAgg.get(p.kompetensi.nama) ?? { total: 0, count: 0 }
-      cur.total += p.skor
-      cur.count++
-      kompAgg.set(p.kompetensi.nama, cur)
+    // AI Insight deterministik dari data nyata (groupBy, bukan load 15k rows)
+    let terlemah: { nama: string; avg: number } | null = null
+    if (kompGroups.length > 0) {
+      const first = kompGroups[0]
+      const avg = first._avg.skor ?? 100
+      if (avg < 50) {
+        const komp = await prisma.kompetensi.findUnique({ where: { id: first.kompetensiId }, select: { nama: true } })
+        terlemah = { nama: komp?.nama ?? "Kompetensi", avg }
+      }
     }
-    const terlemah = [...kompAgg.entries()]
-      .map(([nama, v]) => ({ nama, avg: v.total / v.count }))
-      .filter((k) => k.avg < 50)
-      .sort((a, b) => a.avg - b.avg)[0]
     if (terlemah) {
       aiInsight.push(`Penguasaan "${terlemah.nama}" rata-rata hanya ${Math.round(terlemah.avg)}% — perlu perhatian di kelas Anda.`)
     }
