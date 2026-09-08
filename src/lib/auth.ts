@@ -46,10 +46,27 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id
         token.role = (user as any).role
+        if ((user as any).role === "GURU") {
+          try {
+            const guru = await prisma.guru.findFirst({
+              where: { userId: user.id, deletedAt: null },
+              select: { jabatan: true },
+            })
+            ;(token as any).jabatan = guru?.jabatan || null
+          } catch { (token as any).jabatan = null }
+        }
+      } else if (trigger === "update" && (token as any).role === "GURU" && !(token as any).jabatan) {
+        try {
+          const guru = await prisma.guru.findFirst({
+            where: { userId: token.id as string, deletedAt: null },
+            select: { jabatan: true },
+          })
+          ;(token as any).jabatan = guru?.jabatan || null
+        } catch {}
       }
       return token
     },
@@ -57,6 +74,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string
         session.user.role = token.role
+        ;(session.user as any).jabatan = (token as any).jabatan || null
       }
       return session
     },

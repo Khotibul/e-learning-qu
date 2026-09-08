@@ -278,38 +278,26 @@ export async function runEarlyWarning(siswaId: string): Promise<WarningResult> {
 
   const existingMap = new Map(existingWarnings.map((w) => [w.tipe, w]))
 
+  const toCreate: typeof validResults = []
+  const toUpdate: { id: string; data: Record<string, unknown> }[] = []
   for (const result of validResults) {
     const existing = existingMap.get(result.tipe)
     if (existing) {
       if ((SEVERITY_ORDER[result.severity as keyof typeof SEVERITY_ORDER] || 0) > (SEVERITY_ORDER[existing.severity as keyof typeof SEVERITY_ORDER] || 0)) {
-        await prisma.earlyWarning.update({
-          where: { id: existing.id },
-          data: { severity: result.severity, message: result.message, skor: result.skor, detail: result.detail },
-        })
+        toUpdate.push({ id: existing.id, data: { severity: result.severity, message: result.message, skor: result.skor, detail: result.detail } })
       }
     } else {
-      await prisma.earlyWarning.create({
-        data: {
-          siswaId,
-          tipe: result.tipe,
-          severity: result.severity,
-          message: result.message,
-          skor: result.skor,
-          detail: result.detail,
-        },
-      })
+      toCreate.push(result)
     }
   }
+  const ops: Promise<unknown>[] = []
+  if (toCreate.length > 0) ops.push(prisma.earlyWarning.createMany({ data: toCreate.map((r) => ({ siswaId, tipe: r.tipe, severity: r.severity, message: r.message, skor: r.skor, detail: r.detail })) }))
+  for (const u of toUpdate) ops.push(prisma.earlyWarning.update({ where: { id: u.id }, data: u.data as never }))
+  if (ops.length > 0) await prisma.$transaction(ops as never)
 
   const resolvedTipes = new Set(validResults.map((r) => r.tipe))
-  for (const existing of existingWarnings) {
-    if (!resolvedTipes.has(existing.tipe)) {
-      await prisma.earlyWarning.update({
-        where: { id: existing.id },
-        data: { isResolved: true },
-      })
-    }
-  }
+  const toResolveIds = existingWarnings.filter((w) => !resolvedTipes.has(w.tipe)).map((w) => w.id)
+  if (toResolveIds.length > 0) await prisma.earlyWarning.updateMany({ where: { id: { in: toResolveIds } }, data: { isResolved: true } })
 
   const allWarnings = await prisma.earlyWarning.findMany({
     where: { siswaId, isResolved: false },

@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
 import { cn } from "@/lib/utils"
 import { NAV_ITEMS } from "@/constants"
 import {
@@ -28,6 +29,7 @@ interface SidebarProps {
 
 export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
+  const { data: session } = useSession()
   const [siteConfig, setSiteConfig] = useState({
     siteName: process.env.NEXT_PUBLIC_SITE_NAME || "E-Learning QU",
     logoUrl: "",
@@ -36,19 +38,49 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
 
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_SITE_NAME) return
-    fetch("/api/site-config")
+    try {
+      const cached = sessionStorage.getItem("site-config")
+      if (cached) {
+        const d = JSON.parse(cached)
+        if (d?.siteName && Date.now() - (d._ts || 0) < 5 * 60 * 1000) {
+          setSiteConfig(d)
+          return
+        }
+      }
+    } catch {}
+    fetch("/api/site-config", { next: { revalidate: 300 } } as never)
       .then((r) => r.json())
-      .then((d) => { if (d?.siteName) setSiteConfig(d) })
+      .then((d) => {
+        if (d?.siteName) {
+          setSiteConfig(d)
+          try { sessionStorage.setItem("site-config", JSON.stringify({ ...d, _ts: Date.now() })) } catch {}
+        }
+      })
       .catch(() => {})
   }, [])
 
   useEffect(() => {
     if (role !== "GURU") return
+    const fromJwt = (session?.user as unknown as { jabatan?: string })?.jabatan
+    if (fromJwt !== undefined) {
+      setGuruJabatan(fromJwt || null)
+      return
+    }
+    try {
+      const cached = sessionStorage.getItem("guru-jabatan")
+      if (cached) {
+        const { v, ts } = JSON.parse(cached)
+        if (Date.now() - ts < 5 * 60 * 1000) { setGuruJabatan(v); return }
+      }
+    } catch {}
     fetch("/api/guru/jabatan")
       .then((r) => r.json())
-      .then((d) => setGuruJabatan(d?.jabatan || null))
+      .then((d) => {
+        setGuruJabatan(d?.jabatan || null)
+        try { sessionStorage.setItem("guru-jabatan", JSON.stringify({ v: d?.jabatan || null, ts: Date.now() })) } catch {}
+      })
       .catch(() => {})
-  }, [role])
+  }, [role, session])
 
   const items = (NAV_ITEMS[role as keyof typeof NAV_ITEMS] || []).filter(
     (item) => item.href !== "/guru/pelanggaran" || guruJabatan === "BK"

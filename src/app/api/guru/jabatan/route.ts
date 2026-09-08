@@ -11,5 +11,7 @@ export async function GET() {
     where: { user: { id: session.user.id }, deletedAt: null },
     select: { jabatan: true },
   })
-  return NextResponse.json({ jabatan: guru?.jabatan || null })
+  return NextResponse.json({ jabatan: guru?.jabatan || null }, {
+    headers: { "Cache-Control": "private, max-age=300, stale-while-revalidate=600" },
+  })
 }

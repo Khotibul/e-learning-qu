@@ -165,6 +165,8 @@ model Guru {
   pengajaran     Pengajaran[]
   interventions  Intervention[]
 
+  @@index([userId])
+  @@index([deletedAt])
   @@map("guru")
 }
 
@@ -211,6 +213,10 @@ model Siswa {
   examSessions     ExamSession[]
   examAuditLogs    ExamAuditLog[]
 
+  @@index([kelasId])
+  @@index([kelasId, deletedAt])
+  @@index([jurusanId])
+  @@index([deletedAt])
   @@map("siswa")
 }
 
@@ -386,6 +392,9 @@ model Kelas {
   pengajaran      Pengajaran[]
   pelanggaran     Pelanggaran[]
 
+  @@index([guruId])
+  @@index([guruId, deletedAt])
+  @@index([deletedAt])
   @@map("kelas")
 }
 
@@ -429,6 +438,11 @@ model Pengajaran {
   kelas         Kelas         @relation(fields: [kelasId], references: [id], onDelete: Cascade)
 
   @@unique([mataPelajaranId, guruId, kelasId])
+  @@index([guruId])
+  @@index([kelasId])
+  @@index([mataPelajaranId])
+  @@index([guruId, kelasId])
+  @@index([deletedAt])
   @@map("pengajaran")
 }
 
@@ -495,6 +509,11 @@ model Soal {
   jawabanUjian   JawabanUjian[]
   jawabanLatihan JawabanLatihan[]
 
+  @@index([guruId])
+  @@index([mataPelajaranId])
+  @@index([guruId, deletedAt])
+  @@index([mataPelajaranId, deletedAt])
+  @@index([deletedAt])
   @@map("soal")
 }
 
@@ -553,6 +572,15 @@ model Ujian {
   examSessions    ExamSession[]
   examAuditLogs   ExamAuditLog[]
 
+  @@index([guruId])
+  @@index([kelasId])
+  @@index([mataPelajaranId])
+  @@index([status])
+  @@index([deletedAt])
+  @@index([isLatihan])
+  @@index([kelasId, status, deletedAt])
+  @@index([guruId, status])
+  @@index([tahunAjaranId, semesterId])
   @@map("ujian")
 }
 
@@ -588,6 +616,10 @@ model JawabanUjian {
   penilaianEssay PenilaianEssay?
 
   @@unique([ujianId, siswaId, soalId])
+  @@index([siswaId])
+  @@index([ujianId])
+  @@index([siswaId, ujianId])
+  @@index([soalId])
   @@map("jawaban_ujian")
 }
 
@@ -624,6 +656,12 @@ model Nilai {
   mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id])
   semester      Semester      @relation(fields: [semesterId], references: [id])
 
+  @@index([siswaId])
+  @@index([siswaId, deletedAt])
+  @@index([ujianId])
+  @@index([mataPelajaranId])
+  @@index([semesterId])
+  @@index([deletedAt])
   @@map("nilai")
 }
 
@@ -658,6 +696,9 @@ model JadwalPelajaran {
   kelas         Kelas         @relation(fields: [kelasId], references: [id], onDelete: Cascade)
   mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id], onDelete: Cascade)
 
+  @@index([kelasId])
+  @@index([kelasId, deletedAt])
+  @@index([mataPelajaranId])
   @@map("jadwal_pelajaran")
 }
 
@@ -690,6 +731,8 @@ model Iuran {
   kelas      Kelas             @relation(fields: [kelasId], references: [id], onDelete: Cascade)
   pembayaran PembayaranIuran[]
 
+  @@index([kelasId])
+  @@index([kelasId, deletedAt])
   @@map("iuran")
 }
 
@@ -723,6 +766,8 @@ model Denda {
   kelas      Kelas             @relation(fields: [kelasId], references: [id], onDelete: Cascade)
   pembayaran PembayaranDenda[]
 
+  @@index([kelasId])
+  @@index([kelasId, deletedAt])
   @@map("denda")
 }
 
@@ -755,6 +800,8 @@ model PengeluaranKelas {
 
   kelas Kelas @relation(fields: [kelasId], references: [id], onDelete: Cascade)
 
+  @@index([kelasId])
+  @@index([kelasId, deletedAt])
   @@map("pengeluaran_kelas")
 }
 
@@ -812,6 +859,10 @@ model Absensi {
   mataPelajaran MataPelajaran  @relation(fields: [mataPelajaranId], references: [id])
   siswa         AbsensiSiswa[]
 
+  @@index([kelasId])
+  @@index([mataPelajaranId])
+  @@index([tanggal])
+  @@index([kelasId, tanggal])
   @@map("absensi")
 }
 

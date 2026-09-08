@@ -8,7 +8,9 @@ export async function GET() {
     if (!config) {
       config = await prisma.siteConfig.create({ data: {} })
     }
-    return NextResponse.json(config)
+    return NextResponse.json(config, {
+      headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
+    })
   } catch {
     return NextResponse.json({ error: "Gagal memuat konfigurasi" }, { status: 500 })
   }

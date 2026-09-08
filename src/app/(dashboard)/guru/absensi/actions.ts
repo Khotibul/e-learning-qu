@@ -92,14 +92,15 @@ export async function saveAbsensi(
     absensiId = absensi.id
   }
 
-  for (const ss of siswaStatus) {
-    await prisma.absensiSiswa.create({
-      data: {
+  if (siswaStatus.length > 0) {
+    await prisma.absensiSiswa.createMany({
+      data: siswaStatus.map((ss) => ({
         absensiId,
         siswaId: ss.siswaId,
-        status: ss.status as any,
+        status: ss.status as never,
         keterangan: ss.keterangan || null,
-      },
+      })),
+      skipDuplicates: true,
     })
   }
 

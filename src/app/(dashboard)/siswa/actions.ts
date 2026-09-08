@@ -231,27 +231,17 @@ export async function autoSaveJawaban(
 
   if (!siswa) redirect("/login")
 
-  for (const [soalId, jawaban] of Object.entries(answers)) {
-    await prisma.jawabanUjian.upsert({
-      where: {
-        ujianId_siswaId_soalId: {
-          ujianId,
-          siswaId: siswa.id,
-          soalId,
-        },
-      },
-      update: {
-        jawaban,
-        raguRagu: raguRagu.includes(soalId),
-      },
-      create: {
-        ujianId,
-        siswaId: siswa.id,
-        soalId,
-        jawaban,
-        raguRagu: raguRagu.includes(soalId),
-      },
-    })
+  const entries = Object.entries(answers)
+  if (entries.length > 0) {
+    await prisma.$transaction(
+      entries.map(([soalId, jawaban]) =>
+        prisma.jawabanUjian.upsert({
+          where: { ujianId_siswaId_soalId: { ujianId, siswaId: siswa.id, soalId } },
+          update: { jawaban, raguRagu: raguRagu.includes(soalId) },
+          create: { ujianId, siswaId: siswa.id, soalId, jawaban, raguRagu: raguRagu.includes(soalId) },
+        })
+      )
+    )
   }
 
   return { success: true }
@@ -284,8 +274,8 @@ export async function submitUjian(ujianId: string) {
 
   let totalPoin = 0
   let perolehPoin = 0
-  const hasilSoal: { nomor: number; jawaban: string | null; jawabanBenar: string; isCorrect: boolean; poin: number }[] =
-    []
+  const hasilSoal: { nomor: number; jawaban: string | null; jawabanBenar: string; isCorrect: boolean; poin: number }[] = []
+  const pendingUpdates: ReturnType<typeof prisma.jawabanUjian.update>[] = []
 
   for (const us of ujian.ujianSoal) {
     const jawab = jawabans.find((j) => j.soalId === us.soal.id)
@@ -303,25 +293,21 @@ export async function submitUjian(ujianId: string) {
       isCorrect = jawabanUser.trim() === jawabanBenar.trim()
     }
 
-    if (isCorrect) {
-      perolehPoin += poin
-    }
+    if (isCorrect) perolehPoin += poin
 
     if (jawab) {
-      await prisma.jawabanUjian.update({
-        where: { id: jawab.id },
-        data: { isCorrect, poin: isCorrect ? poin : 0 },
-      })
+      pendingUpdates.push(
+        prisma.jawabanUjian.update({
+          where: { id: jawab.id },
+          data: { isCorrect, poin: isCorrect ? poin : 0 },
+        }) as never
+      )
     }
 
-    hasilSoal.push({
-      nomor: us.nomor,
-      jawaban: jawabanUser,
-      jawabanBenar,
-      isCorrect,
-      poin,
-    })
+    hasilSoal.push({ nomor: us.nomor, jawaban: jawabanUser, jawabanBenar, isCorrect, poin })
   }
+
+  if (pendingUpdates.length > 0) await prisma.$transaction(pendingUpdates)
 
   const nilaiAkhir = totalPoin > 0 ? Math.round((perolehPoin / totalPoin) * 100) : 0
 
