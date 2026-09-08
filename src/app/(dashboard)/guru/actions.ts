@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, unstable_cache } from "next/cache"
 import { redirect } from "next/navigation"
 import { unlink } from "fs/promises"
 import path from "path"
@@ -23,131 +23,85 @@ export async function getCurrentGuru() {
 
 export async function getGuruDashboardStats() {
   const guru = await getCurrentGuru()
-
-  const [kelasList, kelasCount, mapelCount, siswaCount, ujianAktif, latihanAktif, totalSoal] =
-    await Promise.all([
-      prisma.kelas.findMany({
-        where: { guruId: guru.id, deletedAt: null },
-        select: { id: true },
-      }),
-      prisma.kelas.count({ where: { guruId: guru.id, deletedAt: null } }),
-      prisma.pengajaran.count({ where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } } }),
-      prisma.siswa.count({
-        where: { kelas: { guruId: guru.id, deletedAt: null }, deletedAt: null },
-      }),
-      prisma.ujian.count({
-        where: { guruId: guru.id, status: "AKTIF", deletedAt: null, isLatihan: false },
-      }),
-      prisma.ujian.count({
-        where: { guruId: guru.id, status: "AKTIF", deletedAt: null, isLatihan: true },
-      }),
-      prisma.soal.count({ where: { guruId: guru.id, deletedAt: null } }),
-    ])
-
-  // ── Insight dashboard (deterministik, batched — tanpa LLM) ──
-  const pengajaranKelas = await prisma.pengajaran.findMany({
-    where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
-    select: { kelasId: true },
-    distinct: ["kelasId"],
-  })
-  const allowedKelasIds = [...new Set([...kelasList.map((k) => k.id), ...pengajaranKelas.map((p) => p.kelasId)])]
-
-  let rataNilai = 0
-  let rataMastery = 0
-  let riskHigh = 0
-  let riskMedium = 0
-  const topAtRisk: { id: string; nama: string; kelas: string; severity: string; message: string }[] = []
-  const aiInsight: string[] = []
-
-  if (allowedKelasIds.length > 0) {
-    const [nilaiStats, masteryStats, warnings, kompGroups] = await Promise.all([
-      prisma.nilai.aggregate({
-        where: { deletedAt: null, siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null }, ujian: { guruId: guru.id } },
-        _avg: { nilai: true },
-      }),
-      prisma.penguasaanKompetensi.aggregate({
-        where: { siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null } },
-        _avg: { skor: true },
-      }),
-      prisma.earlyWarning.findMany({
-        where: { isResolved: false, siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null } },
-        orderBy: [{ severity: "desc" }, { createdAt: "desc" }],
-        select: {
-          severity: true,
-          message: true,
-          siswa: { select: { id: true, nama: true, kelas: { select: { nama: true } } } },
-        },
-        take: 100,
-      }),
-      prisma.penguasaanKompetensi.groupBy({
-        by: ["kompetensiId"],
-        where: { siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null } },
-        _avg: { skor: true },
-        orderBy: { _avg: { skor: "asc" } },
-        take: 5,
-      }),
-    ])
-
-    if (nilaiStats._avg.nilai != null) rataNilai = Math.round(nilaiStats._avg.nilai)
-    if (masteryStats._avg.skor != null) rataMastery = Math.round(masteryStats._avg.skor)
-
-    riskHigh = warnings.filter((w) => w.severity === "HIGH" || w.severity === "CRITICAL").length
-    riskMedium = warnings.filter((w) => w.severity === "MEDIUM").length
-
-    // Maks 1 entri per siswa (warning terparah sudah diurut duluan)
-    const seenSiswa = new Set<string>()
-    for (const w of warnings) {
-      if (w.severity !== "HIGH" && w.severity !== "CRITICAL") continue
-      if (seenSiswa.has(w.siswa.id)) continue
-      seenSiswa.add(w.siswa.id)
-      topAtRisk.push({
-        id: w.siswa.id,
-        nama: w.siswa.nama,
-        kelas: w.siswa.kelas?.nama ?? "-",
-        severity: w.severity,
-        message: w.message,
+  // Cache 30 detik per guru — menu → menu tidak hit DB berulang (Singapura: hemat 1.4s/latency)
+  return unstable_cache(
+    async () => {
+      const [kelasList, kelasCount, mapelCount, siswaCount, ujianAktif, latihanAktif, totalSoal] = await Promise.all([
+        prisma.kelas.findMany({ where: { guruId: guru.id, deletedAt: null }, select: { id: true } }),
+        prisma.kelas.count({ where: { guruId: guru.id, deletedAt: null } }),
+        prisma.pengajaran.count({ where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } } }),
+        prisma.siswa.count({ where: { kelas: { guruId: guru.id, deletedAt: null }, deletedAt: null } }),
+        prisma.ujian.count({ where: { guruId: guru.id, status: "AKTIF", deletedAt: null, isLatihan: false } }),
+        prisma.ujian.count({ where: { guruId: guru.id, status: "AKTIF", deletedAt: null, isLatihan: true } }),
+        prisma.soal.count({ where: { guruId: guru.id, deletedAt: null } }),
+      ])
+      const pengajaranKelas = await prisma.pengajaran.findMany({
+        where: { guruId: guru.id, deletedAt: null, mataPelajaran: { deletedAt: null } },
+        select: { kelasId: true },
+        distinct: ["kelasId"],
       })
-      if (topAtRisk.length >= 3) break
-    }
-
-    // AI Insight deterministik dari data nyata (groupBy, bukan load 15k rows)
-    let terlemah: { nama: string; avg: number } | null = null
-    if (kompGroups.length > 0) {
-      const first = kompGroups[0]
-      const avg = first._avg.skor ?? 100
-      if (avg < 50) {
-        const komp = await prisma.kompetensi.findUnique({ where: { id: first.kompetensiId }, select: { nama: true } })
-        terlemah = { nama: komp?.nama ?? "Kompetensi", avg }
+      const allowedKelasIds = [...new Set([...kelasList.map((k) => k.id), ...pengajaranKelas.map((p) => p.kelasId)])]
+      let rataNilai = 0
+      let rataMastery = 0
+      let riskHigh = 0
+      let riskMedium = 0
+      const topAtRisk: { id: string; nama: string; kelas: string; severity: string; message: string }[] = []
+      const aiInsight: string[] = []
+      if (allowedKelasIds.length > 0) {
+        const [nilaiStats, masteryStats, warnings, kompGroups] = await Promise.all([
+          prisma.nilai.aggregate({
+            where: { deletedAt: null, siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null }, ujian: { guruId: guru.id } },
+            _avg: { nilai: true },
+          }),
+          prisma.penguasaanKompetensi.aggregate({
+            where: { siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null } },
+            _avg: { skor: true },
+          }),
+          prisma.earlyWarning.findMany({
+            where: { isResolved: false, siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null } },
+            orderBy: [{ severity: "desc" }, { createdAt: "desc" }],
+            select: { severity: true, message: true, siswa: { select: { id: true, nama: true, kelas: { select: { nama: true } } } } },
+            take: 100,
+          }),
+          prisma.penguasaanKompetensi.groupBy({
+            by: ["kompetensiId"],
+            where: { siswa: { kelasId: { in: allowedKelasIds }, deletedAt: null } },
+            _avg: { skor: true },
+            orderBy: { _avg: { skor: "asc" } },
+            take: 5,
+          }),
+        ])
+        if (nilaiStats._avg.nilai != null) rataNilai = Math.round(nilaiStats._avg.nilai)
+        if (masteryStats._avg.skor != null) rataMastery = Math.round(masteryStats._avg.skor)
+        riskHigh = warnings.filter((w) => w.severity === "HIGH" || w.severity === "CRITICAL").length
+        riskMedium = warnings.filter((w) => w.severity === "MEDIUM").length
+        const seenSiswa = new Set<string>()
+        for (const w of warnings) {
+          if (w.severity !== "HIGH" && w.severity !== "CRITICAL") continue
+          if (seenSiswa.has(w.siswa.id)) continue
+          seenSiswa.add(w.siswa.id)
+          topAtRisk.push({ id: w.siswa.id, nama: w.siswa.nama, kelas: w.siswa.kelas?.nama ?? "-", severity: w.severity, message: w.message })
+          if (topAtRisk.length >= 3) break
+        }
+        let terlemah: { nama: string; avg: number } | null = null
+        if (kompGroups.length > 0) {
+          const first = kompGroups[0]
+          const avg = first._avg.skor ?? 100
+          if (avg < 50) {
+            const komp = await prisma.kompetensi.findUnique({ where: { id: first.kompetensiId }, select: { nama: true } })
+            terlemah = { nama: komp?.nama ?? "Kompetensi", avg }
+          }
+        }
+        if (terlemah) aiInsight.push(`Penguasaan "${terlemah.nama}" rata-rata hanya ${Math.round(terlemah.avg)}% — perlu perhatian di kelas Anda.`)
+        if (riskHigh > 0) aiInsight.push(`${riskHigh} siswa berada di zona risiko tinggi dan membutuhkan intervensi.`)
+        if (rataNilai > 0 && rataNilai < 65) aiInsight.push(`Rata-rata nilai kelas Anda ${rataNilai} — di bawah target 65. Pertimbangkan review materi.`)
+        if (aiInsight.length === 0) aiInsight.push("Belum ada pola yang mengkhawatirkan. Pertahankan ritme belajar kelas Anda.")
       }
-    }
-    if (terlemah) {
-      aiInsight.push(`Penguasaan "${terlemah.nama}" rata-rata hanya ${Math.round(terlemah.avg)}% — perlu perhatian di kelas Anda.`)
-    }
-    if (riskHigh > 0) {
-      aiInsight.push(`${riskHigh} siswa berada di zona risiko tinggi dan membutuhkan intervensi.`)
-    }
-    if (rataNilai > 0 && rataNilai < 65) {
-      aiInsight.push(`Rata-rata nilai kelas Anda ${rataNilai} — di bawah target 65. Pertimbangkan review materi.`)
-    }
-    if (aiInsight.length === 0) {
-      aiInsight.push("Belum ada pola yang mengkhawatirkan. Pertahankan ritme belajar kelas Anda.")
-    }
-  }
-
-  return {
-    kelasCount,
-    mapelCount,
-    siswaCount,
-    ujianAktif,
-    latihanAktif,
-    totalSoal,
-    rataNilai,
-    rataMastery,
-    riskHigh,
-    riskMedium,
-    topAtRisk,
-    aiInsight,
-  }
+      return { kelasCount, mapelCount, siswaCount, ujianAktif, latihanAktif, totalSoal, rataNilai, rataMastery, riskHigh, riskMedium, topAtRisk, aiInsight }
+    },
+    [`guru-dashboard:${guru.id}`],
+    { revalidate: 30, tags: ["guru-dashboard"] }
+  )()
 }
 
 // ─── SOAL ────────────────────────────────────────────────────
