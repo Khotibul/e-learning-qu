@@ -107,13 +107,15 @@ export async function getUjianList(status?: string) {
 
   const ujians = await prisma.ujian.findMany({
     where,
-    include: {
+    select: {
+      id: true, nama: true, tanggal: true, durasi: true, status: true, jumlahSoal: true, nilaiMinimum: true,
       mataPelajaran: { select: { nama: true } },
       kelas: { select: { nama: true } },
       semester: { select: { nama: true } },
       _count: { select: { jawabanUjian: { where: { siswaId: siswa.id } } } },
     },
     orderBy: { tanggal: "desc" },
+    take: 50,
   })
 
   return ujians.map((u) => ({
@@ -353,11 +355,13 @@ export async function getLatihanList() {
       status: "AKTIF",
       deletedAt: null,
     },
-    include: {
+    select: {
+      id: true, nama: true, jumlahSoal: true, durasi: true,
       mataPelajaran: { select: { nama: true } },
       _count: { select: { jawabanUjian: { where: { siswaId: siswa.id } } } },
     },
     orderBy: { createdAt: "desc" },
+    take: 50,
   })
 
   return latihans.map((l) => ({
@@ -385,12 +389,14 @@ export async function getNilaiList(semesterId?: string) {
 
   const nilais = await prisma.nilai.findMany({
     where,
-    include: {
+    select: {
+      id: true, nilai: true, jenis: true, keterangan: true, createdAt: true,
       mataPelajaran: { select: { nama: true } },
       semester: { select: { nama: true } },
       ujian: { select: { nama: true } },
     },
     orderBy: { createdAt: "desc" },
+    take: 100,
   })
 
   const semesters = await prisma.semester.findMany({
@@ -437,27 +443,37 @@ export async function getRankingList(kelasId?: string, semesterId?: string) {
   const whereNilai: any = {}
   if (semesterId) whereNilai.semesterId = semesterId
 
+  // Optimized: ambil daftar siswa tanpa include nilai (hindari load ribuan row)
   const semuaSiswa = await prisma.siswa.findMany({
-    where: {
-      ...whereKelas,
-      deletedAt: null,
-    },
-    include: {
-      kelas: { select: { nama: true } },
-      nilai: {
-        where: semesterId ? { semesterId } : {},
-        select: { nilai: true, ujianId: true },
-      },
-    },
+    where: { ...whereKelas, deletedAt: null },
+    select: { id: true, nama: true, kelas: { select: { nama: true } } },
+    orderBy: { nama: "asc" },
+    take: 200,
   })
-
   const siswaIds = semuaSiswa.map((s) => s.id)
-  const completedUjianIds = [
-    ...new Set(semuaSiswa.flatMap((s) => s.nilai.map((n) => n.ujianId).filter((id): id is string => id !== null))),
-  ]
+
+  const [nilaiAgg, ujianIdsRaw] = await Promise.all([
+    siswaIds.length > 0
+      ? prisma.nilai.groupBy({
+          by: ["siswaId"],
+          where: { siswaId: { in: siswaIds }, deletedAt: null, ...(semesterId ? { semesterId } : {}) },
+          _avg: { nilai: true },
+          _count: { _all: true },
+        })
+      : Promise.resolve([] as { siswaId: string; _avg: { nilai: number | null }; _count: { _all: number } }[]),
+    siswaIds.length > 0
+      ? prisma.nilai.findMany({
+          where: { siswaId: { in: siswaIds }, deletedAt: null, ...(semesterId ? { semesterId } : {}), ujianId: { not: null } },
+          select: { ujianId: true },
+          distinct: ["ujianId"],
+          take: 100,
+        })
+      : Promise.resolve([] as { ujianId: string | null }[]),
+  ])
+  const completedUjianIds = ujianIdsRaw.map((r) => r.ujianId).filter((id): id is string => !!id)
 
   let waktuMap: Record<string, number> = {}
-  if (completedUjianIds.length > 0) {
+  if (completedUjianIds.length > 0 && siswaIds.length > 0) {
     const jawabanTiming = await prisma.jawabanUjian.groupBy({
       by: ["siswaId", "ujianId"],
       _min: { createdAt: true },
@@ -472,20 +488,25 @@ export async function getRankingList(kelasId?: string, semesterId?: string) {
     }
   }
 
+  const nilaiMap = new Map(nilaiAgg.map((n) => [n.siswaId, { avg: n._avg.nilai ?? 0, count: n._count._all }]))
+
   const kelasData = await prisma.kelas.findMany({
     where: { deletedAt: null },
     select: { id: true, nama: true },
   })
 
   const rankingData = semuaSiswa
-    .map((s) => ({
-      id: s.id,
-      nama: s.nama,
-      kelas: s.kelas?.nama ?? "-",
-      nilaiCount: s.nilai.length,
-      rataRata: s.nilai.length > 0 ? s.nilai.reduce((sum, n) => sum + n.nilai, 0) / s.nilai.length : 0,
-      totalWaktu: waktuMap[s.id] ?? 0,
-    }))
+    .map((s) => {
+      const agg = nilaiMap.get(s.id)
+      return {
+        id: s.id,
+        nama: s.nama,
+        kelas: s.kelas?.nama ?? "-",
+        nilaiCount: agg?.count ?? 0,
+        rataRata: agg?.avg ?? 0,
+        totalWaktu: waktuMap[s.id] ?? 0,
+      }
+    })
     .sort((a, b) => b.rataRata - a.rataRata || a.totalWaktu - b.totalWaktu)
     .map((item, index) => ({
       ...item,
