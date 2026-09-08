@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
   logging: {
     fetches: { fullUrl: true },
   },
+  // Preferensi region Singapura untuk latency DB terendah
+  // Vercel: sin1 (Singapore), PandaStack: ap-southeast-1
+  // Next.js 15: experimental atau config deployment; untuk Vercel set via vercel.json
 }
 
 export default nextConfig
