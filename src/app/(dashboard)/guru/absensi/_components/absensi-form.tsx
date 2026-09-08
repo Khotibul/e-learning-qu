@@ -11,8 +11,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import {
-  Save, Loader2, Calendar, Check,
+  Save, Loader2, Calendar, Check, TrendingUp,
 } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
 import { getGuruJadwalByDate, getAbsensiByKelasAndDate, saveAbsensi } from "../actions"
 
 interface SiswaItem {
@@ -170,12 +171,59 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
         Object.entries(groupedJadwal).map(([kelasId, items]) => {
           const kelasInfo = kelasMap[kelasId]
           if (!kelasInfo) return null
+          const totalMapelHari = items.length
+          const rekapHarian = kelasInfo.siswas.map((s) => {
+            let hadir = 0
+            for (const jd of items) {
+              const st = absensiForm[jd._key]?.[s.id] || "HADIR"
+              if (st === "HADIR") hadir++
+            }
+            const persentase = totalMapelHari > 0 ? Math.round((hadir / totalMapelHari) * 100) : 0
+            return { siswa: s, hadir, total: totalMapelHari, persentase }
+          })
+          const rataHarian = rekapHarian.length > 0 ? Math.round(rekapHarian.reduce((a, b) => a + b.persentase, 0) / rekapHarian.length) : 0
           return (
             <div key={kelasId} className="space-y-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 {kelasInfo.nama}
                 <Badge variant="secondary" className="text-xs">{kelasInfo.siswas.length} siswa</Badge>
+                <Badge variant="outline" className="text-xs">{totalMapelHari} mapel hari ini</Badge>
               </h2>
+              <Card className="border-primary/20 bg-primary/[0.02]">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-primary" /> Rekap Harian — {new Date(tanggal).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">Persentase = (pelajaran HADIR ÷ total pelajaran yang diikuti hari ini) × 100%</p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="text-muted-foreground">Rata-rata kelas:</span>
+                    <span className="font-bold">{rataHarian}%</span>
+                    <Progress value={rataHarian} className="h-1.5 flex-1 max-w-[120px]" />
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead><tr className="border-b text-muted-foreground">
+                        <th className="text-left py-1.5 px-2 font-medium">Nama</th>
+                        <th className="text-center py-1.5 px-2 font-medium">Hadir</th>
+                        <th className="text-center py-1.5 px-2 font-medium">Persentase</th>
+                        <th className="text-left py-1.5 px-2 font-medium w-24">Progress</th>
+                      </tr></thead>
+                      <tbody>
+                        {rekapHarian.map((r) => (
+                          <tr key={r.siswa.id} className="border-t">
+                            <td className="py-1.5 px-2 font-medium truncate max-w-[140px]">{r.siswa.nama}</td>
+                            <td className="py-1.5 px-2 text-center">{r.hadir}/{r.total}</td>
+                            <td className="py-1.5 px-2 text-center font-bold">{r.persentase}%</td>
+                            <td className="py-1.5 px-2"><Progress value={r.persentase} className="h-1.5" /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
               {items.map((jd) => {
                 const form = absensiForm[jd._key] || {}
                 const activeSiswa = kelasInfo.siswas || []
