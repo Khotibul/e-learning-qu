@@ -6,6 +6,7 @@ import { updatePenguasaanAfterUjian } from "@/lib/agents/knowledge-tracing"
 import { isAssessmentLocked, lockAssessment } from "@/lib/assessment-guard"
 import { submitExamSession, getActiveSession } from "@/lib/exam/session"
 import { logExamAudit } from "@/lib/exam/audit"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 const SUB_RE = /^(.+)::sub::(\d+)$/
 
@@ -22,6 +23,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const siswa = await prisma.siswa.findUnique({
       where: { userId: session.user.id },
     })
+    if (siswa) {
+      const ip = getClientIp(req)
+      const rl = rateLimit(`submit:${ip}:${siswa.id}:${id}`, 5, 60000)
+      if (!rl.success) {
+        return NextResponse.json({ error: "Terlalu banyak submit, coba lagi 60 detik" }, { status: 429, headers: { "Retry-After": "60" } })
+      }
+    }
 
     if (!siswa) {
       return NextResponse.json({ error: "Siswa not found" }, { status: 404 })

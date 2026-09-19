@@ -80,6 +80,7 @@ export async function generateContent(
               maxOutputTokens: opts?.maxTokens ?? 2048,
             },
           }),
+          signal: AbortSignal.timeout(15000),
         }
       )
 
@@ -161,6 +162,7 @@ export async function generateContentWithHistory(
               maxOutputTokens: opts?.maxTokens ?? 2048,
             },
           }),
+          signal: AbortSignal.timeout(15000),
         }
       )
 
@@ -214,6 +216,7 @@ export async function embedText(
             content: { parts: [{ text: text.slice(0, 9000) }] },
             taskType,
           }),
+          signal: AbortSignal.timeout(10000),
         }
       )
 

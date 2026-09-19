@@ -1,10 +1,11 @@
 import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { prisma, withRetry } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 import { trackAssessmentDimulai } from "@/lib/agents/learning-analytics"
 import { isAssessmentLocked } from "@/lib/assessment-guard"
 import { createExamSession } from "@/lib/exam/session"
 import { logExamAudit } from "@/lib/exam/audit"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -23,14 +24,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Siswa not found" }, { status: 404 })
     }
 
-    const ujian = await prisma.ujian.findUnique({
-      where: { id },
-      include: {
-        ujianSoal: {
-          orderBy: { nomor: "asc" },
+    const ipEarly = getClientIp(req)
+    const rlStart = rateLimit(`start:${ipEarly}:${siswa.id}:${id}`, 8, 60000)
+    if (!rlStart.success) {
+      return NextResponse.json(
+        { error: "Terlalu banyak percobaan, coba lagi 60 detik" },
+        { status: 429, headers: { "Retry-After": "60", "X-RateLimit-Remaining": "0" } }
+      )
+    }
+
+    const ujian = await withRetry(() =>
+      prisma.ujian.findUnique({
+        where: { id },
+        include: {
+          ujianSoal: {
+            orderBy: { nomor: "asc" },
+          },
         },
-      },
-    })
+      })
+    )
 
     if (!ujian) {
       return NextResponse.json({ error: "Ujian not found" }, { status: 404 })
