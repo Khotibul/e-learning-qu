@@ -37,6 +37,13 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> signInWithGoogleUser(Map<String, dynamic> userJson) async {
+    _user = User.fromJson(Map<String, dynamic>.from(userJson));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("auth_user", jsonEncode(userJson));
+    notifyListeners();
+  }
+
   Future<void> signOut() async {
     _user = null;
     final prefs = await SharedPreferences.getInstance();

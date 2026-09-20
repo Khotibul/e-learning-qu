@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/user.dart';
+import '../../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -128,6 +130,53 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: _loading
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : Row(mainAxisAlignment: MainAxisAlignment.center, children: [Text(_role == Role.siswa ? "Masuk sebagai Siswa" : "Masuk sebagai Guru", style: TextStyle(fontWeight: FontWeight.w700)), SizedBox(width: 8), Icon(Icons.arrow_forward, size: 18)]),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text("atau", style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                  ),
+                  const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                ]),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _loading ? null : () async {
+                    setState(() => _loading = true);
+                    try {
+                      final googleSignIn = GoogleSignIn(
+                        scopes: ['email', 'profile'],
+                        serverClientId: '190762274336-msoeb1vaq8niqf0e5hfb1ur0hqpmln8f.apps.googleusercontent.com',
+                      );
+                      final account = await googleSignIn.signIn();
+                      if (account == null) throw Exception("Dibatalkan");
+                      final auth = await account.authentication;
+                      final idToken = auth.idToken;
+                      if (idToken == null) throw Exception("Gagal ambil idToken Google");
+                      final res = await ApiService.signInWithGoogle(idToken, roleToString(_role));
+                      if (!mounted) return;
+                      final user = res["user"] as Map<String, dynamic>;
+                      // ignore: use_build_context_synchronously
+                      await context.read<AuthProvider>().signInWithGoogleUser(user);
+                      if (res["extra"]?["needRoleSelection"] == true && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Akun Google baru — lengkapi profil di website jika perlu")));
+                      }
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Google login gagal: $e"), backgroundColor: const Color(0xFFEF4444)));
+                    } finally {
+                      if (mounted) setState(() => _loading = false);
+                    }
+                  },
+                  icon: Image.network("https://www.gstatic.com/images/branding/product/1x/gsa_64dp.png", height: 18, width: 18, errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 18)),
+                  label: Text("Masuk dengan Google (${_role == Role.siswa ? "Siswa" : "Guru"})", style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    backgroundColor: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 12),

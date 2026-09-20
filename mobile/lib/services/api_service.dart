@@ -178,6 +178,24 @@ class ApiService {
     return data is Map<String, dynamic> ? data : {};
   }
 
+  // Google Sign-In — 1 DB dengan website (NextAuth Google → same users & accounts table)
+  static Future<Map<String, dynamic>> signInWithGoogle(String idToken, String role) async {
+    final res = await _withRetry(() => _client.post(
+      Uri.parse("${ApiConfig.baseUrl}/api/mobile/auth/google"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"idToken": idToken, "role": role}),
+    ).timeout(const Duration(seconds: 15)));
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode != 200) throw Exception(body["error"] ?? "Google login gagal: ${res.statusCode}");
+    if (body["token"] != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString("auth_token", body["token"] as String);
+      await prefs.setString("auth_user", jsonEncode(body["user"]));
+      if (body["extra"] != null) await prefs.setString("auth_extra", jsonEncode(body["extra"]));
+    }
+    return body;
+  }
+
   // AI Tutor — RAG via backend (1 DB + Gemini)
   static Future<Map<String, dynamic>> askAiTutor(String message, {String? mapelId}) async {
     return await post("/api/mobile/ai/tutor", {"message": message, "mapelId": mapelId});
