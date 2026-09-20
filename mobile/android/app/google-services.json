@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "190762274336",
+    "project_id": "e-learning-qu",
+    "storage_bucket": "e-learning-qu.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:190762274336:android:0000000000000000000000",
+        "android_client_info": {
+          "package_name": "com.khotibul.elearningqu"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "190762274336-cstajadll4mqf0n7i4j529n9g02j0ti8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.khotibul.elearningqu",
+            "certificate_hash": "YOUR_SHA1_HERE_REPLACE_WITH_REAL_SHA1_FROM_GRADLEW_SIGNINGREPORT"
+          }
+        },
+        {
+          "client_id": "190762274336-msoeb1vaq8niqf0e5hfb1ur0hqpmln8f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDummyKeyForBuildOnlyReplaceWithReal"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "190762274336-msoeb1vaq8niqf0e5hfb1ur0hqpmln8f.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
