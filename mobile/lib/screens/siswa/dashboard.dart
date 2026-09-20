@@ -1,5 +1,13 @@
 ﻿import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import 'ujian.dart';
+import 'materi.dart';
+import 'absensi_harian.dart';
+import 'nilai.dart';
+import 'ranking.dart';
+import 'jadwal.dart';
+import 'ai_tutor.dart';
+import 'latihan.dart';
 
 class SiswaDashboard extends StatefulWidget {
   const SiswaDashboard({super.key});
@@ -54,15 +62,15 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
               children: [
-                _MenuCard(icon: Icons.quiz, label: "Ujian", color: const Color(0xFF4F46E5), onTap: () {}),
-                _MenuCard(icon: Icons.menu_book, label: "Materi", color: const Color(0xFF06B6D4), onTap: () {}),
-                _MenuCard(icon: Icons.fact_check, label: "Absensi", color: const Color(0xFF10B981), onTap: () {}),
-                _MenuCard(icon: Icons.grade, label: "Nilai", color: const Color(0xFFF59E0B), onTap: () {}),
-                _MenuCard(icon: Icons.leaderboard, label: "Ranking", color: const Color(0xFFEF4444), onTap: () {}),
-                _MenuCard(icon: Icons.smart_toy, label: "AI Tutor", color: const Color(0xFF8B5CF6), onTap: () {}),
-                _MenuCard(icon: Icons.calendar_today, label: "Jadwal", color: const Color(0xFFEC4899), onTap: () {}),
-                _MenuCard(icon: Icons.groups, label: "Kelas", color: const Color(0xFF14B8A6), onTap: () {}),
-                _MenuCard(icon: Icons.account_balance_wallet, label: "Iuran", color: const Color(0xFFF97316), onTap: () {}),
+                _MenuCard(icon: Icons.quiz_outlined, label: "Ujian", color: const Color(0xFF4F46E5), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaUjian()))),
+                _MenuCard(icon: Icons.menu_book_outlined, label: "Materi", color: const Color(0xFF06B6D4), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaMateri()))),
+                _MenuCard(icon: Icons.fact_check_outlined, label: "Absensi", color: const Color(0xFF10B981), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
+                _MenuCard(icon: Icons.grade_outlined, label: "Nilai", color: const Color(0xFFF59E0B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaNilai()))),
+                _MenuCard(icon: Icons.leaderboard_outlined, label: "Ranking", color: const Color(0xFFEF4444), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaRanking()))),
+                _MenuCard(icon: Icons.smart_toy_outlined, label: "AI Tutor", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAiTutor()))),
+                _MenuCard(icon: Icons.menu_book_outlined, label: "Latihan", color: const Color(0xFF6366F1), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaLatihan()))),
+                _MenuCard(icon: Icons.calendar_today_outlined, label: "Jadwal", color: const Color(0xFFEC4899), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwal()))),
+                _MenuCard(icon: Icons.groups_outlined, label: "Kelas", color: const Color(0xFF14B8A6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
               ],
             ),
             const SizedBox(height: 12),

@@ -1,5 +1,72 @@
-﻿import "package:flutter/material.dart";
+﻿import 'package:flutter/material.dart';
+import '../siswa/ujian.dart';
+import '../siswa/absensi_harian.dart';
+import 'murid_detail.dart';
+
 class GuruDashboard extends StatelessWidget {
   const GuruDashboard({super.key});
-  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Dashboard Guru")), body: const Center(child: Text("Guru Dashboard — data dari /api/guru/* (1 DB)")));
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text("Beranda Guru"), backgroundColor: Colors.white),
+    body: Container(
+      decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFEEF2FF), Color(0xFFF8FAFC)])),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(children: [
+                Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.school_outlined, color: Colors.white, size: 20)),
+                const SizedBox(width: 10),
+                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text("Halo, Guru", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)), Text("Kelola kelas & siswa", style: TextStyle(color: Colors.black54, fontSize: 11))])),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text("Menu Guru", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          const SizedBox(height: 8),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 3,
+            childAspectRatio: 0.95,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            children: [
+              _GuruCard(icon: Icons.people_outline, label: "Murid", color: const Color(0xFF4F46E5), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruMurid()))),
+              _GuruCard(icon: Icons.assignment_outlined, label: "Ujian", color: const Color(0xFF06B6D4), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaUjian()))),
+              _GuruCard(icon: Icons.fact_check_outlined, label: "Absensi", color: const Color(0xFF10B981), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
+              _GuruCard(icon: Icons.menu_book_outlined, label: "Materi", color: const Color(0xFFF59E0B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaUjian()))),
+              _GuruCard(icon: Icons.analytics_outlined, label: "Analitik", color: const Color(0xFF8B5CF6), onTap: () {}),
+              _GuruCard(icon: Icons.shield_outlined, label: "Nilai", color: const Color(0xFFEF4444), onTap: () {}),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _GuruCard extends StatelessWidget {
+  final IconData icon; final String label; final Color color; final VoidCallback onTap;
+  const _GuruCard({required this.icon, required this.label, required this.color, required this.onTap});
+  @override
+  Widget build(BuildContext context) => Card(
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFF1F5F9))),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 18)),
+          const SizedBox(height: 6),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11), textAlign: TextAlign.center),
+        ]),
+      ),
+    ),
+  );
 }
