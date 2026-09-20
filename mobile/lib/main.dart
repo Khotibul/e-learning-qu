@@ -5,8 +5,10 @@ import 'screens/auth/login_screen.dart';
 import 'screens/siswa/dashboard.dart';
 import 'screens/siswa/ujian.dart';
 import 'screens/siswa/absensi_harian.dart';
+import 'screens/siswa/materi.dart';
+import 'screens/siswa/ai_tutor.dart';
 import 'screens/guru/dashboard.dart';
-import 'screens/admin/dashboard.dart';
+import 'screens/guru/murid_detail.dart';
 import 'models/user.dart';
 
 void main() {
@@ -24,8 +26,31 @@ class ELearningQuApp extends StatelessWidget {
         title: 'E-Learning QU',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4F46E5)),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF4F46E5),
+            secondary: const Color(0xFF06B6D4),
+            brightness: Brightness.light,
+          ),
           useMaterial3: true,
+          scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+          cardTheme: CardThemeData(
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE2E8F0))),
+            color: Colors.white,
+          ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.white,
+            foregroundColor: Color(0xFF0F172A),
+            elevation: 0,
+            centerTitle: true,
+            titleTextStyle: TextStyle(color: Color(0xFF0F172A), fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+          ),
         ),
         home: const AuthGate(),
       ),
@@ -65,44 +90,57 @@ class _RoleScaffoldState extends State<RoleScaffold> {
     final isSiswa = widget.role == Role.siswa;
     final isGuru = widget.role == Role.guru;
 
+    // Fitur disesuaikan dengan website — semua yang relevan untuk mobile, hanya Siswa & Guru
     final siswaPages = [
       const SiswaDashboard(),
       const SiswaUjian(),
       const SiswaAbsensiHarian(),
-      const Center(child: Text("Materi — /api/siswa/materi (1 DB)")),
-      const Center(child: Text("Nilai — /api/siswa/nilai")),
+      const SiswaMateri(),
+      const SiswaAiTutor(),
     ];
     final guruPages = [
       const GuruDashboard(),
-      const Center(child: Text("Murid — /api/guru/murid")),
-      const Center(child: Text("Ujian — /api/guru/ujian")),
-      const SiswaAbsensiHarian(), // reuse harian logic, guru lihat rekap kelas
-    ];
-    final adminPages = [
-      const AdminDashboard(),
-      const Center(child: Text("Manajemen — /api/admin/*")),
+      const GuruMurid(),
+      const SiswaUjian(), // reuse ujian list, backend sama
+      const SiswaAbsensiHarian(),
+      const GuruDashboard(), // analitik ringkas
     ];
 
-    final pages = isSiswa ? siswaPages : isGuru ? guruPages : adminPages;
+    // Admin tidak ada di Android — khusus web
+    if (!isSiswa && !isGuru) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Icon(Icons.admin_panel_settings, size: 64, color: Color(0xFF94A3B8)),
+              const SizedBox(height: 12),
+              const Text("Akses Admin hanya via Website", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text("Silakan login sebagai Siswa atau Guru di aplikasi Android", textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
+              const SizedBox(height: 16),
+              FilledButton(onPressed: () => context.read<AuthProvider>().signOut(), child: const Text("Kembali ke Login")),
+            ]),
+          ),
+        ),
+      );
+    }
+
+    final pages = isSiswa ? siswaPages : guruPages;
     final items = isSiswa
         ? const [
-            BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
+            BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Beranda"),
             BottomNavigationBarItem(icon: Icon(Icons.quiz), label: "Ujian"),
             BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: "Absensi"),
             BottomNavigationBarItem(icon: Icon(Icons.book), label: "Materi"),
-            BottomNavigationBarItem(icon: Icon(Icons.grade), label: "Nilai"),
+            BottomNavigationBarItem(icon: Icon(Icons.smart_toy), label: "AI Tutor"),
           ]
-        : isGuru
-            ? const [
-                BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
-                BottomNavigationBarItem(icon: Icon(Icons.people), label: "Murid"),
-                BottomNavigationBarItem(icon: Icon(Icons.assignment), label: "Ujian"),
-                BottomNavigationBarItem(icon: Icon(Icons.fact_check), label: "Absensi"),
-              ]
-            : const [
-                BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
-                BottomNavigationBarItem(icon: Icon(Icons.settings), label: "Kelola"),
-              ];
+        : const [
+            BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Beranda"),
+            BottomNavigationBarItem(icon: Icon(Icons.people), label: "Murid"),
+            BottomNavigationBarItem(icon: Icon(Icons.assignment), label: "Ujian"),
+            BottomNavigationBarItem(icon: Icon(Icons.fact_check), label: "Absensi"),
+            BottomNavigationBarItem(icon: Icon(Icons.analytics), label: "Analitik"),
+          ];
 
     return Scaffold(
       body: pages[_idx],
