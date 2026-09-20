@@ -73,21 +73,34 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  // Auth — pakai endpoint NextAuth yang sama (1 DB)
+  // Auth — LANGSUNG KE DATABASE via /api/mobile/auth/login (1 DB dengan website)
+  // Website: src/lib/auth.ts → prisma.user.findUnique + bcrypt + role check
+  // Android: endpoint ini → logic SAMA PERSIS, DB SAMA (PostgreSQL db.prisma.io)
   static Future<Map<String, dynamic>> signIn(String email, String password, String role) async {
-    final res = await _client.post(
-      Uri.parse("${ApiConfig.baseUrl}/api/auth/callback/credentials"),
-      headers: {"Content-Type": "application/x-www-form-urlencoded"},
-      body: "email=${Uri.encodeComponent(email)}&password=${Uri.encodeComponent(password)}&role=$role&csrfToken=&callbackUrl=/",
-    ).timeout(const Duration(seconds: 15));
-    if (res.statusCode != 200 && res.statusCode != 302) throw Exception("Login gagal: ${res.statusCode}");
-    final session = await get("/api/auth/session", useCache: false);
-    return session as Map<String, dynamic>;
+    final res = await _withRetry(() => _client.post(
+      Uri.parse("${ApiConfig.baseUrl}/api/mobile/auth/login"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email, "password": password, "role": role}),
+    ).timeout(const Duration(seconds: 15)));
+
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode != 200) throw Exception(body["error"] ?? "Login gagal: ${res.statusCode}");
+
+    // Simpan token & user untuk request selanjutnya (stabil, retry-ready)
+    if (body["token"] != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString("auth_token", body["token"] as String);
+      await prefs.setString("auth_user", jsonEncode(body["user"]));
+      if (body["extra"] != null) await prefs.setString("auth_extra", jsonEncode(body["extra"]));
+    }
+    // Kembalikan format yang diharapkan AuthProvider: {user, token, extra}
+    return body;
   }
 
   // ===== Fitur Website yang belum di Android — semua via API yang sama (1 DB) =====
+  // Mobile endpoints — langsung ke 1 DB yang sama dengan website (via prisma)
   static Future<List<dynamic>> getUjianList() async {
-    final data = await get("/api/siswa/ujian");
+    final data = await get("/api/mobile/siswa/ujian");
     if (data is List) return data;
     if (data is Map && data["ujians"] is List) return data["ujians"] as List<dynamic>;
     if (data is Map && data["data"] is List) return data["data"] as List<dynamic>;
@@ -103,12 +116,12 @@ class ApiService {
 
   static Future<List<dynamic>> getAbsensi({String? start, String? end}) async {
     final q = "?start=${start ?? ""}&end=${end ?? ""}";
-    final data = await get("/api/siswa/absensi$q");
+    final data = await get("/api/mobile/siswa/absensi$q");
     return data is List ? data : [];
   }
 
   static Future<List<dynamic>> getMateri() async {
-    final data = await get("/api/siswa/materi");
+    final data = await get("/api/mobile/siswa/materi");
     if (data is List) return data;
     if (data is Map && data["data"] is List) return data["data"] as List<dynamic>;
     return [];
@@ -157,7 +170,7 @@ class ApiService {
     return [];
   }
 
-  // Guru
+  // Guru — via mobile gateway (1 DB)
   static Future<List<dynamic>> getGuruMurid() async {
     final data = await get("/api/guru/murid");
     if (data is Map && data["data"] is List) return data["data"] as List<dynamic>;
