@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/siswa/dashboard.dart';
@@ -11,7 +12,10 @@ import 'screens/guru/dashboard.dart';
 import 'screens/guru/murid_detail.dart';
 import 'models/user.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('id_ID', null);
+  await initializeDateFormatting('en_US', null);
   runApp(const ELearningQuApp());
 }
 
@@ -128,28 +132,29 @@ class _RoleScaffoldState extends State<RoleScaffold> {
     final pages = isSiswa ? siswaPages : guruPages;
     final items = isSiswa
         ? const [
-            BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Beranda"),
-            BottomNavigationBarItem(icon: Icon(Icons.quiz), label: "Ujian"),
-            BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: "Absensi"),
-            BottomNavigationBarItem(icon: Icon(Icons.book), label: "Materi"),
-            BottomNavigationBarItem(icon: Icon(Icons.smart_toy), label: "AI Tutor"),
+            NavigationDestination(icon: Icon(Icons.dashboard_outlined, size: 20), selectedIcon: Icon(Icons.dashboard, size: 20), label: "Beranda"),
+            NavigationDestination(icon: Icon(Icons.quiz_outlined, size: 20), selectedIcon: Icon(Icons.quiz, size: 20), label: "Ujian"),
+            NavigationDestination(icon: Icon(Icons.calendar_today_outlined, size: 20), selectedIcon: Icon(Icons.calendar_today, size: 20), label: "Absensi"),
+            NavigationDestination(icon: Icon(Icons.menu_book_outlined, size: 20), selectedIcon: Icon(Icons.menu_book, size: 20), label: "Materi"),
+            NavigationDestination(icon: Icon(Icons.smart_toy_outlined, size: 20), selectedIcon: Icon(Icons.smart_toy, size: 20), label: "AI Tutor"),
           ]
         : const [
-            BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Beranda"),
-            BottomNavigationBarItem(icon: Icon(Icons.people), label: "Murid"),
-            BottomNavigationBarItem(icon: Icon(Icons.assignment), label: "Ujian"),
-            BottomNavigationBarItem(icon: Icon(Icons.fact_check), label: "Absensi"),
-            BottomNavigationBarItem(icon: Icon(Icons.analytics), label: "Analitik"),
+            NavigationDestination(icon: Icon(Icons.dashboard_outlined, size: 20), selectedIcon: Icon(Icons.dashboard, size: 20), label: "Beranda"),
+            NavigationDestination(icon: Icon(Icons.people_outline, size: 20), selectedIcon: Icon(Icons.people, size: 20), label: "Murid"),
+            NavigationDestination(icon: Icon(Icons.assignment_outlined, size: 20), selectedIcon: Icon(Icons.assignment, size: 20), label: "Ujian"),
+            NavigationDestination(icon: Icon(Icons.fact_check_outlined, size: 20), selectedIcon: Icon(Icons.fact_check, size: 20), label: "Absensi"),
+            NavigationDestination(icon: Icon(Icons.analytics_outlined, size: 20), selectedIcon: Icon(Icons.analytics, size: 20), label: "Analitik"),
           ];
 
     return Scaffold(
       body: pages[_idx],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _idx,
-        onTap: (i) => setState(() => _idx = i),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF4F46E5),
-        items: items,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _idx,
+        onDestinationSelected: (i) => setState(() => _idx = i),
+        height: 60,
+        indicatorColor: const Color(0xFFEEF2FF),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: items,
       ),
       floatingActionButton: FloatingActionButton.small(
         onPressed: () => context.read<AuthProvider>().signOut(),

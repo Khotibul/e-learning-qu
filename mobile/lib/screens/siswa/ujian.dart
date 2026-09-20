@@ -40,6 +40,20 @@ class _SiswaUjianState extends State<SiswaUjian> {
     }
   }
 
+  String _safeDate(dynamic raw) {
+    if (raw == null) return "-";
+    try {
+      final dt = DateTime.parse(raw.toString());
+      try {
+        return DateFormat("dd MMM yyyy", "id_ID").format(dt);
+      } catch (_) {
+        return "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
+      }
+    } catch (_) {
+      return raw.toString().split("T").first;
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF8FAFC),
@@ -107,11 +121,11 @@ class _SiswaUjianState extends State<SiswaUjian> {
                                 ]),
                                 const SizedBox(height: 12),
                                 Row(children: [
-                                  _Meta(icon: Icons.calendar_today, text: u["tanggal"] != null ? DateFormat("dd MMM yyyy", "id_ID").format(DateTime.parse(u["tanggal"])) : "-"),
+                                  _Meta(icon: Icons.event_outlined, text: _safeDate(u["tanggal"])),
                                   const SizedBox(width: 12),
-                                  _Meta(icon: Icons.timer, text: "${u["durasi"] ?? 0} menit"),
+                                  _Meta(icon: Icons.schedule_outlined, text: "${u["durasi"] ?? 0} menit"),
                                   const SizedBox(width: 12),
-                                  _Meta(icon: Icons.help_outline, text: "${u["jumlahSoal"] ?? 0} soal"),
+                                  _Meta(icon: Icons.quiz_outlined, text: "${u["jumlahSoal"] ?? 0} soal"),
                                 ]),
                                 if (sudah) ...[
                                   const SizedBox(height: 8),

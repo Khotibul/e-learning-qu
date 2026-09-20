@@ -44,12 +44,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.school, size: 40, color: Colors.white),
+                        child: const Icon(Icons.school_outlined, size: 28, color: Colors.white),
                       ),
                       const SizedBox(height: 12),
                       const Text("E-Learning QU", style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
@@ -74,8 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     showSelectedIcon: false,
                     segments: const [
-                      ButtonSegment(value: Role.siswa, label: Text("SISWA"), icon: Icon(Icons.person, size: 18)),
-                      ButtonSegment(value: Role.guru, label: Text("GURU"), icon: Icon(Icons.school, size: 18)),
+                      ButtonSegment(value: Role.siswa, label: Text("SISWA"), icon: Icon(Icons.person_outline, size: 16)),
+                      ButtonSegment(value: Role.guru, label: Text("GURU"), icon: Icon(Icons.school_outlined, size: 16)),
                     ],
                     selected: {_role},
                     onSelectionChanged: (s) => setState(() => _role = s.first),
