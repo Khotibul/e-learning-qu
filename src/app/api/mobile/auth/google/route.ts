@@ -73,6 +73,17 @@ export async function POST(req: Request) {
         select: { id: true, email: true, name: true, image: true, role: true, isActive: true },
       })
       isNewUser = true
+      // Buat Account link untuk Google — agar konsisten dengan PrismaAdapter website
+      await prisma.account.create({
+        data: {
+          userId: user.id,
+          type: "oauth",
+          provider: "google",
+          providerAccountId: payload.email ?? email,
+          access_token: idToken.slice(0, 500),
+          id_token: idToken.slice(0, 1000),
+        },
+      }).catch(() => {})
     } else {
       if (!user.isActive) {
         return NextResponse.json({ error: "Akun dinonaktifkan" }, { status: 403, headers: corsHeaders })
@@ -81,30 +92,57 @@ export async function POST(req: Request) {
       if (user.name !== name || user.image !== image) {
         await prisma.user.update({ where: { id: user.id }, data: { name, image: image ?? undefined } }).catch(() => {})
       }
+      // Pastikan Account Google ada (untuk linking yang belum ada)
+      const existingAccount = await prisma.account.findFirst({
+        where: { userId: user.id, provider: "google" },
+        select: { id: true },
+      })
+      if (!existingAccount) {
+        await prisma.account.create({
+          data: {
+            userId: user.id,
+            type: "oauth",
+            provider: "google",
+            providerAccountId: payload.email ?? email,
+            access_token: idToken.slice(0, 500),
+          },
+        }).catch(() => {})
+      }
     }
 
-    // Cek apakah sudah punya profil siswa/guru (untuk tentukan needRoleSelection)
+    // Cek / buat profil siswa/guru — samakan dengan website /api/auth/role
+    // Untuk Google login, jika user baru langsung buatkan profil sesuai role pilihan
     let siswaId: string | null = null
     let guruId: string | null = null
     let needRoleSelection = false
 
     if (user.role === "SISWA") {
-      const siswa = await prisma.siswa.findUnique({ where: { userId: user.id }, select: { id: true } })
+      let siswa = await prisma.siswa.findUnique({ where: { userId: user.id }, select: { id: true } })
+      if (!siswa) {
+        // Buatkan profil siswa minimal — seperti website setelah pilih role SISWA di /register
+        try {
+          siswa = await prisma.siswa.create({
+            data: { userId: user.id, nama: user.name ?? name, kelasId: null },
+            select: { id: true },
+          })
+        } catch {}
+      }
       siswaId = siswa?.id ?? null
-      if (!siswa) needRoleSelection = isNewUser // user baru via Google belum punya siswa record
+      if (!siswaId) needRoleSelection = true
     } else if (user.role === "GURU") {
-      const guru = await prisma.guru.findFirst({ where: { userId: user.id, deletedAt: null }, select: { id: true } })
+      let guru = await prisma.guru.findFirst({ where: { userId: user.id, deletedAt: null }, select: { id: true } })
+      if (!guru) {
+        try {
+          guru = await prisma.guru.create({
+            data: { userId: user.id, nama: user.name ?? name },
+            select: { id: true },
+          })
+        } catch {}
+      }
       guruId = guru?.id ?? null
-      if (!guru) needRoleSelection = isNewUser
+      if (!guruId) needRoleSelection = true
     } else if (user.role === "ADMIN" || user.role === "RESEARCHER") {
-      // Admin/researcher tidak didukung di Android — arahkan ke website
       return NextResponse.json({ error: "Role Admin hanya via website" }, { status: 403, headers: corsHeaders })
-    }
-
-    // Jika user baru dan role masih default tapi belum punya profil, beri flag untuk pilih role
-    // (mirip website redirect ke /register)
-    if (isNewUser && !siswaId && !guruId) {
-      needRoleSelection = true
     }
 
     const token = Buffer.from(`${user.id}:${user.role}:${Date.now()}`).toString("base64")
