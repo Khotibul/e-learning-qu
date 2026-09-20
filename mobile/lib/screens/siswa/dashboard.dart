@@ -8,6 +8,9 @@ import 'ranking.dart';
 import 'jadwal.dart';
 import 'ai_tutor.dart';
 import 'latihan.dart';
+import 'struktur_kelas.dart';
+import 'jadwal_piket.dart';
+import 'profil_belajar.dart';
 
 class SiswaDashboard extends StatefulWidget {
   const SiswaDashboard({super.key});
@@ -117,7 +120,8 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                 _MenuCard(icon: Icons.smart_toy_outlined, label: "AI Tutor", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAiTutor()))),
                 _MenuCard(icon: Icons.menu_book_outlined, label: "Latihan", color: const Color(0xFF6366F1), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaLatihan()))),
                 _MenuCard(icon: Icons.calendar_today_outlined, label: "Jadwal", color: const Color(0xFFEC4899), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwal()))),
-                _MenuCard(icon: Icons.groups_outlined, label: "Kelas", color: const Color(0xFF14B8A6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
+                _MenuCard(icon: Icons.groups_outlined, label: "Kelas", color: const Color(0xFF14B8A6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaStrukturKelas()))),
+                _MenuCard(icon: Icons.psychology_outlined, label: "Profil", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaProfilBelajar()))),
                 _MenuCard(
                   icon: Icons.account_balance_wallet_outlined,
                   label: "Bendahara",
@@ -128,7 +132,7 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hanya Bendahara yang dapat mengakses fitur ini — sama seperti website"), backgroundColor: Color(0xFFEF4444)));
                       return;
                     }
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur Bendahara — iuran, denda, pengeluaran (1 DB)")));
                   },
                 ),
                 _MenuCard(
@@ -141,7 +145,7 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hanya Sekretaris yang dapat mengakses fitur ini — sama seperti website"), backgroundColor: Color(0xFFEF4444)));
                       return;
                     }
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwal()));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwalPiket()));
                   },
                 ),
               ],
