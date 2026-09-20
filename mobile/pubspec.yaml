@@ -37,10 +37,10 @@ dependencies:
   intl: ^0.20.0
   cached_network_image: ^3.4.1
   url_launcher: ^6.2.5
-  file_picker: ^8.1.2
+  file_picker: ^10.1.9
   dio: ^5.7.0
   image_picker: ^1.1.2
-  google_sign_in: ^6.2.1
+  google_sign_in: ^6.3.0
 
 dev_dependencies:
   flutter_test:

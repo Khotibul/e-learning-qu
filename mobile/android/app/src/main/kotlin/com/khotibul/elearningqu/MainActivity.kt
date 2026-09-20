@@ -1,4 +1,4 @@
-package com.khotibul.elearningqu.e_learning_qu
+package com.khotibul.elearningqu
 
 import io.flutter.embedding.android.FlutterActivity
 
