@@ -91,6 +91,32 @@ class _SiswaUjianState extends State<SiswaUjian> {
                           final u = filtered[i] as Map;
                           final status = u["status"] as String? ?? "DRAFT";
                           final sudah = u["sudahDikerjakan"] == true;
+                          final bisaRetake = u["bisaRetake"] == true;
+                          String actionLabel;
+                          Color actionColor;
+                          bool actionEnabled;
+                          IconData actionIcon;
+                          if (sudah && bisaRetake) {
+                            actionLabel = "Kerjakan Lagi";
+                            actionColor = const Color(0xFF4F46E5);
+                            actionEnabled = true;
+                            actionIcon = Icons.refresh_outlined;
+                          } else if (sudah && !bisaRetake) {
+                            actionLabel = "Sudah Dikerjakan";
+                            actionColor = const Color(0xFF94A3B8);
+                            actionEnabled = false;
+                            actionIcon = Icons.check_circle_outline;
+                          } else if (status == "AKTIF") {
+                            actionLabel = "Kerjakan";
+                            actionColor = const Color(0xFF10B981);
+                            actionEnabled = true;
+                            actionIcon = Icons.play_arrow_outlined;
+                          } else {
+                            actionLabel = status == "DRAFT" ? "Belum Tersedia" : "Selesai";
+                            actionColor = const Color(0xFF94A3B8);
+                            actionEnabled = false;
+                            actionIcon = Icons.block_outlined;
+                          }
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             decoration: BoxDecoration(
@@ -106,7 +132,7 @@ class _SiswaUjianState extends State<SiswaUjian> {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(color: _statusColor(status).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-                                    child: Icon(status == "AKTIF" ? Icons.quiz : Icons.description, size: 18, color: _statusColor(status)),
+                                    child: Icon(status == "AKTIF" ? Icons.quiz_outlined : Icons.description_outlined, size: 16, color: _statusColor(status)),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -127,13 +153,26 @@ class _SiswaUjianState extends State<SiswaUjian> {
                                   const SizedBox(width: 12),
                                   _Meta(icon: Icons.quiz_outlined, text: "${u["jumlahSoal"] ?? 0} soal"),
                                 ]),
-                                if (sudah) ...[
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(color: const Color(0xFFEEF2FF), borderRadius: BorderRadius.circular(8)),
-                                    child: const Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.check_circle, size: 14, color: Color(0xFF4F46E5)), SizedBox(width: 4), Text("Sudah dikerjakan", style: TextStyle(fontSize: 11, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600))]),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton.icon(
+                                    onPressed: actionEnabled ? () {
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(actionLabel == "Kerjakan Lagi" ? "Membuka ${u["nama"]} lagi..." : "Membuka ${u["nama"]}...")));
+                                    } : null,
+                                    icon: Icon(actionIcon, size: 16),
+                                    label: Text(actionLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: actionEnabled ? actionColor : const Color(0xFFF1F5F9),
+                                      foregroundColor: actionEnabled ? Colors.white : const Color(0xFF64748B),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                    ),
                                   ),
+                                ),
+                                if (bisaRetake) ...[
+                                  const SizedBox(height: 6),
+                                  const Row(children: [Icon(Icons.replay, size: 12, color: Color(0xFF4F46E5)), SizedBox(width: 4), Text("Dapat dikerjakan ulang", style: TextStyle(fontSize: 10, color: Color(0xFF4F46E5)))]),
                                 ],
                               ]),
                             ),

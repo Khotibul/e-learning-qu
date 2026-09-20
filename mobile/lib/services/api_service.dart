@@ -172,6 +172,12 @@ class ApiService {
     return data is Map<String, dynamic> ? data : {};
   }
 
+  // Dashboard — 1 DB, semua persentase untuk beranda
+  static Future<Map<String, dynamic>> getDashboard() async {
+    final data = await get("/api/mobile/siswa/dashboard");
+    return data is Map<String, dynamic> ? data : {};
+  }
+
   // AI Tutor — RAG via backend (1 DB + Gemini)
   static Future<Map<String, dynamic>> askAiTutor(String message, {String? mapelId}) async {
     return await post("/api/mobile/ai/tutor", {"message": message, "mapelId": mapelId});

@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     const ujians = await prisma.ujian.findMany({
       where: { kelasId: siswa.kelasId, deletedAt: null, isLatihan: false },
       select: {
-        id: true, nama: true, tanggal: true, durasi: true, status: true, jumlahSoal: true, nilaiMinimum: true,
+        id: true, nama: true, tanggal: true, durasi: true, status: true, jumlahSoal: true, nilaiMinimum: true, bisaRetake: true,
         mataPelajaran: { select: { nama: true } },
         kelas: { select: { nama: true } },
         _count: { select: { jawabanUjian: { where: { siswaId: siswa.id } } } },
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
     const result = ujians.map((u) => ({
       id: u.id, nama: u.nama, mapel: u.mataPelajaran.nama, kelas: u.kelas.nama,
       tanggal: u.tanggal.toISOString(), durasi: u.durasi, status: u.status,
-      sudahDikerjakan: u._count.jawabanUjian > 0, jumlahSoal: u.jumlahSoal, nilaiMinimum: u.nilaiMinimum,
+      sudahDikerjakan: u._count.jawabanUjian > 0, jumlahSoal: u.jumlahSoal, nilaiMinimum: u.nilaiMinimum, bisaRetake: u.bisaRetake,
     }))
 
     return NextResponse.json(result, { headers: corsHeaders })

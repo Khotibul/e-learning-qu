@@ -22,78 +22,137 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
   @override
   void initState() {
     super.initState();
-    ApiService.get("/api/siswa/dashboard").then((v) {
-      if (mounted) setState(() { stats = v is Map<String, dynamic> ? v : null; loading = false; });
+    ApiService.getDashboard().then((v) {
+      if (mounted) setState(() { stats = v; loading = false; });
     }).catchError((_) { if (mounted) setState(() => loading = false); });
   }
 
   @override
   Widget build(BuildContext context) {
     if (loading) return Scaffold(appBar: AppBar(title: const Text("Beranda")), body: const Center(child: CircularProgressIndicator()));
+    final s = stats ?? {};
     return Scaffold(
       appBar: AppBar(title: const Text("Beranda Siswa"), backgroundColor: Colors.white),
       body: Container(
         decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFEEF2FF), Color(0xFFF8FAFC)])),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.person_outline, color: Colors.white, size: 20)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text("Halo, ${stats?["nama"] ?? "Siswa"}", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)), Text("${stats?["kelas"] ?? "-"}", style: const TextStyle(color: Colors.black54, fontSize: 11))]))]),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(child: _MiniStat(label: "Rata Nilai", value: "${stats?["rataNilai"] ?? stats?["nilaiRataRata"] ?? "-"}", icon: Icons.grade, color: const Color(0xFF10B981))),
-                    const SizedBox(width: 8),
-                    Expanded(child: _MiniStat(label: "Ujian Aktif", value: "${stats?["ujianAktif"] ?? 0}", icon: Icons.quiz, color: const Color(0xFFF59E0B))),
+        child: RefreshIndicator(
+          onRefresh: () async {
+            final v = await ApiService.getDashboard();
+            if (mounted) setState(() => stats = v);
+          },
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Header
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.person_outline, color: Colors.white, size: 20)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text("Halo, ${s["nama"] ?? "Siswa"}", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)), Text("${s["kelas"] ?? "-"} • ${s["jurusan"] ?? "-"} • ${s["semester"] ?? ""}", style: const TextStyle(color: Colors.black54, fontSize: 11))]))]),
+                    const SizedBox(height: 12),
+                    Text(s["aiInsight"] ?? "Mulai belajar untuk melihat insight AI.", style: const TextStyle(fontSize: 12, color: Color(0xFF475569), fontStyle: FontStyle.italic)),
                   ]),
-                ]),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            const Text("Menu Belajar", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            const SizedBox(height: 8),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 3,
-              childAspectRatio: 0.95,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              children: [
-                _MenuCard(icon: Icons.quiz_outlined, label: "Ujian", color: const Color(0xFF4F46E5), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaUjian()))),
-                _MenuCard(icon: Icons.menu_book_outlined, label: "Materi", color: const Color(0xFF06B6D4), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaMateri()))),
-                _MenuCard(icon: Icons.fact_check_outlined, label: "Absensi", color: const Color(0xFF10B981), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
-                _MenuCard(icon: Icons.grade_outlined, label: "Nilai", color: const Color(0xFFF59E0B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaNilai()))),
-                _MenuCard(icon: Icons.leaderboard_outlined, label: "Ranking", color: const Color(0xFFEF4444), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaRanking()))),
-                _MenuCard(icon: Icons.smart_toy_outlined, label: "AI Tutor", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAiTutor()))),
-                _MenuCard(icon: Icons.menu_book_outlined, label: "Latihan", color: const Color(0xFF6366F1), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaLatihan()))),
-                _MenuCard(icon: Icons.calendar_today_outlined, label: "Jadwal", color: const Color(0xFFEC4899), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwal()))),
-                _MenuCard(icon: Icons.groups_outlined, label: "Kelas", color: const Color(0xFF14B8A6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFFEEF2FF), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE0E7FF))),
-              child: const Row(children: [Icon(Icons.info_outline, size: 16, color: Color(0xFF4F46E5)), SizedBox(width: 8), Expanded(child: Text("1 Database dengan Web — nilai, absensi, materi sinkron real-time", style: TextStyle(fontSize: 11, color: Color(0xFF4F46E5))))]),
-            ),
-          ],
+              const SizedBox(height: 12),
+              // 8 StatCards seperti website
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                childAspectRatio: 2.2,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                children: [
+                  _StatCard(title: "Nilai Rata-rata", value: (s["nilaiRataRata"] ?? 0).toStringAsFixed(1), icon: Icons.psychology_outlined, color: const Color(0xFF10B981)),
+                  _StatCard(title: "Mastery", value: "${s["rataMastery"] ?? 0}%", icon: Icons.track_changes_outlined, color: const Color(0xFF4F46E5)),
+                  _StatCard(title: "Streak", value: "${s["streak"] ?? 0} hari", icon: Icons.local_fire_department_outlined, color: const Color(0xFFF59E0B)),
+                  _StatCard(title: "Jam Belajar", value: "${s["jamBelajar"] ?? 0}j", icon: Icons.schedule_outlined, color: const Color(0xFF06B6D4)),
+                  _StatCard(title: "Ujian Aktif", value: "${s["ujianAktif"] ?? 0}", icon: Icons.quiz_outlined, color: const Color(0xFF8B5CF6)),
+                  _StatCard(title: "Latihan Aktif", value: "${s["tugasAktif"] ?? 0}", icon: Icons.menu_book_outlined, color: const Color(0xFFEC4899)),
+                  _StatCard(title: "Progres", value: "${s["progresBelajar"] ?? 0}%", icon: Icons.trending_up_outlined, color: const Color(0xFF14B8A6)),
+                  _StatCard(title: "Materi", value: "${s["totalMateri"] ?? 0}", icon: Icons.library_books_outlined, color: const Color(0xFFF97316)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Grafik Persentase — sesuai website: absensi, materi, AI, aplikasi, nilai
+              const Text("Grafik Persentase", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              const SizedBox(height: 8),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                childAspectRatio: 2.8,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                children: [
+                  _PercentCard(label: "Absensi", value: s["persentaseAbsensi"] ?? 0, total: "${s["hadirAbsensi"] ?? 0}/${s["totalAbsensi"] ?? 0}", icon: Icons.fact_check_outlined, color: const Color(0xFF10B981)),
+                  _PercentCard(label: "Materi", value: s["keaktifanMateri"] ?? 0, total: "${s["materiDiakses"] ?? 0}/${s["totalMateri"] ?? 0}", icon: Icons.menu_book_outlined, color: const Color(0xFF06B6D4)),
+                  _PercentCard(label: "AI Tutor", value: s["keaktifanAI"] ?? 0, total: "${s["aiChatCount"] ?? 0} chat", icon: Icons.smart_toy_outlined, color: const Color(0xFF8B5CF6)),
+                  _PercentCard(label: "Aplikasi", value: s["keaktifanAplikasi"] ?? 0, total: "${s["totalAktivitas"] ?? 0} aktivitas", icon: Icons.phone_android_outlined, color: const Color(0xFF4F46E5)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _PercentCard(label: "Nilai", value: ((s["nilaiRataRata"] ?? 0) as num).round(), total: "rata ${((s["nilaiRataRata"] ?? 0) as num).toStringAsFixed(1)}", icon: Icons.grade_outlined, color: const Color(0xFFF59E0B), fullWidth: true),
+              const SizedBox(height: 12),
+              const Text("Menu Belajar", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              const SizedBox(height: 8),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 3,
+                childAspectRatio: 0.95,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                children: [
+                  _MenuCard(icon: Icons.quiz_outlined, label: "Ujian", color: const Color(0xFF4F46E5), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaUjian()))),
+                  _MenuCard(icon: Icons.menu_book_outlined, label: "Materi", color: const Color(0xFF06B6D4), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaMateri()))),
+                  _MenuCard(icon: Icons.fact_check_outlined, label: "Absensi", color: const Color(0xFF10B981), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
+                  _MenuCard(icon: Icons.grade_outlined, label: "Nilai", color: const Color(0xFFF59E0B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaNilai()))),
+                  _MenuCard(icon: Icons.leaderboard_outlined, label: "Ranking", color: const Color(0xFFEF4444), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaRanking()))),
+                  _MenuCard(icon: Icons.smart_toy_outlined, label: "AI Tutor", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAiTutor()))),
+                  _MenuCard(icon: Icons.menu_book_outlined, label: "Latihan", color: const Color(0xFF6366F1), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaLatihan()))),
+                  _MenuCard(icon: Icons.calendar_today_outlined, label: "Jadwal", color: const Color(0xFFEC4899), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwal()))),
+                  _MenuCard(icon: Icons.groups_outlined, label: "Kelas", color: const Color(0xFF14B8A6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _MiniStat extends StatelessWidget {
-  final String label; final String value; final IconData icon; final Color color;
-  const _MiniStat({required this.label, required this.value, required this.icon, required this.color});
+class _StatCard extends StatelessWidget {
+  final String title; final String value; final IconData icon; final Color color;
+  const _StatCard({required this.title, required this.value, required this.icon, required this.color});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-    decoration: BoxDecoration(color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10), border: Border.all(color: color.withValues(alpha: 0.15))),
-    child: Row(children: [Icon(icon, size: 14, color: color), const SizedBox(width: 6), Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(fontSize: 9, color: Colors.black54)), Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color))])]),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E8F0))),
+    child: Row(children: [
+      Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)), child: Icon(icon, size: 16, color: color)),
+      const SizedBox(width: 10),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 10, color: Colors.black54)), Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color))])),
+    ]),
+  );
+}
+
+class _PercentCard extends StatelessWidget {
+  final String label; final int value; final String total; final IconData icon; final Color color; final bool fullWidth;
+  const _PercentCard({required this.label, required this.value, required this.total, required this.icon, required this.color, this.fullWidth = false});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E8F0))),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [Icon(icon, size: 14, color: color), const SizedBox(width: 6), Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)), const Spacer(), Text("$value%", style: TextStyle(fontWeight: FontWeight.bold, color: color))]),
+      const SizedBox(height: 6),
+      ClipRRect(borderRadius: BorderRadius.circular(6), child: LinearProgressIndicator(value: value / 100, minHeight: 6, backgroundColor: const Color(0xFFF1F5F9), color: color)),
+      const SizedBox(height: 4),
+      Text(total, style: const TextStyle(fontSize: 10, color: Colors.black54)),
+    ]),
   );
 }
 
