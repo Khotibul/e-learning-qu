@@ -66,14 +66,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email atau password salah" }, { status: 401, headers: corsHeaders })
     }
 
-    // Ambil profil tambahan (kelas untuk siswa, jabatan untuk guru) — sama seperti web
+    // Ambil profil tambahan — sama seperti website, termasuk jabatan siswa
     let extra: Record<string, unknown> = {}
     if (user.role === "SISWA") {
       const siswa = await prisma.siswa.findUnique({
         where: { userId: user.id },
-        select: { id: true, nama: true, nis: true, kelas: { select: { id: true, nama: true } } },
+        select: { id: true, nama: true, nis: true, jabatan: true, kelas: { select: { id: true, nama: true } } },
       })
-      if (siswa) extra = { siswaId: siswa.id, siswaNama: siswa.nama, kelas: siswa.kelas }
+      if (siswa) extra = { siswaId: siswa.id, siswaNama: siswa.nama, kelas: siswa.kelas, jabatan: siswa.jabatan }
     } else if (user.role === "GURU") {
       const guru = await prisma.guru.findFirst({
         where: { userId: user.id, deletedAt: null },

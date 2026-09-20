@@ -48,7 +48,11 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.person_outline, color: Colors.white, size: 20)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text("Halo, ${s["nama"] ?? "Siswa"}", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)), Text("${s["kelas"] ?? "-"} • ${s["jurusan"] ?? "-"} • ${s["semester"] ?? ""}", style: const TextStyle(color: Colors.black54, fontSize: 11))]))]),
+                    Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.person_outline, color: Colors.white, size: 20)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Text("Halo, ${s["nama"] ?? "Siswa"}", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)), if (s["jabatan"] != null) ...[const SizedBox(width: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: const Color(0xFFEEF2FF), borderRadius: BorderRadius.circular(20)), child: Text(s["jabatan"], style: const TextStyle(fontSize: 10, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600)))] ]), Text("${s["kelas"] ?? "-"} • ${s["jurusan"] ?? "-"} • ${s["semester"] ?? ""}", style: const TextStyle(color: Colors.black54, fontSize: 11))]))]),
+                    if (s["jabatan"] != null) ...[
+                      const SizedBox(height: 8),
+                      Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFBAE6FD))), child: Row(children: [const Icon(Icons.verified, size: 14, color: Color(0xFF0284C7)), const SizedBox(width: 6), Text("Jabatan: ${s["jabatan"]} — akses khusus tersedia", style: const TextStyle(fontSize: 11, color: Color(0xFF0284C7), fontWeight: FontWeight.w600))])),
+                    ],
                     const SizedBox(height: 12),
                     Text(s["aiInsight"] ?? "Mulai belajar untuk melihat insight AI.", style: const TextStyle(fontSize: 12, color: Color(0xFF475569), fontStyle: FontStyle.italic)),
                   ]),
@@ -97,25 +101,51 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
               const SizedBox(height: 12),
               const Text("Menu Belajar", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
               const SizedBox(height: 8),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 3,
-                childAspectRatio: 0.95,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                children: [
-                  _MenuCard(icon: Icons.quiz_outlined, label: "Ujian", color: const Color(0xFF4F46E5), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaUjian()))),
-                  _MenuCard(icon: Icons.menu_book_outlined, label: "Materi", color: const Color(0xFF06B6D4), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaMateri()))),
-                  _MenuCard(icon: Icons.fact_check_outlined, label: "Absensi", color: const Color(0xFF10B981), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
-                  _MenuCard(icon: Icons.grade_outlined, label: "Nilai", color: const Color(0xFFF59E0B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaNilai()))),
-                  _MenuCard(icon: Icons.leaderboard_outlined, label: "Ranking", color: const Color(0xFFEF4444), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaRanking()))),
-                  _MenuCard(icon: Icons.smart_toy_outlined, label: "AI Tutor", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAiTutor()))),
-                  _MenuCard(icon: Icons.menu_book_outlined, label: "Latihan", color: const Color(0xFF6366F1), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaLatihan()))),
-                  _MenuCard(icon: Icons.calendar_today_outlined, label: "Jadwal", color: const Color(0xFFEC4899), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwal()))),
-                  _MenuCard(icon: Icons.groups_outlined, label: "Kelas", color: const Color(0xFF14B8A6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
-                ],
-              ),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 3,
+              childAspectRatio: 0.95,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              children: [
+                _MenuCard(icon: Icons.quiz_outlined, label: "Ujian", color: const Color(0xFF4F46E5), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaUjian()))),
+                _MenuCard(icon: Icons.menu_book_outlined, label: "Materi", color: const Color(0xFF06B6D4), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaMateri()))),
+                _MenuCard(icon: Icons.fact_check_outlined, label: "Absensi", color: const Color(0xFF10B981), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
+                _MenuCard(icon: Icons.grade_outlined, label: "Nilai", color: const Color(0xFFF59E0B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaNilai()))),
+                _MenuCard(icon: Icons.leaderboard_outlined, label: "Ranking", color: const Color(0xFFEF4444), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaRanking()))),
+                _MenuCard(icon: Icons.smart_toy_outlined, label: "AI Tutor", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAiTutor()))),
+                _MenuCard(icon: Icons.menu_book_outlined, label: "Latihan", color: const Color(0xFF6366F1), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaLatihan()))),
+                _MenuCard(icon: Icons.calendar_today_outlined, label: "Jadwal", color: const Color(0xFFEC4899), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwal()))),
+                _MenuCard(icon: Icons.groups_outlined, label: "Kelas", color: const Color(0xFF14B8A6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
+                _MenuCard(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: "Bendahara",
+                  color: const Color(0xFFF97316),
+                  onTap: () {
+                    final jabatan = s["jabatan"]?.toString();
+                    if (jabatan != "BENDAHARA") {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hanya Bendahara yang dapat mengakses fitur ini — sama seperti website"), backgroundColor: Color(0xFFEF4444)));
+                      return;
+                    }
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()));
+                  },
+                ),
+                _MenuCard(
+                  icon: Icons.assignment_outlined,
+                  label: "Sekretaris",
+                  color: const Color(0xFF0EA5E9),
+                  onTap: () {
+                    final jabatan = s["jabatan"]?.toString();
+                    if (jabatan != "SEKRETARIS") {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hanya Sekretaris yang dapat mengakses fitur ini — sama seperti website"), backgroundColor: Color(0xFFEF4444)));
+                      return;
+                    }
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwal()));
+                  },
+                ),
+              ],
+            ),
             ],
           ),
         ),

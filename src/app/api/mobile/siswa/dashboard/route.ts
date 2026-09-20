@@ -101,6 +101,7 @@ export async function GET(req: Request) {
       nama: siswa.nama,
       kelas: siswa.kelas?.nama ?? "-",
       jurusan: jurusanNama,
+      jabatan: siswa.jabatan ?? null,
       semester: activeSemester ? `${activeSemester.nama} (${activeSemester.tahunAjaran.nama})` : "-",
       nilaiRataRata,
       rataMastery,
