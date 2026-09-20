@@ -146,9 +146,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: _loading ? null : () async {
                     setState(() => _loading = true);
                     try {
+                      // serverClientId HARUS Web Client ID agar idToken bisa diverifikasi server
+                      // Android Client ID (cstajadll...) otomatis dipakai via google-services.json
                       final googleSignIn = GoogleSignIn(
                         scopes: ['email', 'profile'],
-                        serverClientId: '190762274336-cstajadll4mqf0n7i4j529n9g02j0ti8.apps.googleusercontent.com',
+                        serverClientId: '190762274336-msoeb1vaq8niqf0e5hfb1ur0hqpmln8f.apps.googleusercontent.com',
                       );
                       final account = await googleSignIn.signIn();
                       if (account == null) throw Exception("Dibatalkan");
