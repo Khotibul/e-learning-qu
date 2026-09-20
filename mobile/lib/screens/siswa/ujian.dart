@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
+import 'ujian_detail.dart';
 
 class SiswaUjian extends StatefulWidget {
   const SiswaUjian({super.key});
@@ -158,7 +159,7 @@ class _SiswaUjianState extends State<SiswaUjian> {
                                   width: double.infinity,
                                   child: FilledButton.icon(
                                     onPressed: actionEnabled ? () {
-                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(actionLabel == "Kerjakan Lagi" ? "Membuka ${u["nama"]} lagi..." : "Membuka ${u["nama"]}...")));
+                                      Navigator.push(context, MaterialPageRoute(builder: (_) => UjianDetail(ujianId: u["id"] as String)));
                                     } : null,
                                     icon: Icon(actionIcon, size: 16),
                                     label: Text(actionLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),

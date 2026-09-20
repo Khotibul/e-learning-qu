@@ -196,6 +196,26 @@ class ApiService {
     return body;
   }
 
+  // Ujian detail — 1 DB
+  static Future<Map<String, dynamic>> getUjianDetail(String id) async {
+    final data = await get("/api/mobile/siswa/ujian/$id");
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> startUjian(String id) async {
+    final data = await post("/api/mobile/siswa/ujian/$id/start", {});
+    return data as Map<String, dynamic>;
+  }
+
+  static Future<void> autoSaveUjian(String id, Map<String, String> answers, List<String> raguRagu) async {
+    await post("/api/mobile/siswa/ujian/$id/auto-save", {"answers": answers, "raguRagu": raguRagu});
+  }
+
+  static Future<Map<String, dynamic>> submitUjian(String id, Map<String, String> answers, List<String> raguRagu) async {
+    final data = await post("/api/mobile/siswa/ujian/$id/submit", {"answers": answers, "raguRagu": raguRagu});
+    return data as Map<String, dynamic>;
+  }
+
   // AI Tutor — RAG via backend (1 DB + Gemini)
   static Future<Map<String, dynamic>> askAiTutor(String message, {String? mapelId}) async {
     return await post("/api/mobile/ai/tutor", {"message": message, "mapelId": mapelId});
