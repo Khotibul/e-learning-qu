@@ -148,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     try {
                       final googleSignIn = GoogleSignIn(
                         scopes: ['email', 'profile'],
-                        serverClientId: '190762274336-msoeb1vaq8niqf0e5hfb1ur0hqpmln8f.apps.googleusercontent.com',
+                        serverClientId: '190762274336-cstajadll4mqf0n7i4j529n9g02j0ti8.apps.googleusercontent.com',
                       );
                       final account = await googleSignIn.signIn();
                       if (account == null) throw Exception("Dibatalkan");

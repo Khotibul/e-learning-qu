@@ -42,12 +42,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email tidak ditemukan di token Google" }, { status: 400, headers: corsHeaders })
     }
 
-    // (Opsional) cek aud sesuai GOOGLE_CLIENT_ID — jika dikirim, verifikasi
-    const expectedAud = process.env.GOOGLE_CLIENT_ID
-    if (expectedAud && payload.aud && payload.aud !== expectedAud) {
-      // Untuk Android, aud bisa berupa Android client ID, jadi jangan strict fail
-      // Cukup log warning
-      console.warn(`Google aud mismatch: expected ${expectedAud}, got ${payload.aud}`)
+    // Verifikasi aud — terima Web & Android client ID (1 DB, 2 platform)
+    const allowedAuds = [
+      process.env.GOOGLE_CLIENT_ID,
+      "190762274336-cstajadll4mqf0n7i4j529n9g02j0ti8.apps.googleusercontent.com", // Android
+      "190762274336-msoeb1vaq8niqf0e5hfb1ur0hqpmln8f.apps.googleusercontent.com", // Web (legacy)
+    ].filter(Boolean) as string[]
+    if (payload.aud && !allowedAuds.includes(payload.aud)) {
+      console.warn(`Google aud not in allowlist: got ${payload.aud}, allowed: ${allowedAuds.join(", ")}`)
+      // Jangan fail hard — token tetap valid dari Google, cukup warning untuk audit
     }
 
     // Cari user existing — sama seperti PrismaAdapter + allowDangerousEmailAccountLinking: true
