@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SiswaMateri extends StatefulWidget {
   const SiswaMateri({super.key});
@@ -34,15 +35,34 @@ class _SiswaMateriState extends State<SiswaMateri> {
                   final m = data[i] as Map;
                   // API mobile return flat: {id, judul, deskripsi, fileUrl, mataPelajaran: {nama}}
                   // Website also same, so Android 100% sesuai
+                  final fileUrl = m["fileUrl"] as String?;
+                  final fileType = (m["fileType"] ?? "").toString().toLowerCase();
+                  final icon = fileType == "pdf" ? Icons.picture_as_pdf_outlined : fileType.contains("image") ? Icons.image_outlined : Icons.description_outlined;
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),
                     child: ListTile(
                       contentPadding: const EdgeInsets.all(16),
-                      leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFF4F46E5).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.menu_book, color: Color(0xFF4F46E5))),
+                      leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFF4F46E5).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: const Color(0xFF4F46E5), size: 20)),
                       title: Text(m["judul"] ?? "-", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                      subtitle: Padding(padding: const EdgeInsets.only(top: 4), child: Text(m["mataPelajaran"]?["nama"] ?? m["mapel"] ?? "", style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
-                      trailing: const Icon(Icons.chevron_right, color: Color(0xFF94A3B8)),
+                      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Padding(padding: const EdgeInsets.only(top: 4), child: Text(m["mataPelajaran"]?["nama"] ?? m["mapel"] ?? "", style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
+                        if (m["deskripsi"] != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(m["deskripsi"], style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                      ]),
+                      trailing: fileUrl != null && fileUrl.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.download_outlined, size: 20, color: Color(0xFF4F46E5)),
+                              onPressed: () async {
+                                final url = fileUrl.startsWith("http") ? fileUrl : "https://e-learning-qu.vercel.app$fileUrl";
+                                final uri = Uri.parse(url);
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                } else {
+                                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal membuka: $url")));
+                                }
+                              },
+                            )
+                          : const Icon(Icons.chevron_right, color: Color(0xFF94A3B8), size: 18),
                     ),
                   );
                 },
