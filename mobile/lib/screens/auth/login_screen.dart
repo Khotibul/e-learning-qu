@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
-import 'dart:math';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/user.dart';
 import '../../services/api_service.dart';
@@ -147,36 +146,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: _loading ? null : () async {
                     setState(() => _loading = true);
                     try {
-                      // Metode stabil tanpa channel google_sign_in (hindari MissingPluginException)
-                      // Pakai Web OAuth via CustomTabs + id_token langsung ke backend 1 DB
-                      const googleClientId = '190762274336-msoeb1vaq8niqf0e5hfb1ur0hqpmln8f.apps.googleusercontent.com';
-                      const redirectUri = 'com.khotibul.elearningqu:/oauth2redirect';
-                      final nonce = (Random().nextInt(900000) + 100000).toString();
-                      final authUrl = Uri.https('accounts.google.com', '/o/oauth2/v2/auth', {
-                        'client_id': googleClientId,
-                        'redirect_uri': redirectUri,
-                        'response_type': 'id_token',
-                        'scope': 'openid email profile',
-                        'nonce': nonce,
-                        'prompt': 'select_account',
-                      }).toString();
-
-                      final result = await FlutterWebAuth2.authenticate(
-                        url: authUrl,
-                        callbackUrlScheme: 'com.khotibul.elearningqu',
-                        options: const FlutterWebAuth2Options(useWebview: false),
+                      // Android native Google Sign-In — 1 DB dengan website
+                      final googleSignIn = GoogleSignIn(
+                        scopes: ['email', 'profile'],
+                        serverClientId: '190762274336-msoeb1vaq8niqf0e5hfb1ur0hqpmln8f.apps.googleusercontent.com',
                       );
-                      // result = com.khotibul.elearningqu:/oauth2redirect#id_token=...&...
-                      final uri = Uri.parse(result);
-                      String idToken = "";
-                      if (uri.fragment.isNotEmpty) {
-                        for (final p in uri.fragment.split('&')) {
-                          if (p.startsWith('id_token=')) { idToken = p.substring(9); break; }
-                        }
-                      }
-                      if (idToken.isEmpty) idToken = uri.queryParameters['id_token'] ?? "";
-                      if (idToken.isEmpty) throw Exception("Gagal ambil id_token dari Google (coba lagi)");
-
+                      final account = await googleSignIn.signIn();
+                      if (account == null) throw Exception("Dibatalkan");
+                      final auth = await account.authentication;
+                      final idToken = auth.idToken;
+                      if (idToken == null) throw Exception("Gagal ambil idToken — cek google-services.json & SHA-1 di Console");
                       final res = await ApiService.signInWithGoogle(idToken, roleToString(_role));
                       if (!mounted) return;
                       final user = res["user"] as Map<String, dynamic>;
@@ -187,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       }
                     } catch (e) {
                       if (!mounted) return;
-                      final msg = e.toString().contains("CANCELED") || e.toString().contains("User canceled") ? "Dibatalkan" : e.toString();
+                      final msg = e.toString().contains("CANCELED") || e.toString().contains("ApiException: 10") ? "Konfigurasi Google belum benar (cek SHA-1 & google-services.json)" : e.toString();
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Google login gagal: $msg"), backgroundColor: const Color(0xFFEF4444)));
                     } finally {
                       if (mounted) setState(() => _loading = false);
