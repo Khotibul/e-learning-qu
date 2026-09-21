@@ -129,6 +129,15 @@ export async function restoreGuru(id: string) {
   revalidatePath("/(dashboard)/admin/guru")
 }
 
+export async function resetGuruPassword(id: string) {
+  const guru = await prisma.guru.findUnique({ where: { id }, select: { userId: true } })
+  if (!guru) throw new Error("Guru tidak ditemukan")
+  const hashed = await bcrypt.hash("guru123!", 12)
+  await prisma.user.update({ where: { id: guru.userId }, data: { password: hashed } })
+  revalidatePath("/(dashboard)/admin/guru")
+  return { success: true }
+}
+
 // ─── MURID ───────────────────────────────────────────────
 
 export async function getMurids(params: {

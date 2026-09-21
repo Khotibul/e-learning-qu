@@ -51,6 +51,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  KeyRound,
 } from "lucide-react"
 import {
   getGurus,
@@ -58,6 +59,7 @@ import {
   updateGuru,
   deleteGuru,
   restoreGuru,
+  resetGuruPassword,
 } from "../actions"
 import { cn } from "@/lib/utils"
 
@@ -118,6 +120,11 @@ export function GuruManagement({
     open: false,
     id: "",
     restore: false,
+  })
+  const [resetDialog, setResetDialog] = useState<{ open: boolean; id: string; nama: string }>({
+    open: false,
+    id: "",
+    nama: "",
   })
   const [editingGuru, setEditingGuru] = useState<Guru | null>(null)
 const [formData, setFormData] = useState({
@@ -220,8 +227,18 @@ const [formData, setFormData] = useState({
                 setDialogOpen(true)
               }}
               className="p-2 sm:px-3 sm:py-1"
+              title="Edit"
             >
               <Edit className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setResetDialog({ open: true, id: guru.id, nama: guru.nama })}
+              className="p-2 sm:px-3 sm:py-1 border-amber-200 text-amber-700 hover:bg-amber-50"
+              title="Reset password ke guru123!"
+            >
+              <KeyRound className="h-4 w-4" /><span className="hidden sm:inline ml-1">Reset</span>
             </Button>
             <Button
               variant="destructive"
@@ -302,6 +319,16 @@ if (editingGuru) {
       fetchData()
     } catch {
       toast.error("Terjadi kesalahan")
+    }
+  }
+
+  async function handleResetPassword() {
+    try {
+      await resetGuruPassword(resetDialog.id)
+      toast.success(`Password ${resetDialog.nama} direset ke guru123!`)
+      setResetDialog({ open: false, id: "", nama: "" })
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal reset password")
     }
   }
 
@@ -570,6 +597,32 @@ function resetForm() {
               onClick={handleDeleteRestore}
             >
               {deleteDialog.restore ? "Restore" : "Nonaktifkan"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={resetDialog.open} onOpenChange={(o) => setResetDialog({ open: o, id: "", nama: "" })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password Guru</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Password <span className="font-semibold text-foreground">{resetDialog.nama}</span> akan direset ke default:
+            </p>
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-center">
+              <code className="text-sm font-mono font-bold text-amber-700 dark:text-amber-300">guru123!</code>
+            </div>
+            <p className="text-xs text-muted-foreground">Guru dapat login kembali menggunakan password tersebut dan sebaiknya segera menggantinya.</p>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setResetDialog({ open: false, id: "", nama: "" })}>
+              Batal
+            </Button>
+            <Button onClick={handleResetPassword} className="bg-amber-600 hover:bg-amber-700 text-white">
+              <KeyRound className="h-4 w-4 mr-2" />
+              Reset ke guru123!
             </Button>
           </div>
         </DialogContent>
