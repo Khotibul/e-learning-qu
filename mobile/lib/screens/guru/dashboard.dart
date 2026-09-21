@@ -2,6 +2,13 @@
 import '../siswa/ujian.dart';
 import '../siswa/absensi_harian.dart';
 import 'murid_detail.dart';
+import 'bank_soal.dart';
+import 'materi.dart';
+import 'nilai.dart';
+import 'intervensi.dart';
+import 'anti_cheat.dart';
+import 'ai_knowledge.dart';
+import 'analitik.dart';
 
 class GuruDashboard extends StatelessWidget {
   const GuruDashboard({super.key});
@@ -36,11 +43,16 @@ class GuruDashboard extends StatelessWidget {
             crossAxisSpacing: 8,
             children: [
               _GuruCard(icon: Icons.people_outline, label: "Murid", color: const Color(0xFF4F46E5), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruMurid()))),
+              _GuruCard(icon: Icons.inventory_2_outlined, label: "Bank Soal", color: const Color(0xFF0EA5E9), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruBankSoal()))),
+              _GuruCard(icon: Icons.quiz_outlined, label: "Soal", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruBankSoal()))),
               _GuruCard(icon: Icons.assignment_outlined, label: "Ujian", color: const Color(0xFF06B6D4), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaUjian()))),
               _GuruCard(icon: Icons.fact_check_outlined, label: "Absensi", color: const Color(0xFF10B981), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
-              _GuruCard(icon: Icons.menu_book_outlined, label: "Materi", color: const Color(0xFFF59E0B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaUjian()))),
-              _GuruCard(icon: Icons.analytics_outlined, label: "Analitik", color: const Color(0xFF8B5CF6), onTap: () {}),
-              _GuruCard(icon: Icons.shield_outlined, label: "Nilai", color: const Color(0xFFEF4444), onTap: () {}),
+              _GuruCard(icon: Icons.menu_book_outlined, label: "Materi", color: const Color(0xFFF59E0B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruMateri()))),
+              _GuruCard(icon: Icons.analytics_outlined, label: "Analitik", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruAnalitik()))),
+              _GuruCard(icon: Icons.shield_outlined, label: "Nilai", color: const Color(0xFFEF4444), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruNilai()))),
+              _GuruCard(icon: Icons.support_agent_outlined, label: "Intervensi", color: const Color(0xFFF97316), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruIntervensi()))),
+              _GuruCard(icon: Icons.security_outlined, label: "Anti-Cheat", color: const Color(0xFFEF4444), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruAntiCheat()))),
+              _GuruCard(icon: Icons.memory_outlined, label: "AI Know", color: const Color(0xFF14B8A6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruAiKnowledge()))),
             ],
           ),
         ],
