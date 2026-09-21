@@ -164,6 +164,7 @@ model Guru {
   courses        Course[]
   pengajaran     Pengajaran[]
   interventions  Intervention[]
+  absensiGuru    AbsensiGuru[]
 
   @@index([userId])
   @@index([deletedAt])
@@ -879,6 +880,24 @@ model AbsensiSiswa {
 
   @@unique([absensiId, siswaId])
   @@map("absensi_siswa")
+}
+
+model AbsensiGuru {
+  id         String        @id @default(uuid()) @db.Uuid
+  guruId     String        @db.Uuid
+  tanggal    DateTime
+  status     StatusAbsensi @default(HADIR)
+  keterangan String?
+  jamMasuk   String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  guru Guru @relation(fields: [guruId], references: [id], onDelete: Cascade)
+
+  @@unique([guruId, tanggal])
+  @@index([guruId])
+  @@index([tanggal])
+  @@map("absensi_guru")
 }
 
 model Course {

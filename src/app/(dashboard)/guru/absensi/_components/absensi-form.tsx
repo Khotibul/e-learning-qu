@@ -11,10 +11,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import {
-  Save, Loader2, Calendar, Check, TrendingUp,
+  Save, Loader2, Calendar, Check, TrendingUp, UserCheck,
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import { getGuruJadwalByDate, getAbsensiByKelasAndDate, saveAbsensi } from "../actions"
+import { getGuruJadwalByDate, getAbsensiByKelasAndDate, saveAbsensi, getGuruAbsensi, saveGuruAbsensi } from "../actions"
 
 interface SiswaItem {
   id: string; nis: string | null; nama: string
@@ -46,6 +46,11 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
   const [savedAt, setSavedAt] = useState<Map<string, string>>(new Map())
   const [loadingJadwal, setLoadingJadwal] = useState(false)
   const [savingKelas, setSavingKelas] = useState<string | null>(null)
+  const [guruAbsensi, setGuruAbsensi] = useState<{ status: string; keterangan?: string | null } | null>(null)
+  const [guruStatus, setGuruStatus] = useState("HADIR")
+  const [guruKeterangan, setGuruKeterangan] = useState("")
+  const [savingGuru, setSavingGuru] = useState(false)
+  const [guruSaved, setGuruSaved] = useState(false)
 
   const kelasMap = useMemo(() => {
     const m: Record<string, { nama: string; siswas: SiswaItem[] }> = {}
@@ -70,9 +75,26 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
     setLoadingJadwal(true)
     setSaved(new Set())
     setSavedAt(new Map())
+    setGuruSaved(false)
     try {
       const jadwal = await getGuruJadwalByDate(tanggal)
       setJadwalList(jadwal as any)
+
+      // Load absensi guru sendiri
+      try {
+        const gAbs = await getGuruAbsensi(tanggal)
+        if (gAbs) {
+          setGuruAbsensi(gAbs as any)
+          setGuruStatus((gAbs as any).status || "HADIR")
+          setGuruKeterangan((gAbs as any).keterangan || "")
+          setGuruSaved(true)
+        } else {
+          setGuruAbsensi(null)
+          setGuruStatus("HADIR")
+          setGuruKeterangan("")
+          setGuruSaved(false)
+        }
+      } catch {}
 
       const absensiMap: Record<string, AbsensiRecord[]> = {}
       const allAbsensi: AbsensiRecord[] = []
@@ -102,6 +124,19 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
       toast.error("Gagal memuat jadwal")
     } finally {
       setLoadingJadwal(false)
+    }
+  }
+
+  const handleSaveGuruAbsensi = async () => {
+    setSavingGuru(true)
+    try {
+      await saveGuruAbsensi(tanggal, guruStatus, guruKeterangan)
+      setGuruSaved(true)
+      toast.success("Absensi Anda tersimpan")
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal menyimpan absensi guru")
+    } finally {
+      setSavingGuru(false)
     }
   }
 
@@ -208,13 +243,51 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Absensi</h1>
-          <p className="text-muted-foreground mt-1">Catat kehadiran siswa per jam pelajaran</p>
+          <p className="text-muted-foreground mt-1">Kehadiran Anda & siswa per jam pelajaran sesuai jadwal mengajar</p>
         </div>
         <div className="w-full sm:w-56">
           <Label className="text-xs text-muted-foreground mb-1 block">Pilih Tanggal</Label>
           <Input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className="w-full" />
         </div>
       </div>
+
+      <Card className={`border-2 ${guruSaved ? "border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/10" : "border-primary/20"}`}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <UserCheck className="h-4 w-4 text-primary" /> Absensi Kehadiran Anda (Guru)
+            {guruSaved && <Badge className="bg-emerald-600 text-white gap-1"><Check className="h-3 w-3" /> Tersimpan</Badge>}
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">Catat kehadiran Anda hari ini — 1x simpan per hari</p>
+        </CardHeader>
+        <CardContent className="flex flex-col sm:flex-row gap-3 items-end">
+          <div className="flex-1 grid grid-cols-2 gap-3 w-full">
+            <div className="space-y-1">
+              <Label className="text-xs">Status</Label>
+              <Select value={guruStatus} onValueChange={(v) => { setGuruStatus(v); setGuruSaved(false) }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="HADIR">HADIR</SelectItem>
+                  <SelectItem value="SAKIT">SAKIT</SelectItem>
+                  <SelectItem value="IZIN">IZIN</SelectItem>
+                  <SelectItem value="ALPA">ALPA</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Keterangan (opsional)</Label>
+              <Input value={guruKeterangan} onChange={(e) => { setGuruKeterangan(e.target.value); setGuruSaved(false) }} placeholder="Keterangan" />
+            </div>
+          </div>
+          <Button
+            onClick={handleSaveGuruAbsensi}
+            disabled={savingGuru || guruSaved}
+            className={`h-9 ${guruSaved ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
+          >
+            {savingGuru ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : guruSaved ? <Check className="h-4 w-4 mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+            {guruSaved ? "Tersimpan" : "Simpan Kehadiran"}
+          </Button>
+        </CardContent>
+      </Card>
 
       {jadwalList.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">
