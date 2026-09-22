@@ -13,24 +13,35 @@ class GuruMateri extends StatefulWidget {
 
 class _GuruMateriState extends State<GuruMateri> {
   List<dynamic> data = [];
+  List<dynamic> filtered = [];
   bool loading = true;
   bool uploading = false;
+  final searchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _load();
+    searchCtrl.addListener(_filter);
   }
 
   Future<void> _load() async {
     setState(() => loading = true);
     try {
       final v = await ApiService.get("/api/mobile/guru/materi");
-      if (mounted) setState(() { data = v is List ? v : []; loading = false; });
+      if (mounted) setState(() { data = v is List ? v : []; filtered = v is List ? v : []; loading = false; });
     } catch (_) {
       if (mounted) setState(() => loading = false);
     }
   }
+
+  void _filter() {
+    final q = searchCtrl.text.toLowerCase();
+    setState(() { filtered = q.isEmpty ? data : data.where((m) => (m["judul"] ?? "").toLowerCase().contains(q) || (m["mataPelajaran"]?["nama"] ?? "").toLowerCase().contains(q)).toList(); });
+  }
+
+  @override
+  void dispose() { searchCtrl.dispose(); super.dispose(); }
 
   Future<void> _pickAndUpload() async {
     final result = await FilePicker.platform.pickFiles();
@@ -100,28 +111,9 @@ class _GuruMateriState extends State<GuruMateri> {
     ),
     body: loading
         ? const Center(child: CircularProgressIndicator())
-        : data.isEmpty
-            ? const Center(child: Text("Belum ada materi", style: TextStyle(color: Colors.black54)))
-            : RefreshIndicator(
-                onRefresh: _load,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: data.length,
-                  itemBuilder: (_, i) {
-                    final m = data[i] as Map;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFF4F46E5).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.description_outlined, color: Color(0xFF4F46E5), size: 20)),
-                        title: Text(m["judul"] ?? "-", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                        subtitle: Text("${m["mataPelajaran"]?["nama"] ?? ""} • ${m["fileType"] ?? ""}", style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                        trailing: IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red), onPressed: () {}),
-                      ),
-                    );
-                  },
-                ),
-              ),
+        : Column(children: [
+            Padding(padding: const EdgeInsets.all(12), child: TextField(controller: searchCtrl, decoration: InputDecoration(hintText: "Cari materi atau mapel...", prefixIcon: const Icon(Icons.search, size: 18), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
+            Expanded(child: filtered.isEmpty ? const Center(child: Text("Tidak ada materi", style: TextStyle(color: Colors.black54))) : RefreshIndicator(onRefresh: _load, child: ListView.builder(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), itemCount: filtered.length, itemBuilder: (_, i) { final m = filtered[i] as Map; return Container(margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))), child: ListTile(contentPadding: const EdgeInsets.all(16), leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFF4F46E5).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.description_outlined, color: Color(0xFF4F46E5), size: 20)), title: Text(m["judul"] ?? "-", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)), subtitle: Text("${m["mataPelajaran"]?["nama"] ?? ""} • ${m["fileType"] ?? ""}", style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))), trailing: IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red), onPressed: () {}))); }))),
+          ]),
   );
 }

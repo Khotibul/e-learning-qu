@@ -4,9 +4,13 @@ export async function OPTIONS(){ return new NextResponse(null,{status:204, heade
 export async function GET(req:Request){
   try{
     const user=await getMobileUser(req); if(!user) return NextResponse.json({error:"Unauthorized"},{status:401, headers:corsHeaders});
+    const { searchParams } = new URL(req.url)
+    const search = searchParams.get("search")?.trim() ?? ""
     const guru=await prisma.guru.findFirst({where:{userId:user.id, deletedAt:null}, select:{id:true}});
     if(!guru) return NextResponse.json({error:"Not guru"},{status:403, headers:corsHeaders});
-    const soals=await prisma.soal.findMany({where:{guruId:guru.id, deletedAt:null}, select:{id:true,pertanyaan:true,jenisSoal:true,tingkatKesulitan:true,poin:true, mataPelajaran:{select:{nama:true}}}, orderBy:{createdAt:"desc"}, take:50});
+    const where: Record<string, unknown> = { guruId: guru.id, deletedAt: null }
+    if (search) (where as Record<string, unknown>).pertanyaan = { contains: search, mode: "insensitive" }
+    const soals=await prisma.soal.findMany({where: where as never, select:{id:true,pertanyaan:true,jenisSoal:true,tingkatKesulitan:true,poin:true, mataPelajaran:{select:{nama:true}}}, orderBy:{createdAt:"desc"}, take:50});
     return NextResponse.json(soals,{headers:corsHeaders});
   }catch(e){ console.error(e); return NextResponse.json({error:"Gagal"},{status:500, headers:corsHeaders}) }
 }
