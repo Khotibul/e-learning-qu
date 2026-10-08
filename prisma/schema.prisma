@@ -165,6 +165,10 @@ model Guru {
   pengajaran     Pengajaran[]
   interventions  Intervention[]
   absensiGuru    AbsensiGuru[]
+  absensiSesi    AbsensiGuruSesi[]
+  absensiLog     AbsensiGuruLog[]
+  penggantiAktif PenggantiGuru[] @relation("PenggantiAsli")
+  penggantiSebagai PenggantiGuru[] @relation("PenggantiGuru")
 
   @@index([userId])
   @@index([deletedAt])
@@ -696,6 +700,8 @@ model JadwalPelajaran {
 
   kelas         Kelas         @relation(fields: [kelasId], references: [id], onDelete: Cascade)
   mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id], onDelete: Cascade)
+  absensiSesi   AbsensiGuruSesi[]
+  pengganti     PenggantiGuru[]
 
   @@index([kelasId])
   @@index([kelasId, deletedAt])
@@ -900,6 +906,82 @@ model AbsensiGuru {
   @@map("absensi_guru")
 }
 
+// ─── ABSENSI GURU PER SESI JAM PELAJARAN ─────────────────────────
+enum StatusAbsensiGuruSesi {
+  BELUM_ABSEN
+  HADIR
+  TERLAMBAT
+  IZIN
+  SAKIT
+  TIDAK_HADIR
+}
+
+model AbsensiGuruSesi {
+  id                String                @id @default(uuid()) @db.Uuid
+  guruId            String                @db.Uuid
+  jadwalPelajaranId String                @db.Uuid
+  tanggal           DateTime
+  status            StatusAbsensiGuruSesi @default(BELUM_ABSEN)
+  jamMasuk          String?
+  jamSelesai        String?
+  durasiMenit       Int?
+  terlambatMenit    Int?
+  keterangan        String?
+  koreksiAlasan     String?
+  koreksiBy         String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  guru     Guru     @relation(fields: [guruId], references: [id], onDelete: Cascade)
+  jadwal   JadwalPelajaran @relation(fields: [jadwalPelajaranId], references: [id], onDelete: Cascade)
+  logs     AbsensiGuruLog[]
+
+  @@unique([guruId, jadwalPelajaranId, tanggal])
+  @@index([guruId, tanggal])
+  @@index([jadwalPelajaranId, tanggal])
+  @@index([tanggal, status])
+  @@map("absensi_guru_sesi")
+}
+
+model AbsensiGuruLog {
+  id                String   @id @default(uuid()) @db.Uuid
+  absensiGuruSesiId String   @db.Uuid
+  actorGuruId       String   @db.Uuid
+  aksi              String
+  alasan            String?
+  dataLama          Json?
+  dataBaru          Json?
+  createdAt         DateTime @default(now())
+
+  sesi  AbsensiGuruSesi @relation(fields: [absensiGuruSesiId], references: [id], onDelete: Cascade)
+  actor Guru            @relation(fields: [actorGuruId], references: [id], onDelete: Cascade)
+
+  @@index([absensiGuruSesiId])
+  @@index([createdAt])
+  @@map("absensi_guru_log")
+}
+
+model PenggantiGuru {
+  id                String   @id @default(uuid()) @db.Uuid
+  jadwalPelajaranId String   @db.Uuid
+  tanggal           DateTime
+  asliGuruId        String   @db.Uuid
+  penggantiGuruId   String   @db.Uuid
+  alasan            String
+  status            String   @default("MENUNGGU") // MENUNGGU | DISETUJUI | DITOLAK
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  jadwal     JadwalPelajaran @relation(fields: [jadwalPelajaranId], references: [id], onDelete: Cascade)
+  asliGuru   Guru            @relation("PenggantiAsli", fields: [asliGuruId], references: [id], onDelete: Cascade)
+  pengganti  Guru            @relation("PenggantiGuru", fields: [penggantiGuruId], references: [id], onDelete: Cascade)
+
+  @@unique([jadwalPelajaranId, tanggal])
+  @@index([tanggal])
+  @@index([asliGuruId, tanggal])
+  @@map("pengganti_guru")
+}
+
 model Course {
   id          String    @id @default(uuid()) @db.Uuid
   title       String
@@ -1087,6 +1169,8 @@ model SiteConfig {
   tagline     String   @default("Platform E-Learning Modern")
   description String   @default("Platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
   logoUrl     String?
+  toleransiTerlambatMenit   Int      @default(15)
+  autoTidakHadirSetelahMenit Int     @default(60)
   aboutTitle  String   @default("Tentang Kami")
   aboutText   String   @default("E-Learning Agent AI adalah platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
   createdAt   DateTime @default(now())

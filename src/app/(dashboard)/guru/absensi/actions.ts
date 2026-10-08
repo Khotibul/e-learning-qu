@@ -4,6 +4,15 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import {
+  absenMasukSesi,
+  absenSelesaiSesi,
+  getJadwalGuruDenganStatus,
+  getKebijakanAbsensi,
+  getRekapBulananGuru,
+  getRiwayatSesiGuru,
+  setStatusSesiGuru,
+} from "@/lib/absensi-guru"
 
 async function getCurrentGuru() {
   const session = await auth()
@@ -197,6 +206,54 @@ export async function getGuruAbsensiRange(start: string, end: string) {
     },
     orderBy: { tanggal: "desc" },
   })
+}
+
+// ─── ABSENSI PER SESI JAM PELAJARAN (sesuai jadwal mengajar) ──────
+
+export async function getSesiAbsensiHariIni(tanggal: string) {
+  const guru = await getCurrentGuru()
+  return getJadwalGuruDenganStatus(guru.id, tanggal)
+}
+
+export async function absenMasukAction(jadwalPelajaranId: string, tanggal: string) {
+  const guru = await getCurrentGuru()
+  const hasil = await absenMasukSesi({ guruId: guru.id, jadwalPelajaranId, tanggal })
+  revalidatePath("/guru/absensi")
+  return hasil
+}
+
+export async function absenSelesaiAction(jadwalPelajaranId: string, tanggal: string) {
+  const guru = await getCurrentGuru()
+  const hasil = await absenSelesaiSesi({ guruId: guru.id, jadwalPelajaranId, tanggal })
+  revalidatePath("/guru/absensi")
+  return hasil
+}
+
+export async function absenStatusAction(
+  jadwalPelajaranId: string,
+  tanggal: string,
+  status: "IZIN" | "SAKIT",
+  keterangan?: string
+) {
+  const guru = await getCurrentGuru()
+  const hasil = await setStatusSesiGuru({ guruId: guru.id, jadwalPelajaranId, tanggal, status, keterangan })
+  revalidatePath("/guru/absensi")
+  return hasil
+}
+
+export async function getRiwayatSesiAction(start: string, end: string) {
+  const guru = await getCurrentGuru()
+  return getRiwayatSesiGuru(guru.id, start, end)
+}
+
+export async function getRekapBulananAction(bulan: string) {
+  const guru = await getCurrentGuru()
+  return getRekapBulananGuru(guru.id, bulan)
+}
+
+export async function getKebijakanAbsensiAction() {
+  await getCurrentGuru()
+  return getKebijakanAbsensi()
 }
 
 

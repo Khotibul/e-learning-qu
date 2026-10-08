@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getGuruKelasWithSiswa } from "./actions"
-import { AbsensiClient } from "./_components/absensi-form"
+import { SesiAbsensiClient } from "./_components/sesi-absensi"
 
 export const metadata = { title: "Absensi" }
 
@@ -10,7 +10,7 @@ export default async function AbsensiPage() {
 
   return (
     <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-      <AbsensiClient kelasList={kelasList} />
+      <SesiAbsensiClient kelasList={kelasList as any} />
     </Suspense>
   )
 }
