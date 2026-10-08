@@ -33,7 +33,7 @@ import {
   getJadwalPelajaranGuru, getMapelByKelas, createJadwalPelajaranGuru, updateJadwalPelajaranGuru, deleteJadwalPelajaranGuru,
   getPelanggaran, createPelanggaran, updatePelanggaran, deletePelanggaran,
   getRekapAbsensi, getDetailAbsensiSiswa,
-  getKehadiranHarianWali, getRekapKehadiranBulananWali,
+  getKehadiranHarianWali, getRekapPeriodeWali,
 } from "../actions"
 import { compressImage } from "@/lib/compress-image"
 
@@ -104,9 +104,30 @@ export default function WaliKelasPage() {
   // monitoring kehadiran harian (fingerprint)
   const [kehadiran, setKehadiran] = useState<any>(null)
   const [kehadiranTanggal, setKehadiranTanggal] = useState(() => new Date().toISOString().slice(0, 10))
-  const [kehadiranBulan, setKehadiranBulan] = useState(() => new Date().toISOString().slice(0, 7))
-  const [rekapBulanan, setRekapBulanan] = useState<any>(null)
+  const [periodeMode, setPeriodeMode] = useState<"minggu" | "bulan" | "semester">("minggu")
+  const [rekapPeriode, setRekapPeriode] = useState<any>(null)
+  const [filterStatus, setFilterStatus] = useState<"SEMUA" | "BELUM" | "TERLAMBAT" | "PULANG" | "AWAL">("SEMUA")
   const [kehadiranLoading, setKehadiranLoading] = useState(false)
+
+  function rentangPeriode(mode: "minggu" | "bulan" | "semester") {
+    const now = new Date()
+    const ymd = (d: Date) => d.toISOString().slice(0, 10)
+    if (mode === "minggu") {
+      const start = new Date(now)
+      start.setDate(now.getDate() - ((now.getDay() + 6) % 7))
+      const end = new Date(start)
+      end.setDate(start.getDate() + 6)
+      return { dari: ymd(start), sampai: ymd(end), label: "Rekap Minggu Ini" }
+    }
+    if (mode === "bulan") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1)
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      return { dari: ymd(start), sampai: ymd(end), label: "Rekap Bulan Ini" }
+    }
+    const start = now.getMonth() >= 6 ? new Date(now.getFullYear(), 6, 1) : new Date(now.getFullYear(), 0, 1)
+    const end = now.getMonth() >= 6 ? new Date(now.getFullYear(), 11, 31) : new Date(now.getFullYear(), 5, 30)
+    return { dari: ymd(start), sampai: ymd(end), label: now.getMonth() >= 6 ? "Rekap Semester Ganjil" : "Rekap Semester Genap" }
+  }
   const [kelasLoading, setKelasLoading] = useState(false)
   const [rekapLoading, setRekapLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("kas")
@@ -432,19 +453,20 @@ export default function WaliKelasPage() {
   }, [activeTab, selectedKelas, loadRekapAbsensi])
 
   // ── Monitoring kehadiran harian (fingerprint) ──
-  const loadKehadiran = async (kelasId?: string, tanggal?: string, bulan?: string) => {
-    const id = kelasId || selectedKelas?.id
+  const loadKehadiran = async (opts?: { kelasId?: string; tanggal?: string; mode?: "minggu" | "bulan" | "semester" }) => {
+    const id = opts?.kelasId || selectedKelas?.id
     if (!id) return
+    const tgl = opts?.tanggal || kehadiranTanggal
+    const mode = opts?.mode || periodeMode
+    const r = rentangPeriode(mode)
     setKehadiranLoading(true)
     try {
-      const tgl = tanggal || kehadiranTanggal
-      const bln = bulan || kehadiranBulan
-      const [harian, bulanan] = await Promise.all([
+      const [harian, periode] = await Promise.all([
         getKehadiranHarianWali(id, tgl),
-        getRekapKehadiranBulananWali(id, bln),
+        getRekapPeriodeWali(id, r.dari, r.sampai),
       ])
       setKehadiran(harian)
-      setRekapBulanan(bulanan)
+      setRekapPeriode(periode)
     } catch (e: any) {
       toast.error(e?.message || "Gagal memuat kehadiran")
     } finally {
@@ -455,6 +477,14 @@ export default function WaliKelasPage() {
   useEffect(() => {
     if (activeTab === "kehadiran" && selectedKelas) loadKehadiran(selectedKelas.id)
   }, [activeTab, selectedKelas])
+
+  const kehadiranRowsTampil: any[] = (kehadiran?.rows ?? []).filter((r: any) =>
+    filterStatus === "SEMUA" ||
+    (filterStatus === "BELUM" && !r.jamMasuk) ||
+    (filterStatus === "TERLAMBAT" && r.statusMasuk === "TERLAMBAT") ||
+    (filterStatus === "PULANG" && !!r.jamPulang) ||
+    (filterStatus === "AWAL" && r.statusPulang === "AWAL")
+  )
 
   const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`
 
@@ -1382,10 +1412,27 @@ export default function WaliKelasPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <Label className="text-sm">Tanggal</Label>
                 <Input type="date" value={kehadiranTanggal} className="w-40"
-                  onChange={(e) => { setKehadiranTanggal(e.target.value); loadKehadiran(undefined, e.target.value) }} />
-                <Label className="text-sm ml-2">Rekap Bulanan</Label>
-                <Input type="month" value={kehadiranBulan} className="w-40"
-                  onChange={(e) => { setKehadiranBulan(e.target.value); loadKehadiran(undefined, undefined, e.target.value) }} />
+                  onChange={(e) => { setKehadiranTanggal(e.target.value); loadKehadiran({ tanggal: e.target.value }) }} />
+                <Label className="text-sm ml-2">Periode Rekap</Label>
+                <Select value={periodeMode} onValueChange={(v) => { const m = v as "minggu" | "bulan" | "semester"; setPeriodeMode(m); loadKehadiran({ mode: m }) }}>
+                  <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="minggu">Minggu Ini</SelectItem>
+                    <SelectItem value="bulan">Bulan Ini</SelectItem>
+                    <SelectItem value="semester">Semester</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Label className="text-sm ml-2">Filter Status</Label>
+                <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
+                  <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SEMUA">Semua Status</SelectItem>
+                    <SelectItem value="BELUM">Belum Masuk</SelectItem>
+                    <SelectItem value="TERLAMBAT">Terlambat</SelectItem>
+                    <SelectItem value="PULANG">Sudah Pulang</SelectItem>
+                    <SelectItem value="AWAL">Pulang Awal</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button variant="outline" size="sm" onClick={() => loadKehadiran()} disabled={kehadiranLoading}>
                   {kehadiranLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4 mr-1.5" />} Muat Ulang
                 </Button>
@@ -1419,7 +1466,10 @@ export default function WaliKelasPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {kehadiran.rows.map((r: any, i: number) => (
+                          {kehadiranRowsTampil.length === 0 && (
+                            <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">Tidak ada siswa yang cocok dengan filter</td></tr>
+                          )}
+                          {kehadiranRowsTampil.map((r: any) => (
                             <tr key={r.siswaId} className={`border-b last:border-b-0 ${!r.jamMasuk ? "bg-rose-50/40" : ""}`}>
                               <td className="px-4 py-2 font-medium">{r.nama}</td>
                               <td className="px-2 py-2 text-xs">{r.nis ?? "-"}</td>
@@ -1491,24 +1541,30 @@ export default function WaliKelasPage() {
                     </CardContent>
                   </Card>
 
-                  {rekapBulanan && (
+                  {rekapPeriode && (
                     <Card>
-                      <CardHeader><CardTitle className="text-base">Rekap Bulanan ({rekapBulanan.bulan}) — {rekapBulanan.hariSekolah} hari sekolah</CardTitle></CardHeader>
+                      <CardHeader>
+                        <CardTitle className="text-base">
+                          {rentangPeriode(periodeMode).label} — {rekapPeriode.dari} s/d {rekapPeriode.sampai} · {rekapPeriode.hariSekolah} hari sekolah
+                        </CardTitle>
+                      </CardHeader>
                       <CardContent className="overflow-x-auto p-0">
                         <table className="w-full text-sm">
                           <thead><tr className="border-b text-left text-xs text-muted-foreground">
                             <th className="px-4 py-2">Nama</th><th className="px-2 py-2">Hari Tercatat</th>
                             <th className="px-2 py-2">Hadir</th><th className="px-2 py-2">Terlambat</th>
-                            <th className="px-2 py-2">Pulang Awal</th><th className="px-2 py-2">% Kehadiran</th>
+                            <th className="px-2 py-2">Pulang Awal</th><th className="px-2 py-2">Belum Pulang</th>
+                            <th className="px-2 py-2">% Kehadiran</th>
                           </tr></thead>
                           <tbody>
-                            {rekapBulanan.rows.map((r: any) => (
+                            {rekapPeriode.rows.map((r: any) => (
                               <tr key={r.siswaId} className="border-b last:border-b-0">
                                 <td className="px-4 py-2 font-medium">{r.nama}</td>
                                 <td className="px-2 py-2">{r.hariTercatat}</td>
                                 <td className="px-2 py-2">{r.hadir}</td>
                                 <td className="px-2 py-2 text-amber-600">{r.terlambat}</td>
                                 <td className="px-2 py-2 text-rose-600">{r.pulangAwal}</td>
+                                <td className="px-2 py-2 text-slate-500">{r.belumPulang}</td>
                                 <td className="px-2 py-2 font-semibold">{r.persen}%</td>
                               </tr>
                             ))}

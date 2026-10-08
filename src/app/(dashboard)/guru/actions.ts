@@ -2027,9 +2027,10 @@ export async function getKehadiranHarianWali(kelasId: string, tanggal: string) {
     alpaPelajaran: alpaPelajaran.length,
   }
 
+  const p = (n: number) => String(n).padStart(2, "0")
   return {
     kelas,
-    tanggal: tgl.toISOString().slice(0, 10),
+    tanggal: `${tgl.getFullYear()}-${p(tgl.getMonth() + 1)}-${p(tgl.getDate())}`,
     kebijakan,
     rows,
     summary,
@@ -2090,6 +2091,66 @@ export async function getRekapKehadiranBulananWali(kelasId: string, bulan: strin
         hadir: c.hadir,
         terlambat: c.terlambat,
         pulangAwal: c.pulangAwal,
+        persen: Math.round((c.hadir / hariSekolah) * 100),
+      }
+    }),
+  }
+}
+
+/** Rekap kehadiran lintas periode: minggu / bulan / semester (rentang tanggal bebas). */
+export async function getRekapPeriodeWali(kelasId: string, dari: string, sampai: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null }, select: { id: true, nama: true },
+  })
+  if (!kelas) throw new Error("Akses ditolak: Anda bukan wali kelas ini")
+
+  const start = new Date(dari + "T00:00:00")
+  const end = new Date(sampai + "T00:00:00")
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) throw new Error("Tanggal tidak valid")
+  start.setHours(0, 0, 0, 0)
+  end.setHours(23, 59, 59, 999)
+  if (start > end) throw new Error("Rentang tanggal tidak valid")
+
+  const [rows, siswaRows, hariLibur] = await Promise.all([
+    prisma.absensiHarianSiswa.findMany({
+      where: { tanggal: { gte: start, lte: end }, siswa: { kelasId } },
+      select: { siswaId: true, statusMasuk: true, statusPulang: true, jamPulang: true },
+    }),
+    prisma.siswa.findMany({ where: { kelasId, deletedAt: null }, select: { id: true, nama: true, nis: true }, orderBy: { nama: "asc" } }),
+    prisma.tanggalLibur.count({ where: { tanggal: { gte: start, lte: end } } }),
+  ])
+
+  const per = new Map<string, { hadir: number; terlambat: number; pulangAwal: number; belumPulang: number; hari: number }>()
+  for (const r of rows) {
+    const cur = per.get(r.siswaId) ?? { hadir: 0, terlambat: 0, pulangAwal: 0, belumPulang: 0, hari: 0 }
+    cur.hari++
+    if (r.statusMasuk === "HADIR") cur.hadir++
+    if (r.statusMasuk === "TERLAMBAT") cur.terlambat++
+    if (r.statusPulang === "AWAL") cur.pulangAwal++
+    if (!r.jamPulang) cur.belumPulang++
+    per.set(r.siswaId, cur)
+  }
+
+  const totalHari = Math.round((end.getTime() - start.getTime()) / 86400000) + 1
+  const hariSekolah = Math.max(1, totalHari - hariLibur)
+  const p = (n: number) => String(n).padStart(2, "0")
+  return {
+    kelas,
+    dari: `${start.getFullYear()}-${p(start.getMonth() + 1)}-${p(start.getDate())}`,
+    sampai: `${end.getFullYear()}-${p(end.getMonth() + 1)}-${p(end.getDate())}`,
+    hariSekolah,
+    rows: siswaRows.map((s) => {
+      const c = per.get(s.id) ?? { hadir: 0, terlambat: 0, pulangAwal: 0, belumPulang: 0, hari: 0 }
+      return {
+        siswaId: s.id,
+        nama: s.nama,
+        nis: s.nis,
+        hariTercatat: c.hari,
+        hadir: c.hadir,
+        terlambat: c.terlambat,
+        pulangAwal: c.pulangAwal,
+        belumPulang: c.belumPulang,
         persen: Math.round((c.hadir / hariSekolah) * 100),
       }
     }),
