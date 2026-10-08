@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
 import { trackMateriOpened, trackMateriCompleted, trackAssessmentDimulai, trackAssessmentSelesai } from "@/lib/agents/learning-analytics"
+import { getKebijakanHarian, ajukanAbsensiManual } from "@/lib/absensi-harian"
 
 export async function getCurrentSiswa() {
   const session = await auth()
@@ -1206,4 +1207,165 @@ export async function deleteSekretarisJadwalPelajaran(id: string) {
   await prisma.jadwalPelajaran.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/siswa/sekretaris")
   return { success: true }
+}
+
+// --- MONITORING KEHADIRAN (fingerprint masuk/pulang) � SISWA -------
+
+export async function getKehadiranHariIni() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+  const siswa = await prisma.siswa.findUnique({ where: { userId: session.user.id }, select: { id: true, nama: true, kelasId: true } })
+  if (!siswa) throw new Error("Siswa tidak ditemukan")
+
+  const tgl = new Date()
+  tgl.setHours(0, 0, 0, 0)
+
+  const [kebijakan, hariIni, permintaan, jumlahSiswa] = await Promise.all([
+    getKebijakanHarian(),
+    prisma.absensiHarianSiswa.findUnique({ where: { siswaId_tanggal: { siswaId: siswa.id, tanggal: tgl } } }),
+    prisma.permintaanAbsensiManual.findMany({
+      where: { siswaId: siswa.id, status: "MENUNGGU" },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: { id: true, tipe: true, tanggal: true, alasan: true, status: true },
+    }),
+    prisma.absensiHarianSiswa.count({ where: { siswaId: siswa.id } }),
+  ])
+
+  return {
+    tanggal: tgl.toISOString().slice(0, 10),
+    kebijakan,
+    hariIni: hariIni
+      ? {
+          jamMasuk: hariIni.jamMasuk,
+          jamPulang: hariIni.jamPulang,
+          statusMasuk: hariIni.statusMasuk,
+          statusPulang: hariIni.statusPulang,
+          terlambatMenit: hariIni.terlambatMenit,
+          sumberMasuk: hariIni.sumberMasuk,
+          sumberPulang: hariIni.sumberPulang,
+        }
+      : null,
+    permintaanMenunggu: permintaan,
+    totalHariTercatat: jumlahSiswa,
+  }
+}
+
+export async function getRiwayatKehadiranSaya(bulan?: string) {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+  const siswa = await prisma.siswa.findUnique({ where: { userId: session.user.id }, select: { id: true } })
+  if (!siswa) throw new Error("Siswa tidak ditemukan")
+
+  const b = bulan && /^\d{4}-\d{2}$/.test(bulan) ? bulan : new Date().toISOString().slice(0, 7)
+  const [y, m] = b.split("-").map((v) => parseInt(v, 10))
+  const start = new Date(y, m - 1, 1)
+  const end = new Date(y, m, 0, 23, 59, 59, 999)
+
+  const [rows, hariLibur] = await Promise.all([
+    prisma.absensiHarianSiswa.findMany({
+      where: { siswaId: siswa.id, tanggal: { gte: start, lte: end } },
+      orderBy: { tanggal: "desc" },
+      take: 62,
+    }),
+    prisma.tanggalLibur.count({ where: { tanggal: { gte: start, lte: end } } }),
+  ])
+
+  const hariSekolah = Math.max(1, new Date(y, m, 0).getDate() - hariLibur)
+  const hadir = rows.filter((r) => r.statusMasuk === "HADIR").length
+  const terlambat = rows.filter((r) => r.statusMasuk === "TERLAMBAT").length
+
+  return {
+    bulan: b,
+    hariSekolah,
+    rekap: {
+      hariTercatat: rows.length,
+      hadir,
+      terlambat,
+      pulangAwal: rows.filter((r) => r.statusPulang === "AWAL").length,
+      persenKehadiran: Math.round((hadir / hariSekolah) * 100),
+    },
+    rows: rows.map((r) => ({
+      tanggal: r.tanggal.toISOString().slice(0, 10),
+      jamMasuk: r.jamMasuk,
+      jamPulang: r.jamPulang,
+      statusMasuk: r.statusMasuk,
+      statusPulang: r.statusPulang,
+      terlambatMenit: r.terlambatMenit,
+      sumber: [r.sumberMasuk, r.sumberPulang].filter(Boolean).join("/") || null,
+    })),
+  }
+}
+
+/** Absensi per mata pelajaran milik sendiri (terpisah dari absensi harian). */
+export async function getAbsensiPelajaranSaya(bulan?: string) {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+  const siswa = await prisma.siswa.findUnique({ where: { userId: session.user.id }, select: { id: true, kelasId: true } })
+  if (!siswa) throw new Error("Siswa tidak ditemukan")
+
+  const b = bulan && /^\d{4}-\d{2}$/.test(bulan) ? bulan : new Date().toISOString().slice(0, 7)
+  const [y, m] = b.split("-").map((v) => parseInt(v, 10))
+  const start = new Date(y, m - 1, 1)
+  const end = new Date(y, m, 0, 23, 59, 59, 999)
+
+  const rows = await prisma.absensi.findMany({
+    where: {
+      tanggal: { gte: start, lte: end },
+      ...(siswa.kelasId ? { kelasId: siswa.kelasId } : {}),
+      siswa: { some: { siswaId: siswa.id } },
+    },
+    include: {
+      mataPelajaran: { select: { nama: true } },
+      siswa: { where: { siswaId: siswa.id }, select: { status: true, keterangan: true } },
+    },
+    orderBy: { tanggal: "desc" },
+    take: 120,
+  })
+
+  return rows
+    .filter((r) => r.siswa.length > 0)
+    .map((r) => ({
+      tanggal: r.tanggal.toISOString().slice(0, 10),
+      mataPelajaran: r.mataPelajaran.nama,
+      status: r.siswa[0].status,
+      keterangan: r.siswa[0].keterangan,
+    }))
+}
+
+/** Ajukan verifikasi manual bila fingerprint gagal (perlu persetujuan Admin). */
+export async function ajukanAbsensiManualSaya(input: { tanggal: string; tipe: string; alasan: string }) {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+  const siswa = await prisma.siswa.findUnique({ where: { userId: session.user.id }, select: { id: true } })
+  if (!siswa) throw new Error("Siswa tidak ditemukan")
+
+  await ajukanAbsensiManual({
+    siswaId: siswa.id,
+    tanggal: input.tanggal,
+    tipe: input.tipe as "MASUK" | "PULANG",
+    alasan: input.alasan,
+  })
+  revalidatePath("/siswa/kehadiran")
+  return { success: true }
+}
+
+export async function getPermintaanManualSaya() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+  const siswa = await prisma.siswa.findUnique({ where: { userId: session.user.id }, select: { id: true } })
+  if (!siswa) throw new Error("Siswa tidak ditemukan")
+
+  return prisma.permintaanAbsensiManual.findMany({
+    where: { siswaId: siswa.id },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    select: { id: true, tanggal: true, tipe: true, alasan: true, status: true, catatanAdmin: true, createdAt: true },
+  }).then((rows) =>
+    rows.map((r) => ({
+      ...r,
+      tanggal: r.tanggal.toISOString().slice(0, 10),
+      createdAt: r.createdAt.toISOString(),
+    }))
+  )
 }

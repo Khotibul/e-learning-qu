@@ -43,6 +43,8 @@ dependencies:
   google_sign_in: ^6.3.0
   flutter_web_auth_2: ^4.1.0
   flutter_secure_storage: ^9.2.4
+  geolocator: ^13.0.1
+  local_auth: ^2.3.0
 
 dev_dependencies:
   flutter_test:

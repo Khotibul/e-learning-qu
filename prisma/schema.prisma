@@ -151,11 +151,13 @@ model Guru {
   jabatan   String?   @db.VarChar(20)
   alamat    String?
   noTelp    String?
+  // Override metode absensi per guru (null = ikut SiteConfig)
+  absensiMetode String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   kelas          Kelas[]
   soal           Soal[]
   ujian          Ujian[]
@@ -167,6 +169,9 @@ model Guru {
   absensiGuru    AbsensiGuru[]
   absensiSesi    AbsensiGuruSesi[]
   absensiLog     AbsensiGuruLog[]
+  absensiSiswaDicatat Absensi[]       @relation("AbsensiPencatat")
+  absensiSiswaLog AbsensiSiswaLog[]
+  pengecualian   PengecualianAbsensi[]
   penggantiAktif PenggantiGuru[] @relation("PenggantiAsli")
   penggantiSebagai PenggantiGuru[] @relation("PenggantiGuru")
 
@@ -200,6 +205,10 @@ model Siswa {
   jawabanLatihan  JawabanLatihan[]
   nilai           Nilai[]
   AbsensiSiswa    AbsensiSiswa[]
+  absensiHarian   AbsensiHarianSiswa[]
+  fingerprintEvents FingerprintEvent[]
+  pemetaanFingerprint PemetaanFingerprint[]
+  permintaanAbsensi   PermintaanAbsensiManual[]
   jadwalPiket     JadwalPiket[]
   pembayaranIuran PembayaranIuran[]
   pembayaranDenda PembayaranDenda[]
@@ -702,6 +711,7 @@ model JadwalPelajaran {
   mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id], onDelete: Cascade)
   absensiSesi   AbsensiGuruSesi[]
   pengganti     PenggantiGuru[]
+  absensiSiswa  Absensi[]
 
   @@index([kelasId])
   @@index([kelasId, deletedAt])
@@ -839,10 +849,14 @@ model Notification {
   tipe      String   @default("INFO")
   isRead    Boolean  @default(false)
   link      String?
+  status    String   @default("TERKIRIM") // TERKIRIM | GAGAL
+  eventKey  String?  // kunci idempotensi (cegah duplikat saat sinkronisasi ulang)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([eventKey, userId])
+  @@index([userId, isRead])
   @@map("notifications")
 }
 
@@ -852,24 +866,32 @@ enum StatusAbsensi {
   IZIN
   SAKIT
   ALPA
+  TERLAMBAT
 }
 
 model Absensi {
   id              String   @id @default(uuid()) @db.Uuid
   kelasId         String   @db.Uuid
   mataPelajaranId String   @db.Uuid
+  jadwalPelajaranId String? @db.Uuid
+  guruPencatatId  String?  @db.Uuid
   tanggal         DateTime
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   kelas         Kelas          @relation(fields: [kelasId], references: [id])
   mataPelajaran MataPelajaran  @relation(fields: [mataPelajaranId], references: [id])
+  jadwal        JadwalPelajaran? @relation(fields: [jadwalPelajaranId], references: [id], onDelete: SetNull)
+  guruPencatat  Guru?          @relation("AbsensiPencatat", fields: [guruPencatatId], references: [id], onDelete: SetNull)
   siswa         AbsensiSiswa[]
+  logs          AbsensiSiswaLog[]
 
   @@index([kelasId])
   @@index([mataPelajaranId])
   @@index([tanggal])
   @@index([kelasId, tanggal])
+  @@index([kelasId, mataPelajaranId, tanggal])
+  @@index([jadwalPelajaranId, tanggal])
   @@map("absensi")
 }
 
@@ -886,6 +908,167 @@ model AbsensiSiswa {
 
   @@unique([absensiId, siswaId])
   @@map("absensi_siswa")
+}
+
+// Audit koreksi absensi siswa per sesi (alasan wajib)
+model AbsensiSiswaLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  absensiId  String   @db.Uuid
+  actorGuruId String? @db.Uuid
+  aksi       String
+  alasan     String
+  dataLama   Json?
+  dataBaru   Json?
+  createdAt  DateTime @default(now())
+
+  absensi Absensi @relation(fields: [absensiId], references: [id], onDelete: Cascade)
+  actor   Guru?   @relation(fields: [actorGuruId], references: [id], onDelete: SetNull)
+
+  @@index([absensiId])
+  @@index([actorGuruId])
+  @@index([createdAt])
+  @@map("absensi_siswa_log")
+}
+
+// Pengecualian verifikasi (foto/sidik jari/GPS) — wajib persetujuan Admin
+model PengecualianAbsensi {
+  id                String   @id @default(uuid()) @db.Uuid
+  guruId            String   @db.Uuid
+  jadwalPelajaranId String?  @db.Uuid
+  tanggal           DateTime
+  jenis             String   // LOKASI | BIOMETRIK | FOTO
+  alasan            String
+  status            String   @default("MENUNGGU") // MENUNGGU | DISETUJUI | DITOLAK
+  catatanAdmin      String?
+  reviewedBy        String?  @db.Uuid
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  guru Guru @relation(fields: [guruId], references: [id], onDelete: Cascade)
+
+  @@index([guruId, tanggal])
+  @@index([status])
+  @@index([tanggal])
+  @@map("pengecualian_absensi")
+}
+
+// ── ABSENSI HARIAN SISWA (fingerprint masuk/pulang sekolah) ────────
+// Rekaman terpisah dari Absensi per mata pelajaran (tidak saling mengisi).
+model AbsensiHarianSiswa {
+  id             String   @id @default(uuid()) @db.Uuid
+  siswaId        String   @db.Uuid
+  tanggal        DateTime // hari sekolah (00:00)
+  jamMasuk       String?  // HH:MM (waktu server)
+  jamPulang      String?
+  statusMasuk    String?  // HADIR | TERLAMBAT
+  statusPulang   String?  // NORMAL | AWAL | BELUM
+  terlambatMenit Int?
+  sumberMasuk    String?  // FINGERPRINT | MANUAL | KOREKSI
+  sumberPulang   String?
+  eventMasukId   String?  @unique @db.Uuid
+  eventPulangId  String?  @unique @db.Uuid
+  koreksiAlasan  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  siswa       Siswa           @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  eventMasuk  FingerprintEvent? @relation("EventMasuk", fields: [eventMasukId], references: [id], onDelete: SetNull)
+  eventPulang FingerprintEvent? @relation("EventPulang", fields: [eventPulangId], references: [id], onDelete: SetNull)
+
+  @@unique([siswaId, tanggal])
+  @@index([tanggal])
+  @@index([siswaId])
+  @@map("absensi_harian_siswa")
+}
+
+// Mesin fingerprint terhubung — TIDAK menyimpan template biometrik mentah.
+model PerangkatFingerprint {
+  id         String    @id @default(uuid()) @db.Uuid
+  kode       String    @unique // kode unik mesin (serial/IMEI)
+  nama       String
+  lokasi     String?
+  apiKeyHash String    // SHA-256 API key (teks asli hanya ditampilkan sekali)
+  status     String    @default("AKTIF") // AKTIF | NONAKTIF
+  lastSeenAt DateTime?
+  lastSyncAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  pemetaan PemetaanFingerprint[]
+  events   FingerprintEvent[]
+
+  @@map("perangkat_fingerprint")
+}
+
+// Pemetaan UID sidik jari di mesin ↔ siswa (unik per perangkat)
+model PemetaanFingerprint {
+  id              String   @id @default(uuid()) @db.Uuid
+  perangkatId     String   @db.Uuid
+  siswaId         String   @db.Uuid
+  perangkatUserId String   // UID di mesin, BUKAN template sidik jari
+  createdAt       DateTime @default(now())
+
+  perangkat PerangkatFingerprint @relation(fields: [perangkatId], references: [id], onDelete: Cascade)
+  siswa     Siswa                @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@unique([perangkatId, perangkatUserId])
+  @@unique([perangkatId, siswaId])
+  @@index([siswaId])
+  @@map("pemetaan_fingerprint")
+}
+
+// Log setiap scan — idempoten via eventKey (scan ulang tidak menggandakan absensi)
+model FingerprintEvent {
+  id           String    @id @default(uuid()) @db.Uuid
+  eventKey     String    @unique // `${kodePerangkat}:${scanId}` dari perangkat
+  perangkatId  String?   @db.Uuid
+  siswaId      String?   @db.Uuid
+  tipe         String    // MASUK | PULANG
+  status       String    @default("DIPROSES") // DIPROSES | SUKSES | DUPLIKAT | TIDAK_DIKENAL | DITOLAK | GAGAL
+  pesan        String?
+  deviceAt     DateTime? // timestamp perangkat (informatif)
+  serverAt     DateTime  @default(now()) // sumber waktu utama
+  createdAt    DateTime  @default(now())
+
+  perangkat   PerangkatFingerprint? @relation(fields: [perangkatId], references: [id], onDelete: SetNull)
+  siswa       Siswa?                @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  absensiMasuk  AbsensiHarianSiswa? @relation("EventMasuk")
+  absensiPulang AbsensiHarianSiswa? @relation("EventPulang")
+
+  @@index([siswaId, serverAt])
+  @@index([perangkatId, serverAt])
+  @@index([status])
+  @@map("fingerprint_events")
+}
+
+// Hari libur / kalender akademik — scan pada tanggal ini ditolak
+model TanggalLibur {
+  id         String   @id @default(uuid()) @db.Uuid
+  tanggal    DateTime @unique
+  keterangan String?
+  createdAt  DateTime @default(now())
+
+  @@map("tanggal_libur")
+}
+
+// Prosedur verifikasi manual bila fingerprint gagal (perlu persetujuan Admin)
+model PermintaanAbsensiManual {
+  id           String   @id @default(uuid()) @db.Uuid
+  siswaId      String   @db.Uuid
+  tanggal      DateTime
+  tipe         String   // MASUK | PULANG
+  alasan       String
+  status       String   @default("MENUNGGU") // MENUNGGU | DISETUJUI | DITOLAK
+  catatanAdmin String?
+  reviewedBy   String?  @db.Uuid
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([siswaId, tanggal])
+  @@map("permintaan_absensi_manual")
 }
 
 model AbsensiGuru {
@@ -929,6 +1112,19 @@ model AbsensiGuruSesi {
   keterangan        String?
   koreksiAlasan     String?
   koreksiBy         String?
+  // ── Bukti verifikasi (metode yang ditentukan Admin) ──
+  metodeDigunakan   String?   // TANPA | FOTO | SIDIK_JARI | FOTO_SIDIK_JARI | GPS_FOTO | GPS_SIDIK_JARI | GPS_FOTO_SIDIK_JARI
+  fotoUrl           String?
+  gpsLat            Float?
+  gpsLng            Float?
+  gpsAkurasiMeter   Float?
+  gpsJarakMeter     Float?
+  gpsValid          Boolean?
+  gpsDiLuarRadius   Boolean?
+  mockLocation      Boolean?
+  sidikJariVerified Boolean   @default(false)
+  sidikJariProvider String?
+  verifikasiCatatan String?   // mis. "dengan pengecualian LOKASI (DISETUJUI)"
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
 
@@ -1171,6 +1367,21 @@ model SiteConfig {
   logoUrl     String?
   toleransiTerlambatMenit   Int      @default(15)
   autoTidakHadirSetelahMenit Int     @default(60)
+  // ── Metode absensi (ditentukan Admin) ──
+  absensiMetode String  @default("TANPA") // TANPA | FOTO | SIDIK_JARI | FOTO_SIDIK_JARI | GPS_FOTO | GPS_SIDIK_JARI | GPS_FOTO_SIDIK_JARI
+  // ── Geofencing ──
+  gpsWajib          Boolean  @default(false)
+  gpsLokasiNama     String?  // nama unit/sekolah lokasi absensi
+  gpsLat            Float?
+  gpsLng            Float?
+  gpsRadiusMeter    Int      @default(100) // 50–200 m
+  gpsAkurasiMaksMeter Int    @default(50)  // toleransi akurasi GPS
+  fotoRetensiHari   Int      @default(90)  // retensi foto bukti
+  // ── Absensi harian siswa (fingerprint masuk/pulang) ──
+  siswaJamMasuk          String @default("07:00") // batas jam masuk (setelah ini = terlambat)
+  siswaJamPulang         String @default("15:00") // jam pulang resmi (sebelum ini = pulang awal)
+  siswaToleransiMenit    Int    @default(15)      // toleransi masuk (dalam batas ini tetap HADIR)
+  siswaPulangToleransiMenit Int  @default(0)      // toleransi pulang awal
   aboutTitle  String   @default("Tentang Kami")
   aboutText   String   @default("E-Learning Agent AI adalah platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
   createdAt   DateTime @default(now())

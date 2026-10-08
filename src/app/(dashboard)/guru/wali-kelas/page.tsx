@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Users, ClipboardList, Wallet, Trash2, Plus, Loader2, ShieldCheck,
   Banknote, Receipt, TrendingUp, TrendingDown, PiggyBank, Calendar,
-  Gavel, ClipboardCheck, ExternalLink, Check, X, Pencil, Camera, ImagePlus, BarChart3,
+  Gavel, ClipboardCheck, ExternalLink, Check, X, Pencil, Camera, ImagePlus, BarChart3, Fingerprint,
 } from "lucide-react"
 import {
   getWaliKelasInfo, updateSiswaJabatan,
@@ -33,6 +33,7 @@ import {
   getJadwalPelajaranGuru, getMapelByKelas, createJadwalPelajaranGuru, updateJadwalPelajaranGuru, deleteJadwalPelajaranGuru,
   getPelanggaran, createPelanggaran, updatePelanggaran, deletePelanggaran,
   getRekapAbsensi, getDetailAbsensiSiswa,
+  getKehadiranHarianWali, getRekapKehadiranBulananWali,
 } from "../actions"
 import { compressImage } from "@/lib/compress-image"
 
@@ -100,6 +101,12 @@ export default function WaliKelasPage() {
   const [rekapAbsensi, setRekapAbsensi] = useState<any>(null)
   const [detailAbsensi, setDetailAbsensi] = useState<any>(null)
   const [detailAbsensiOpen, setDetailAbsensiOpen] = useState(false)
+  // monitoring kehadiran harian (fingerprint)
+  const [kehadiran, setKehadiran] = useState<any>(null)
+  const [kehadiranTanggal, setKehadiranTanggal] = useState(() => new Date().toISOString().slice(0, 10))
+  const [kehadiranBulan, setKehadiranBulan] = useState(() => new Date().toISOString().slice(0, 7))
+  const [rekapBulanan, setRekapBulanan] = useState<any>(null)
+  const [kehadiranLoading, setKehadiranLoading] = useState(false)
   const [kelasLoading, setKelasLoading] = useState(false)
   const [rekapLoading, setRekapLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("kas")
@@ -424,6 +431,31 @@ export default function WaliKelasPage() {
     }
   }, [activeTab, selectedKelas, loadRekapAbsensi])
 
+  // ── Monitoring kehadiran harian (fingerprint) ──
+  const loadKehadiran = async (kelasId?: string, tanggal?: string, bulan?: string) => {
+    const id = kelasId || selectedKelas?.id
+    if (!id) return
+    setKehadiranLoading(true)
+    try {
+      const tgl = tanggal || kehadiranTanggal
+      const bln = bulan || kehadiranBulan
+      const [harian, bulanan] = await Promise.all([
+        getKehadiranHarianWali(id, tgl),
+        getRekapKehadiranBulananWali(id, bln),
+      ])
+      setKehadiran(harian)
+      setRekapBulanan(bulanan)
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal memuat kehadiran")
+    } finally {
+      setKehadiranLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === "kehadiran" && selectedKelas) loadKehadiran(selectedKelas.id)
+  }, [activeTab, selectedKelas])
+
   const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
@@ -473,6 +505,7 @@ export default function WaliKelasPage() {
                 <TabsTrigger value="jadwal" className="px-3 py-1.5 text-xs sm:text-sm"><Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Jadwal</TabsTrigger>
                 <TabsTrigger value="pelanggaran" className="px-3 py-1.5 text-xs sm:text-sm"><Gavel className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Pelanggaran</TabsTrigger>
                 <TabsTrigger value="absensi" className="px-3 py-1.5 text-xs sm:text-sm"><ClipboardCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Absensi</TabsTrigger>
+                <TabsTrigger value="kehadiran" className="px-3 py-1.5 text-xs sm:text-sm"><Fingerprint className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" /> Kehadiran</TabsTrigger>
               </TabsList>
             </div>
 
@@ -1342,6 +1375,150 @@ export default function WaliKelasPage() {
                   )}
                 </DialogContent>
               </Dialog>
+            </TabsContent>
+
+            {/* KEHADIRAN HARIAN (FINGERPRINT) */}
+            <TabsContent value="kehadiran" className="space-y-4 mt-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Label className="text-sm">Tanggal</Label>
+                <Input type="date" value={kehadiranTanggal} className="w-40"
+                  onChange={(e) => { setKehadiranTanggal(e.target.value); loadKehadiran(undefined, e.target.value) }} />
+                <Label className="text-sm ml-2">Rekap Bulanan</Label>
+                <Input type="month" value={kehadiranBulan} className="w-40"
+                  onChange={(e) => { setKehadiranBulan(e.target.value); loadKehadiran(undefined, undefined, e.target.value) }} />
+                <Button variant="outline" size="sm" onClick={() => loadKehadiran()} disabled={kehadiranLoading}>
+                  {kehadiranLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4 mr-1.5" />} Muat Ulang
+                </Button>
+              </div>
+
+              {kehadiran && (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Sudah Masuk</p>
+                      <p className="text-xl font-bold text-emerald-600">{kehadiran.summary.masuk} / {kehadiran.summary.total}</p></CardContent></Card>
+                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Belum Masuk</p>
+                      <p className="text-xl font-bold text-slate-500">{kehadiran.summary.belumMasuk}</p></CardContent></Card>
+                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Terlambat</p>
+                      <p className="text-xl font-bold text-amber-600">{kehadiran.summary.terlambat}</p></CardContent></Card>
+                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Sudah Pulang</p>
+                      <p className="text-xl font-bold text-sky-600">{kehadiran.summary.pulang}</p></CardContent></Card>
+                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Alpa di Pelajaran</p>
+                      <p className="text-xl font-bold text-rose-600">{kehadiran.summary.alpaPelajaran}</p></CardContent></Card>
+                  </div>
+
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Kehadiran Fingerprint — {kehadiran.tanggal}</CardTitle></CardHeader>
+                    <CardContent className="overflow-x-auto p-0">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left text-xs text-muted-foreground">
+                            <th className="px-4 py-2">Nama</th><th className="px-2 py-2">NIS</th>
+                            <th className="px-2 py-2">Masuk</th><th className="px-2 py-2">Status</th>
+                            <th className="px-2 py-2">Pulang</th><th className="px-2 py-2">Status</th>
+                            <th className="px-2 py-2">Sumber</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {kehadiran.rows.map((r: any, i: number) => (
+                            <tr key={r.siswaId} className={`border-b last:border-b-0 ${!r.jamMasuk ? "bg-rose-50/40" : ""}`}>
+                              <td className="px-4 py-2 font-medium">{r.nama}</td>
+                              <td className="px-2 py-2 text-xs">{r.nis ?? "-"}</td>
+                              <td className="px-2 py-2 font-mono text-xs">{r.jamMasuk ?? "-"}</td>
+                              <td className="px-2 py-2">
+                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                  !r.jamMasuk ? "bg-slate-100 text-slate-500"
+                                  : r.statusMasuk === "TERLAMBAT" ? "bg-amber-100 text-amber-700"
+                                  : "bg-emerald-100 text-emerald-700"}`}>
+                                  {!r.jamMasuk ? "BELUM MASUK" : r.statusMasuk === "TERLAMBAT" ? `TERLAMBAT ${r.terlambatMenit}M` : "HADIR"}
+                                </span>
+                              </td>
+                              <td className="px-2 py-2 font-mono text-xs">{r.jamPulang ?? "-"}</td>
+                              <td className="px-2 py-2">
+                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                  !r.jamPulang ? "bg-slate-100 text-slate-400"
+                                  : r.statusPulang === "AWAL" ? "bg-rose-100 text-rose-700"
+                                  : "bg-sky-100 text-sky-700"}`}>
+                                  {!r.jamPulang ? "BELUM PULANG" : r.statusPulang === "AWAL" ? "PULANG AWAL" : "NORMAL"}
+                                </span>
+                              </td>
+                              <td className="px-2 py-2 text-[10px] text-muted-foreground">{r.sumber ?? "-"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </CardContent>
+                  </Card>
+
+                  {kehadiran.alpaPelajaran.length > 0 && (
+                    <Card className="border-rose-200">
+                      <CardHeader><CardTitle className="text-base text-rose-700">Hadir di Sekolah tapi Tidak Ikut Pelajaran</CardTitle></CardHeader>
+                      <CardContent className="space-y-1.5">
+                        {kehadiran.alpaPelajaran.map((a: any, i: number) => (
+                          <p key={i} className="text-sm">
+                            <span className="font-medium">{a.nama}</span>
+                            <span className="text-muted-foreground"> — {a.mapel}</span>
+                            <span className="ml-2 text-[10px] font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">ALPA</span>
+                          </p>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Rekap Absensi per Mata Pelajaran ({kehadiran.tanggal})</CardTitle></CardHeader>
+                    <CardContent className="overflow-x-auto p-0">
+                      <table className="w-full text-sm">
+                        <thead><tr className="border-b text-left text-xs text-muted-foreground">
+                          <th className="px-4 py-2">Mata Pelajaran</th><th className="px-2 py-2">Hadir</th>
+                          <th className="px-2 py-2">Izin</th><th className="px-2 py-2">Sakit</th>
+                          <th className="px-2 py-2">Alpa</th><th className="px-2 py-2">Total</th>
+                        </tr></thead>
+                        <tbody>
+                          {kehadiran.absensiPelajaran.length === 0 ? (
+                            <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Belum ada absensi per pelajaran hari ini</td></tr>
+                          ) : kehadiran.absensiPelajaran.map((a: any) => (
+                            <tr key={a.id} className="border-b last:border-b-0">
+                              <td className="px-4 py-2 font-medium">{a.mataPelajaran}</td>
+                              <td className="px-2 py-2">{a.hadir}</td>
+                              <td className="px-2 py-2">{a.izin}</td>
+                              <td className="px-2 py-2">{a.sakit}</td>
+                              <td className="px-2 py-2 text-rose-600">{a.alpa}</td>
+                              <td className="px-2 py-2">{a.total}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </CardContent>
+                  </Card>
+
+                  {rekapBulanan && (
+                    <Card>
+                      <CardHeader><CardTitle className="text-base">Rekap Bulanan ({rekapBulanan.bulan}) — {rekapBulanan.hariSekolah} hari sekolah</CardTitle></CardHeader>
+                      <CardContent className="overflow-x-auto p-0">
+                        <table className="w-full text-sm">
+                          <thead><tr className="border-b text-left text-xs text-muted-foreground">
+                            <th className="px-4 py-2">Nama</th><th className="px-2 py-2">Hari Tercatat</th>
+                            <th className="px-2 py-2">Hadir</th><th className="px-2 py-2">Terlambat</th>
+                            <th className="px-2 py-2">Pulang Awal</th><th className="px-2 py-2">% Kehadiran</th>
+                          </tr></thead>
+                          <tbody>
+                            {rekapBulanan.rows.map((r: any) => (
+                              <tr key={r.siswaId} className="border-b last:border-b-0">
+                                <td className="px-4 py-2 font-medium">{r.nama}</td>
+                                <td className="px-2 py-2">{r.hariTercatat}</td>
+                                <td className="px-2 py-2">{r.hadir}</td>
+                                <td className="px-2 py-2 text-amber-600">{r.terlambat}</td>
+                                <td className="px-2 py-2 text-rose-600">{r.pulangAwal}</td>
+                                <td className="px-2 py-2 font-semibold">{r.persen}%</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              )}
             </TabsContent>
           </Tabs>
         </>

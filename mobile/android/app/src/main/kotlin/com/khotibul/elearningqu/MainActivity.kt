@@ -1,5 +1,6 @@
 package com.khotibul.elearningqu
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// FlutterFragmentActivity wajib untuk package local_auth (dialog biometrik Android)
+class MainActivity : FlutterFragmentActivity()

@@ -8,6 +8,7 @@ import { unlink } from "fs/promises"
 import path from "path"
 import bcrypt from "bcryptjs"
 import { getSubmissionCount as getSubmissionCountGuard } from "@/lib/assessment-guard"
+import { getKebijakanHarian } from "@/lib/absensi-harian"
 
 export async function getCurrentGuru() {
   const session = await auth()
@@ -1943,4 +1944,154 @@ export async function getDetailAbsensiSiswa(kelasId: string, siswaId: string) {
     }))
 
   return { siswa, detail }
+}
+
+// --- MONITORING KEHADIRAN HARIAN (fingerprint) � WALI KELAS --------
+// Hanya kelas yang menjadi tanggung jawab (Kelas.guruId = guru ini).
+
+export async function getKehadiranHarianWali(kelasId: string, tanggal: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({
+    where: { id: kelasId, guruId: guru.id, deletedAt: null },
+    select: { id: true, nama: true },
+  })
+  if (!kelas) throw new Error("Akses ditolak: Anda bukan wali kelas ini")
+
+  const tgl = new Date(tanggal + "T00:00:00")
+  if (Number.isNaN(tgl.getTime())) throw new Error("Tanggal tidak valid")
+  tgl.setHours(0, 0, 0, 0)
+
+  const [kebijakan, harian, siswaRows, absensiPelajaran] = await Promise.all([
+    getKebijakanHarian(),
+    prisma.absensiHarianSiswa.findMany({
+      where: { tanggal: tgl, siswa: { kelasId } },
+      include: { siswa: { select: { id: true, nama: true, nis: true, jabatan: true } } },
+      orderBy: { jamMasuk: "asc" },
+    }),
+    prisma.siswa.findMany({
+      where: { kelasId, deletedAt: null },
+      select: { id: true, nama: true, nis: true, jabatan: true },
+      orderBy: { nama: "asc" },
+    }),
+    prisma.absensi.findMany({
+      where: { kelasId, tanggal: tgl },
+      include: {
+        mataPelajaran: { select: { nama: true } },
+        siswa: { select: { siswaId: true, status: true, keterangan: true } },
+      },
+    }),
+  ])
+
+  const mapHarian = new Map(harian.map((h) => [h.siswaId, h]))
+  const rows = siswaRows.map((s) => {
+    const h = mapHarian.get(s.id)
+    return {
+      siswaId: s.id,
+      nama: s.nama,
+      nis: s.nis,
+      jabatan: s.jabatan,
+      jamMasuk: h?.jamMasuk ?? null,
+      jamPulang: h?.jamPulang ?? null,
+      statusMasuk: h?.statusMasuk ?? null,
+      statusPulang: h?.statusPulang ?? null,
+      terlambatMenit: h?.terlambatMenit ?? null,
+      sumber: [h?.sumberMasuk, h?.sumberPulang].filter(Boolean).join("/") || null,
+      adaRekap: !!h,
+    }
+  })
+
+  // Siswa hadir di sekolah (punya absen masuk) tetapi Alpa pada salah satu pelajaran
+  const hadirSet = new Set(harian.filter((h) => h.jamMasuk).map((h) => h.siswaId))
+  const alpaPelajaran: { siswaId: string; nama: string; mapel: string; status: string }[] = []
+  const namaById = new Map(siswaRows.map((s) => [s.id, s.nama]))
+  for (const a of absensiPelajaran) {
+    for (const s of a.siswa) {
+      if (hadirSet.has(s.siswaId) && s.status === "ALPA") {
+        alpaPelajaran.push({
+          siswaId: s.siswaId,
+          nama: namaById.get(s.siswaId) ?? "-",
+          mapel: a.mataPelajaran.nama,
+          status: s.status,
+        })
+      }
+    }
+  }
+
+  const summary = {
+    total: siswaRows.length,
+    masuk: rows.filter((r) => r.jamMasuk).length,
+    belumMasuk: rows.filter((r) => !r.jamMasuk).length,
+    terlambat: rows.filter((r) => r.statusMasuk === "TERLAMBAT").length,
+    pulang: rows.filter((r) => r.jamPulang).length,
+    pulangAwal: rows.filter((r) => r.statusPulang === "AWAL").length,
+    alpaPelajaran: alpaPelajaran.length,
+  }
+
+  return {
+    kelas,
+    tanggal: tgl.toISOString().slice(0, 10),
+    kebijakan,
+    rows,
+    summary,
+    alpaPelajaran,
+    absensiPelajaran: absensiPelajaran.map((a) => ({
+      id: a.id,
+      mataPelajaran: a.mataPelajaran.nama,
+      total: a.siswa.length,
+      hadir: a.siswa.filter((s) => s.status === "HADIR" || s.status === "TERLAMBAT").length,
+      alpa: a.siswa.filter((s) => s.status === "ALPA").length,
+      izin: a.siswa.filter((s) => s.status === "IZIN").length,
+      sakit: a.siswa.filter((s) => s.status === "SAKIT").length,
+    })),
+  }
+}
+
+export async function getRekapKehadiranBulananWali(kelasId: string, bulan: string) {
+  const guru = await getCurrentGuru()
+  const kelas = await prisma.kelas.findFirst({ where: { id: kelasId, guruId: guru.id, deletedAt: null }, select: { id: true, nama: true } })
+  if (!kelas) throw new Error("Akses ditolak: Anda bukan wali kelas ini")
+
+  const [y, m] = bulan.split("-").map((v) => parseInt(v, 10))
+  if (!y || !m) throw new Error("Format bulan YYYY-MM")
+  const start = new Date(y, m - 1, 1)
+  const end = new Date(y, m, 0, 23, 59, 59, 999)
+
+  const [rows, siswaRows, hariLibur] = await Promise.all([
+    prisma.absensiHarianSiswa.findMany({
+      where: { tanggal: { gte: start, lte: end }, siswa: { kelasId } },
+      select: { siswaId: true, statusMasuk: true, statusPulang: true, tanggal: true },
+    }),
+    prisma.siswa.findMany({ where: { kelasId, deletedAt: null }, select: { id: true, nama: true, nis: true }, orderBy: { nama: "asc" } }),
+    prisma.tanggalLibur.count({ where: { tanggal: { gte: start, lte: end } } }),
+  ])
+
+  const per = new Map<string, { hadir: number; terlambat: number; pulangAwal: number; hari: number }>()
+  for (const r of rows) {
+    const cur = per.get(r.siswaId) ?? { hadir: 0, terlambat: 0, pulangAwal: 0, hari: 0 }
+    cur.hari++
+    if (r.statusMasuk === "HADIR") cur.hadir++
+    if (r.statusMasuk === "TERLAMBAT") cur.terlambat++
+    if (r.statusPulang === "AWAL") cur.pulangAwal++
+    per.set(r.siswaId, cur)
+  }
+
+  const hariSekolah = Math.max(1, new Date(y, m, 0).getDate() - hariLibur)
+  return {
+    bulan,
+    kelas,
+    hariSekolah,
+    rows: siswaRows.map((s) => {
+      const c = per.get(s.id) ?? { hadir: 0, terlambat: 0, pulangAwal: 0, hari: 0 }
+      return {
+        siswaId: s.id,
+        nama: s.nama,
+        nis: s.nis,
+        hariTercatat: c.hari,
+        hadir: c.hadir,
+        terlambat: c.terlambat,
+        pulangAwal: c.pulangAwal,
+        persen: Math.round((c.hadir / hariSekolah) * 100),
+      }
+    }),
+  }
 }

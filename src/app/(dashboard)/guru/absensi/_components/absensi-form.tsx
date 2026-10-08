@@ -25,14 +25,16 @@ interface JadwalItem {
   mataPelajaran: { id: string; nama: string; kode: string }
   kelas: { id: string; nama: string }
   jamMulai: string | null; jamSelesai: string | null
+  guruAbsen?: boolean
 }
 
 interface AbsensiSiswaRecord {
-  siswaId: string; status: string
+  siswaId: string; status: string; keterangan?: string | null
 }
 
 interface AbsensiRecord {
   mataPelajaranId: string
+  jadwalPelajaranId?: string | null
   siswa: AbsensiSiswaRecord[]
 }
 
@@ -41,6 +43,7 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
   const [jadwalList, setJadwalList] = useState<JadwalItem[]>([])
   const [absensiData, setAbsensiData] = useState<AbsensiRecord[]>([])
   const [absensiForm, setAbsensiForm] = useState<Record<string, Record<string, string>>>({})
+  const [keteranganForm, setKeteranganForm] = useState<Record<string, Record<string, string>>>({})
   const [saving, setSaving] = useState<string | null>(null)
   const [saved, setSaved] = useState<Set<string>>(new Set())
   const [savedAt, setSavedAt] = useState<Map<string, string>>(new Map())
@@ -66,6 +69,11 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
     })
     return groups
   }, [jadwalList])
+
+  // Cari absensi sesuai sesi (jadwal) — fallback ke absensi lama (tanpa jadwal)
+  const cariAbsensi = (jd: JadwalItem, data: AbsensiRecord[]) =>
+    data.find((a: any) => a.jadwalPelajaranId === jd.id) ??
+    data.find((a: any) => a.mataPelajaranId === jd.mataPelajaran.id && a.kelasId === jd.kelas.id && !a.jadwalPelajaranId)
 
   useEffect(() => {
     loadJadwal()
@@ -111,10 +119,10 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
       const initialSaved = new Set<string>()
       const initialSavedAt = new Map<string, string>()
       for (const jd of jadwal as any as JadwalItem[]) {
-        const exists = (allAbsensi as any).find((a: any) => a.mataPelajaranId === jd.mataPelajaran.id && a.kelasId === jd.kelas.id)
+        const exists = cariAbsensi(jd, allAbsensi)
         if (exists) {
           initialSaved.add(jd._key)
-          const ts = exists.updatedAt || exists.createdAt
+          const ts = (exists as any).updatedAt || (exists as any).createdAt
           if (ts) initialSavedAt.set(jd._key, new Date(ts).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }))
         }
       }
@@ -143,20 +151,29 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
   useEffect(() => {
     if (jadwalList.length === 0 || Object.keys(kelasMap).length === 0) return
     const newForm: Record<string, Record<string, string>> = {}
+    const newKet: Record<string, Record<string, string>> = {}
     jadwalList.forEach((jd) => {
       const kelasInfo = kelasMap[jd.kelas.id]
       if (!kelasInfo) return
-      const existingAbsensi = absensiData.find((a: any) => a.mataPelajaranId === jd.mataPelajaran.id && a.kelasId === jd.kelas.id)
+      const existingAbsensi = cariAbsensi(jd, absensiData)
       const lessonForm: Record<string, string> = {}
+      const lessonKet: Record<string, string> = {}
       kelasInfo.siswas.forEach((s) => {
         const record = existingAbsensi?.siswa?.find((as: any) => as.siswaId === s.id)
         lessonForm[s.id] = record?.status || "HADIR"
+        lessonKet[s.id] = record?.keterangan || ""
       })
       newForm[jd._key] = lessonForm
+      newKet[jd._key] = lessonKet
     })
     setAbsensiForm((prev) => {
       const merged = { ...prev }
       Object.keys(newForm).forEach((k) => { if (!merged[k]) merged[k] = newForm[k] })
+      return merged
+    })
+    setKeteranganForm((prev) => {
+      const merged = { ...prev }
+      Object.keys(newKet).forEach((k) => { if (!merged[k]) merged[k] = newKet[k] })
       return merged
     })
   }, [absensiData, jadwalList, kelasMap])
@@ -174,6 +191,24 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
     }))
   }
 
+  const handleKeteranganChange = (jadwalKey: string, siswaId: string, ket: string) => {
+    clearSaved(jadwalKey)
+    setKeteranganForm((prev) => ({
+      ...prev,
+      [jadwalKey]: { ...(prev[jadwalKey] || {}), [siswaId]: ket },
+    }))
+  }
+
+  const buildPayload = (jadwalKey: string) => {
+    const form = absensiForm[jadwalKey] || {}
+    const ket = keteranganForm[jadwalKey] || {}
+    return Object.entries(form).map(([siswaId, status]) => ({
+      siswaId,
+      status,
+      keterangan: ket[siswaId] || undefined,
+    }))
+  }
+
   const handleMarkAll = (jadwalKey: string, status: string, siswas: SiswaItem[]) => {
     clearSaved(jadwalKey)
     const form: Record<string, string> = {}
@@ -188,15 +223,14 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
     }
     setSaving(jd._key)
     try {
-      const form = absensiForm[jd._key] || {}
-      const siswaStatus = Object.entries(form).map(([siswaId, status]) => ({ siswaId, status }))
-      await saveAbsensi(jd.kelas.id, jd.mataPelajaran.id, tanggal, siswaStatus)
+      const siswaStatus = buildPayload(jd._key)
+      await saveAbsensi(jd.kelas.id, jd.mataPelajaran.id, tanggal, siswaStatus, jd.id)
       const now = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
       setSaved((prev) => new Set(prev).add(jd._key))
       setSavedAt((prev) => { const next = new Map(prev); next.set(jd._key, now); return next })
       toast.success(`Absensi ${jd.kelas.nama} - ${jd.mataPelajaran.nama} tersimpan`)
-    } catch {
-      toast.error("Gagal menyimpan")
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal menyimpan")
     } finally {
       setSaving(null)
     }
@@ -211,9 +245,8 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
     setSavingKelas(kelasId)
     try {
       for (const jd of toSave) {
-        const form = absensiForm[jd._key] || {}
-        const siswaStatus = Object.entries(form).map(([siswaId, status]) => ({ siswaId, status }))
-        await saveAbsensi(jd.kelas.id, jd.mataPelajaran.id, tanggal, siswaStatus)
+        const siswaStatus = buildPayload(jd._key)
+        await saveAbsensi(jd.kelas.id, jd.mataPelajaran.id, tanggal, siswaStatus, jd.id)
       }
       const now = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
       setSaved((prev) => {
@@ -227,8 +260,8 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
         return next
       })
       toast.success(`Absensi ${kelasList.find((k) => k.id === kelasId)?.nama ?? ""} tersimpan (${toSave.length} mapel)`)
-    } catch {
-      toast.error("Gagal menyimpan semua")
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal menyimpan semua")
     } finally {
       setSavingKelas(null)
     }
@@ -304,7 +337,7 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
             let hadir = 0
             for (const jd of items) {
               const st = absensiForm[jd._key]?.[s.id] || "HADIR"
-              if (st === "HADIR") hadir++
+              if (st === "HADIR" || st === "TERLAMBAT") hadir++
             }
             const persentase = totalMapelHari > 0 ? Math.round((hadir / totalMapelHari) * 100) : 0
             return { siswa: s, hadir, total: totalMapelHari, persentase }
@@ -371,25 +404,36 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
               </Card>
               {items.map((jd) => {
                 const form = absensiForm[jd._key] || {}
+                const ketc = keteranganForm[jd._key] || {}
                 const activeSiswa = kelasInfo.siswas || []
                 const values = Object.values(form)
+                const terkunci = jd.guruAbsen === false
                 const statusCount = {
                   HADIR: values.filter((s) => s === "HADIR").length,
+                  TERLAMBAT: values.filter((s) => s === "TERLAMBAT").length,
                   SAKIT: values.filter((s) => s === "SAKIT").length,
                   IZIN: values.filter((s) => s === "IZIN").length,
                   ALPA: values.filter((s) => s === "ALPA").length,
                 }
                 return (
-                  <Card key={jd._key}>
+                  <Card key={jd._key} className={terkunci ? "border-amber-300/60" : undefined}>
                     <CardHeader className="pb-2 sm:pb-3">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <CardTitle className="text-sm sm:text-base">{jd.mataPelajaran.nama}</CardTitle>
+                          <CardTitle className="text-sm sm:text-base flex items-center gap-2 flex-wrap">
+                            {jd.mataPelajaran.nama}
+                            {terkunci && (
+                              <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 text-[10px]">
+                                Terkunci — absen masuk dulu
+                              </Badge>
+                            )}
+                          </CardTitle>
                           {jd.jamMulai && jd.jamSelesai && (
                             <p className="text-xs text-muted-foreground">{jd.jamMulai.slice(0, 5)} - {jd.jamSelesai.slice(0, 5)}</p>
                           )}
                           <div className="flex flex-wrap gap-1.5 mt-1">
                             <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700">{statusCount.HADIR} Hadir</Badge>
+                            <Badge className="text-[10px] bg-amber-100 text-amber-700">{statusCount.TERLAMBAT} Terlambat</Badge>
                             <Badge className="text-[10px] bg-yellow-100 text-yellow-700">{statusCount.SAKIT} Sakit</Badge>
                             <Badge className="text-[10px] bg-blue-100 text-blue-700">{statusCount.IZIN} Izin</Badge>
                             <Badge className="text-[10px] bg-red-100 text-red-700">{statusCount.ALPA} Alpa</Badge>
@@ -397,14 +441,14 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleMarkAll(jd._key, "HADIR", activeSiswa)} disabled={saved.has(jd._key)}>
+                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleMarkAll(jd._key, "HADIR", activeSiswa)} disabled={saved.has(jd._key) || terkunci}>
                               Semua Hadir
                             </Button>
                             <Button
                               size="sm"
                               className={`h-8 text-xs sm:text-sm ${saved.has(jd._key) ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`}
                               onClick={() => handleSave(jd)}
-                              disabled={saving === jd._key || saved.has(jd._key)}
+                              disabled={saving === jd._key || saved.has(jd._key) || terkunci}
                             >
                               {saving === jd._key ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : saved.has(jd._key) ? <Check className="h-3 w-3 mr-1" /> : <Save className="h-3 w-3 mr-1" />}
                               {saved.has(jd._key) ? "Tersimpan" : "Simpan 1x"}
@@ -425,10 +469,11 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
                             <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm w-8 sm:w-12">No</th>
                             <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm">Nama</th>
                             <th className="text-center p-2 sm:p-3 font-medium text-xs sm:text-sm w-28 sm:w-32">Status</th>
+                            <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm">Keterangan</th>
                           </tr></thead>
                           <tbody>
                             {activeSiswa.length === 0 ? (
-                              <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">Tidak ada siswa</td></tr>
+                              <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Tidak ada siswa</td></tr>
                             ) : (
                               activeSiswa.map((s, i) => (
                                 <tr key={s.id} className="border-t">
@@ -444,11 +489,20 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
                                       </SelectTrigger>
                                       <SelectContent>
                                         <SelectItem value="HADIR" className="text-emerald-600 font-medium">HADIR</SelectItem>
+                                        <SelectItem value="TERLAMBAT" className="text-amber-600 font-medium">TERLAMBAT</SelectItem>
                                         <SelectItem value="SAKIT" className="text-yellow-600 font-medium">SAKIT</SelectItem>
                                         <SelectItem value="IZIN" className="text-blue-600 font-medium">IZIN</SelectItem>
                                         <SelectItem value="ALPA" className="text-red-600 font-medium">ALPA</SelectItem>
                                       </SelectContent>
                                     </Select>
+                                  </td>
+                                  <td className="p-2 sm:p-3">
+                                    <Input
+                                      value={ketc[s.id] || ""}
+                                      onChange={(e) => handleKeteranganChange(jd._key, s.id, e.target.value)}
+                                      placeholder="mis. Izin sakit, keperluan"
+                                      className="h-8 text-xs"
+                                    />
                                   </td>
                                 </tr>
                               ))

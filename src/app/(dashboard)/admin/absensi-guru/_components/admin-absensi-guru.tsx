@@ -22,6 +22,7 @@ import {
   FileSpreadsheet,
   FileText,
   Loader2,
+  MapPin,
   Pencil,
   Plus,
   RefreshCw,
@@ -41,10 +42,14 @@ import {
   getRekapKehadiran,
   hapusPengganti,
   koreksiAbsensiSesi,
+  setMetodeGuru,
   simpanKebijakanAbsensi,
 } from "../actions"
 import { getJadwalAdmin } from "../../jadwal/actions"
 import { getSemesterRefs } from "../../actions"
+import { AdminAbsensiSiswa } from "./admin-absensi-siswa"
+import { AdminPengecualian } from "./admin-pengecualian"
+import { DAFTAR_METODE } from "@/lib/absensi-metode"
 
 const STATUS_OPTIONS = [
   { v: "HADIR", label: "Hadir" },
@@ -116,7 +121,14 @@ export function AdminAbsensiGuru() {
   const [jadwalList, setJadwalList] = useState<any[]>([])
 
   // kebijakan
-  const [kebijakan, setKebijakan] = useState({ toleransiTerlambatMenit: 15, autoTidakHadirSetelahMenit: 60 })
+  const [kebijakan, setKebijakan] = useState<any>({
+    toleransiTerlambatMenit: 15,
+    autoTidakHadirSetelahMenit: 60,
+    metode: "TANPA",
+    lokasi: { lat: null, lng: null, radiusMeter: 100, akurasiMaksMeter: 50, gpsWajib: false, lokasiNama: null },
+  })
+  const [retensiFoto, setRetensiFoto] = useState(90)
+  const [mencariLokasi, setMencariLokasi] = useState(false)
   const [savingKebijakan, setSavingKebijakan] = useState(false)
 
   // koreksi
@@ -138,6 +150,7 @@ export function AdminAbsensiGuru() {
       })
       setMonitoring(data)
       setKebijakan(data.kebijakan ?? kebijakan)
+      if (data.kebijakan?.fotoRetensiHari) setRetensiFoto(data.kebijakan.fotoRetensiHari)
     } catch (e: any) {
       toast.error(e?.message || "Gagal memuat monitoring")
     } finally {
@@ -150,7 +163,10 @@ export function AdminAbsensiGuru() {
       .then((d) => setPendukung(d as any))
       .catch(() => {})
     getKebijakanAdmin()
-      .then((k) => setKebijakan(k as any))
+      .then((k: any) => {
+        setKebijakan(k)
+        if (k?.fotoRetensiHari) setRetensiFoto(k.fotoRetensiHari)
+      })
       .catch(() => {})
     getPenggantiList()
       .then((l) => setPengganti(l as any[]))
@@ -278,14 +294,62 @@ export function AdminAbsensiGuru() {
   const saveKebijakan = async () => {
     setSavingKebijakan(true)
     try {
-      const k = await simpanKebijakanAbsensi(kebijakan)
+      const loc = kebijakan.lokasi ?? {}
+      const k = await simpanKebijakanAbsensi({
+        toleransiTerlambatMenit: kebijakan.toleransiTerlambatMenit,
+        autoTidakHadirSetelahMenit: kebijakan.autoTidakHadirSetelahMenit,
+        absensiMetode: kebijakan.metode || "TANPA",
+        gpsWajib: !!loc.gpsWajib,
+        gpsLokasiNama: loc.lokasiNama || null,
+        gpsLat: loc.lat,
+        gpsLng: loc.lng,
+        gpsRadiusMeter: loc.radiusMeter,
+        gpsAkurasiMaksMeter: loc.akurasiMaksMeter,
+        fotoRetensiHari: retensiFoto,
+      })
       setKebijakan(k as any)
-      toast.success("Kebijakan absensi tersimpan")
+      toast.success("Kebijakan absensi & geofencing tersimpan")
       loadMonitoring()
     } catch (e: any) {
       toast.error(e?.message || "Gagal menyimpan kebijakan")
     } finally {
       setSavingKebijakan(false)
+    }
+  }
+
+  const setLokasi = (patch: Partial<any>) =>
+    setKebijakan((k: any) => ({ ...k, lokasi: { ...(k.lokasi ?? {}), ...patch } }))
+
+  const pakaiLokasiSaya = () => {
+    if (!("geolocation" in navigator)) {
+      toast.error("Perangkat tidak mendukung GPS")
+      return
+    }
+    setMencariLokasi(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLokasi({ lat: Number(pos.coords.latitude.toFixed(6)), lng: Number(pos.coords.longitude.toFixed(6)) })
+        setMencariLokasi(false)
+        toast.success("Koordinat lokasi diambil dari perangkat")
+      },
+      () => {
+        setMencariLokasi(false)
+        toast.error("Gagal mengambil lokasi — izinkan akses GPS")
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    )
+  }
+
+  const simpanMetodeGuru = async (guruId: string, metode: string) => {
+    try {
+      await setMetodeGuru(guruId, metode === ONE ? null : metode)
+      setPendukung((p) => ({
+        ...p,
+        guru: p.guru.map((g) => (g.id === guruId ? { ...g, absensiMetode: metode === ONE ? null : metode } : g)),
+      }))
+      toast.success("Metode guru diperbarui")
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal memperbarui metode")
     }
   }
 
@@ -295,11 +359,13 @@ export function AdminAbsensiGuru() {
   return (
     <div className="space-y-4">
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="monitoring">Monitoring Real-time</TabsTrigger>
-          <TabsTrigger value="rekap">Rekap & Export</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6">
+          <TabsTrigger value="monitoring">Monitoring Guru</TabsTrigger>
+          <TabsTrigger value="siswa">Absensi Siswa</TabsTrigger>
+          <TabsTrigger value="rekap">Rekap &amp; Export</TabsTrigger>
           <TabsTrigger value="pengganti">Pengganti Guru</TabsTrigger>
-          <TabsTrigger value="kebijakan">Kebijakan Absensi</TabsTrigger>
+          <TabsTrigger value="pengecualian">Pengecualian</TabsTrigger>
+          <TabsTrigger value="kebijakan">Kebijakan &amp; GPS</TabsTrigger>
         </TabsList>
 
         {/* â”€â”€ MONITORING â”€â”€ */}
@@ -402,6 +468,7 @@ export function AdminAbsensiGuru() {
                         <th className="p-3">Masuk</th>
                         <th className="p-3">Selesai</th>
                         <th className="p-3">Status</th>
+                        <th className="p-3">Verifikasi</th>
                         <th className="p-3 text-right">Aksi</th>
                       </tr>
                     </thead>
@@ -429,6 +496,31 @@ export function AdminAbsensiGuru() {
                               <div className="mt-1 text-[11px] text-amber-600">Koreksi: {r.koreksiAlasan}</div>
                             )}
                           </td>
+                          <td className="p-3">
+                            <div className="flex flex-col gap-1">
+                              <Badge variant="outline" className={`justify-start text-[10px] ${r.fotoUrl ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "text-muted-foreground"}`}>
+                                Foto {r.fotoUrl ? <a href={r.fotoUrl} target="_blank" rel="noreferrer" className="ml-1 underline">lihat</a> : "—"}
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className={`justify-start text-[10px] ${r.gps ? (r.gps.valid ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-600") : "text-muted-foreground"}`}
+                              >
+                                GPS {r.gps ? `${r.gps.jarakMeter != null ? `${r.gps.jarakMeter}m` : "tersimpan"}${r.gps.valid ? " ✓" : " ✗"}` : "—"}
+                                {r.gps?.mock ? " • mock?" : ""}
+                              </Badge>
+                              <Badge variant="outline" className={`justify-start text-[10px] ${r.sidikJariVerified ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "text-muted-foreground"}`}>
+                                Sidik {r.sidikJariVerified ? "✓" : "—"}
+                              </Badge>
+                              {r.gps && (
+                                <span className="text-[10px] text-muted-foreground tabular-nums">
+                                  {r.gps.lat.toFixed(5)}, {r.gps.lng.toFixed(5)} • akurasi {r.gps.akurasiMeter != null ? `${Math.round(r.gps.akurasiMeter)}m` : "-"}
+                                </span>
+                              )}
+                              {r.verifikasiCatatan && (
+                                <span className="text-[10px] text-amber-600">{r.verifikasiCatatan}</span>
+                              )}
+                            </div>
+                          </td>
                           <td className="p-3 text-right">
                             <Button size="sm" variant="outline" onClick={() => bukaKoreksi(r)}>
                               <Pencil className="h-3.5 w-3.5" /> Koreksi
@@ -444,7 +536,17 @@ export function AdminAbsensiGuru() {
           </Card>
         </TabsContent>
 
-        {/* â”€â”€ REKAP & EXPORT â”€â”€ */}
+        {/* ── ABSENSI SISWA ── */}
+        <TabsContent value="siswa" className="space-y-4">
+          <AdminAbsensiSiswa pendukung={pendukung} />
+        </TabsContent>
+
+        {/* ── PENGECAULIAN ── */}
+        <TabsContent value="pengecualian" className="space-y-4">
+          <AdminPengecualian />
+        </TabsContent>
+
+        {/* ── REKAP & EXPORT ── */}
         <TabsContent value="rekap" className="space-y-4">
           <Card>
             <CardHeader className="pb-3">
@@ -640,36 +742,163 @@ export function AdminAbsensiGuru() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Settings2 className="h-4 w-4 text-primary" /> Kebijakan Absensi Guru
+                <Settings2 className="h-4 w-4 text-primary" /> Kebijakan Absensi, Metode &amp; GPS
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 max-w-lg">
-              <div className="space-y-2">
-                <Label>Batas toleransi keterlambatan (menit)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={120}
-                  value={kebijakan.toleransiTerlambatMenit}
-                  onChange={(e) => setKebijakan((k) => ({ ...k, toleransiTerlambatMenit: Number(e.target.value) }))}
-                />
+            <CardContent className="space-y-5 max-w-2xl">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Batas toleransi keterlambatan (menit)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={120}
+                    value={kebijakan.toleransiTerlambatMenit}
+                    onChange={(e) => setKebijakan((k: any) => ({ ...k, toleransiTerlambatMenit: Number(e.target.value) }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Guru yang absen masuk melebihi batas ini akan berstatus <strong>Terlambat</strong>.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tandai Tidak Hadir setelah sesi berakhir (menit)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={480}
+                    value={kebijakan.autoTidakHadirSetelahMenit}
+                    onChange={(e) => setKebijakan((k: any) => ({ ...k, autoTidakHadirSetelahMenit: Number(e.target.value) }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Sesi yang belum diabsen otomatis menjadi <strong>Tidak Hadir</strong> (waktu server).
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 rounded-xl border p-4">
+                <Label className="text-sm font-semibold">Metode Absensi (berlaku umum, kecuali override per guru)</Label>
+                <Select value={kebijakan.metode || "TANPA"} onValueChange={(v) => setKebijakan((k: any) => ({ ...k, metode: v }))}>
+                  <SelectTrigger className="w-full sm:w-[320px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DAFTAR_METODE.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-muted-foreground">
-                  Guru yang absen masuk melebihi batas ini akan berstatus <strong>Terlambat</strong>.
+                  Metode yang tidak dipilih tidak diwajibkan. Foto/GPS/sidik jari divalidasi ulang di server saat guru absen.
                 </p>
               </div>
-              <div className="space-y-2">
-                <Label>Setelah sesi berakhir, tandai Tidak Hadir setelah (menit)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={480}
-                  value={kebijakan.autoTidakHadirSetelahMenit}
-                  onChange={(e) => setKebijakan((k) => ({ ...k, autoTidakHadirSetelahMenit: Number(e.target.value) }))}
-                />
+
+              <div className="space-y-3 rounded-xl border p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-sm font-semibold">Validasi Lokasi (GPS Geofencing)</Label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={!!kebijakan.lokasi?.gpsWajib}
+                      onChange={(e) => setLokasi({ gpsWajib: e.target.checked })}
+                      className="h-4 w-4"
+                    />
+                    Wajibkan GPS
+                  </label>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Nama lokasi / unit</Label>
+                    <Input
+                      value={kebijakan.lokasi?.lokasiNama ?? ""}
+                      onChange={(e) => setLokasi({ lokasiNama: e.target.value })}
+                      placeholder="mis. SMK Kampus A"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Radius absensi (meter)</Label>
+                    <Input
+                      type="number"
+                      min={10}
+                      max={2000}
+                      value={kebijakan.lokasi?.radiusMeter ?? 100}
+                      onChange={(e) => setLokasi({ radiusMeter: Number(e.target.value) })}
+                    />
+                    <p className="text-[11px] text-muted-foreground">Umumnya 50–200 meter dari titik lokasi.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Latitude</Label>
+                    <Input
+                      type="number"
+                      step="any"
+                      value={kebijakan.lokasi?.lat ?? ""}
+                      onChange={(e) => setLokasi({ lat: e.target.value === "" ? null : Number(e.target.value) })}
+                      placeholder="-7.123456"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Longitude</Label>
+                    <Input
+                      type="number"
+                      step="any"
+                      value={kebijakan.lokasi?.lng ?? ""}
+                      onChange={(e) => setLokasi({ lng: e.target.value === "" ? null : Number(e.target.value) })}
+                      placeholder="110.123456"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Toleransi akurasi GPS maksimal (meter)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={kebijakan.lokasi?.akurasiMaksMeter ?? 50}
+                      onChange={(e) => setLokasi({ akurasiMaksMeter: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Retensi foto bukti (hari)</Label>
+                    <Input type="number" min={1} max={3650} value={retensiFoto} onChange={(e) => setRetensiFoto(Number(e.target.value))} />
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" onClick={pakaiLokasiSaya} disabled={mencariLokasi}>
+                  {mencariLokasi ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
+                  Gunakan Lokasi Perangkat Ini
+                </Button>
                 <p className="text-xs text-muted-foreground">
-                  Sesi yang belum diabsen otomatis menjadi <strong>Tidak Hadir</strong> melewati batas ini (waktu server).
+                  Jarak dihitung dengan Haversine dan divalidasi ulang di server. Mock location tercatat sebagai indikasi, bukan jaminan anti-manipulasi.
                 </p>
               </div>
+
+              <div className="space-y-2 rounded-xl border p-4">
+                <Label className="text-sm font-semibold">Override Metode per Guru</Label>
+                <div className="max-h-[240px] overflow-y-auto rounded-lg border">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-muted/50 text-left text-xs text-muted-foreground">
+                      <tr>
+                        <th className="p-2">Guru</th>
+                        <th className="p-2 w-[260px]">Metode</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendukung.guru.map((g) => (
+                        <tr key={g.id} className="border-t">
+                          <td className="p-2 font-medium">{g.nama}</td>
+                          <td className="p-2">
+                            <Select value={g.absensiMetode || ONE} onValueChange={(v) => simpanMetodeGuru(g.id, v)}>
+                              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={ONE}>Ikut pengaturan umum</SelectItem>
+                                {DAFTAR_METODE.map((m) => (
+                                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               <Button onClick={saveKebijakan} disabled={savingKebijakan}>
                 {savingKebijakan ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Simpan Kebijakan

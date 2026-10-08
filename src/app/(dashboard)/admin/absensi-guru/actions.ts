@@ -11,6 +11,7 @@ import {
   getKebijakanAbsensi,
   hitungRekap,
   jamKeMenit,
+  jalanRetensiFoto,
   nowMenit,
   resolveHari,
 } from "@/lib/absensi-guru"
@@ -44,6 +45,13 @@ export type BarisMonitoring = {
   keterangan: string | null
   koreksiAlasan: string | null
   penggantiNama: string | null
+  // ── Bukti verifikasi ──
+  metode: string | null
+  fotoUrl: string | null
+  gps: { lat: number; lng: number; akurasiMeter: number | null; jarakMeter: number | null; valid: boolean | null; mock: boolean | null } | null
+  sidikJariVerified: boolean
+  sidikJariProvider: string | null
+  verifikasiCatatan: string | null
 }
 
 // ─── MONITORING REAL-TIME KEHADIRAN GURU ───────────────────────────
@@ -128,6 +136,22 @@ export async function getMonitoringKehadiran(params: {
       keterangan: rec?.keterangan ?? null,
       koreksiAlasan: rec?.koreksiAlasan ?? null,
       penggantiNama,
+      metode: rec?.metodeDigunakan ?? null,
+      fotoUrl: rec?.fotoUrl ?? null,
+      gps:
+        rec?.gpsLat != null && rec?.gpsLng != null
+          ? {
+              lat: rec.gpsLat,
+              lng: rec.gpsLng,
+              akurasiMeter: rec.gpsAkurasiMeter ?? null,
+              jarakMeter: rec.gpsJarakMeter ?? null,
+              valid: rec.gpsValid ?? null,
+              mock: rec.mockLocation ?? null,
+            }
+          : null,
+      sidikJariVerified: rec?.sidikJariVerified ?? false,
+      sidikJariProvider: rec?.sidikJariProvider ?? null,
+      verifikasiCatatan: rec?.verifikasiCatatan ?? null,
     })
   }
 
@@ -173,6 +197,7 @@ export async function getMonitoringKehadiran(params: {
   }
 
   const kebijakan = await getKebijakanAbsensi()
+  await jalanRetensiFoto() // bersihkan foto bukti yang melewati retensi Admin
   return { tanggal, hari, rows: hasil, summary, kebijakan }
 }
 
@@ -338,19 +363,54 @@ export async function getKebijakanAdmin() {
   return getKebijakanAbsensi()
 }
 
-export async function simpanKebijakanAbsensi(data: { toleransiTerlambatMenit: number; autoTidakHadirSetelahMenit: number }) {
+export async function simpanKebijakanAbsensi(data: {
+  toleransiTerlambatMenit: number
+  autoTidakHadirSetelahMenit: number
+  absensiMetode?: string
+  gpsWajib?: boolean
+  gpsLokasiNama?: string | null
+  gpsLat?: number | null
+  gpsLng?: number | null
+  gpsRadiusMeter?: number
+  gpsAkurasiMaksMeter?: number
+  fotoRetensiHari?: number
+}) {
   await requireAdmin()
   const toleransi = Math.max(0, Math.min(120, Math.round(data.toleransiTerlambatMenit)))
   const auto = Math.max(0, Math.min(480, Math.round(data.autoTidakHadirSetelahMenit)))
+  const METODE_VALID = ["TANPA", "FOTO", "SIDIK_JARI", "FOTO_SIDIK_JARI", "GPS_FOTO", "GPS_SIDIK_JARI", "GPS_FOTO_SIDIK_JARI"]
+  const metode = METODE_VALID.includes(String(data.absensiMetode)) ? String(data.absensiMetode) : undefined
+  const radius = data.gpsRadiusMeter != null ? Math.max(10, Math.min(2000, Math.round(data.gpsRadiusMeter))) : undefined
+  const akurasi = data.gpsAkurasiMaksMeter != null ? Math.max(1, Math.min(500, Math.round(data.gpsAkurasiMaksMeter))) : undefined
+  const retensi = data.fotoRetensiHari != null ? Math.max(1, Math.min(3650, Math.round(data.fotoRetensiHari))) : undefined
+  const lat = data.gpsLat != null && Number.isFinite(data.gpsLat) ? Number(data.gpsLat) : undefined
+  const lng = data.gpsLng != null && Number.isFinite(data.gpsLng) ? Number(data.gpsLng) : undefined
+
+  // GPS wajib → titik lokasi & radius harus terisi
+  const gpsAktif = data.gpsWajib ?? false
+  if (gpsAktif && (lat == null || lng == null)) throw new Error("Titik lokasi (latitude/longitude) wajib diisi bila GPS diaktifkan")
+
+  const payload = {
+    toleransiTerlambatMenit: toleransi,
+    autoTidakHadirSetelahMenit: auto,
+    ...(metode ? { absensiMetode: metode } : {}),
+    ...(data.gpsWajib !== undefined ? { gpsWajib: gpsAktif } : {}),
+    ...(data.gpsLokasiNama !== undefined ? { gpsLokasiNama: data.gpsLokasiNama || null } : {}),
+    ...(lat !== undefined ? { gpsLat: lat } : {}),
+    ...(lng !== undefined ? { gpsLng: lng } : {}),
+    ...(radius !== undefined ? { gpsRadiusMeter: radius } : {}),
+    ...(akurasi !== undefined ? { gpsAkurasiMaksMeter: akurasi } : {}),
+    ...(retensi !== undefined ? { fotoRetensiHari: retensi } : {}),
+  }
 
   const existing = await prisma.siteConfig.findFirst({ select: { id: true } })
   if (existing) {
-    await prisma.siteConfig.update({ where: { id: existing.id }, data: { toleransiTerlambatMenit: toleransi, autoTidakHadirSetelahMenit: auto } })
+    await prisma.siteConfig.update({ where: { id: existing.id }, data: payload })
   } else {
-    await prisma.siteConfig.create({ data: { toleransiTerlambatMenit: toleransi, autoTidakHadirSetelahMenit: auto } })
+    await prisma.siteConfig.create({ data: payload })
   }
   revalidatePath("/admin/absensi-guru")
-  return { toleransiTerlambatMenit: toleransi, autoTidakHadirSetelahMenit: auto }
+  return getKebijakanAbsensi()
 }
 
 // ─── PENGGANTI GURU ────────────────────────────────────────────────
@@ -422,7 +482,7 @@ export async function hapusPengganti(id: string) {
 export async function getDataPendukung() {
   await requireAdmin()
   const [guru, kelas, mapel, jadwalHariIni] = await Promise.all([
-    prisma.guru.findMany({ where: { deletedAt: null }, select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
+    prisma.guru.findMany({ where: { deletedAt: null }, select: { id: true, nama: true, absensiMetode: true }, orderBy: { nama: "asc" } }),
     prisma.kelas.findMany({ where: { deletedAt: null }, select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
     prisma.mataPelajaran.findMany({ where: { deletedAt: null }, select: { id: true, nama: true }, orderBy: { nama: "asc" } }),
     prisma.jadwalPelajaran.findMany({
@@ -438,4 +498,231 @@ export async function getDataPendukung() {
     }),
   ])
   return { guru, kelas, mapel, jadwalHariIni }
+}
+
+// ─── MONITORING ABSENSI SISWA PER MATA PELAJARAN ──────────────────
+export async function getMonitoringSiswa(params: {
+  tanggal?: string
+  kelasId?: string
+  mataPelajaranId?: string
+  guruId?: string
+  search?: string
+}) {
+  await requireAdmin()
+  const tanggal = params.tanggal || new Date().toISOString().slice(0, 10)
+  const date = dayStart(new Date(tanggal))
+  const hari = resolveHari(tanggal)
+
+  const where: Record<string, unknown> = { tanggal: date }
+  if (params.kelasId) where.kelasId = params.kelasId
+  if (params.mataPelajaranId) where.mataPelajaranId = params.mataPelajaranId
+  if (params.guruId) where.guruPencatatId = params.guruId
+
+  const [absensiRows, jadwalHari, pengganti] = await Promise.all([
+    prisma.absensi.findMany({
+      where: where as never,
+      include: {
+        kelas: { select: { id: true, nama: true } },
+        mataPelajaran: { select: { id: true, nama: true } },
+        jadwal: { select: { jamMulai: true, jamSelesai: true } },
+        guruPencatat: { select: { nama: true } },
+        siswa: {
+          include: { siswa: { select: { id: true, nama: true, nis: true } } },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+      take: 500,
+    }),
+    prisma.jadwalPelajaran.findMany({
+      where: { hari, deletedAt: null, ...(params.kelasId ? { kelasId: params.kelasId } : {}), ...(params.mataPelajaranId ? { mataPelajaranId: params.mataPelajaranId } : {}) },
+      select: {
+        id: true,
+        jamMulai: true,
+        jamSelesai: true,
+        kelasId: true,
+        kelas: { select: { nama: true } },
+        mataPelajaranId: true,
+        mataPelajaran: { select: { nama: true } },
+      },
+      orderBy: { jamMulai: "asc" },
+    }),
+    prisma.penggantiGuru.findMany({
+      where: { tanggal: date, status: "DISETUJUI", ...(params.guruId ? { penggantiGuruId: params.guruId } : {}) },
+      select: { jadwalPelajaranId: true, penggantiGuruId: true },
+    }),
+  ])
+
+  const absensiMap = new Map(absensiRows.map((a) => [`${a.kelasId}|${a.mataPelajaranId}|${a.jadwalPelajaranId ?? ""}`, a]))
+
+  // Sesi hari ini + status guru (sumber kehadiran)
+  const sesiGuru = await prisma.absensiGuruSesi.findMany({
+    where: { tanggal: date, ...(params.guruId ? { guruId: params.guruId } : {}) },
+    select: { guruId: true, jadwalPelajaranId: true, status: true, jamMasuk: true, guru: { select: { nama: true } } },
+  })
+  const sesiKey = new Map(sesiGuru.map((s) => [`${s.guruId}|${s.jadwalPelajaranId}`, s]))
+
+  const pengampu = await prisma.pengajaran.findMany({
+    where: { deletedAt: null, ...(params.guruId ? { guruId: params.guruId } : {}) },
+    select: { kelasId: true, mataPelajaranId: true, guruId: true, guru: { select: { nama: true } } },
+  })
+  const pengampuMap = new Map(pengampu.map((p) => [`${p.kelasId}|${p.mataPelajaranId}`, p]))
+
+  const sesiList = jadwalHari
+    .map((j) => {
+      const p = pengampuMap.get(`${j.kelasId}|${j.mataPelajaranId}`)
+      const guruId = p?.guruId ?? pengganti.find((x) => x.jadwalPelajaranId === j.id)?.penggantiGuruId ?? null
+      const abs = absensiMap.get(`${j.kelasId}|${j.mataPelajaranId}|${j.id}`) ?? absensiMap.get(`${j.kelasId}|${j.mataPelajaranId}|`)
+      const guruSesi = guruId ? sesiKey.get(`${guruId}|${j.id}`) : undefined
+      return {
+        jadwalId: j.id,
+        kelasId: j.kelasId,
+        kelasNama: j.kelas.nama,
+        mataPelajaranId: j.mataPelajaranId,
+        mataPelajaranNama: j.mataPelajaran.nama,
+        jamMulai: j.jamMulai,
+        jamSelesai: j.jamSelesai,
+        guruNama: p?.guru?.nama ?? null,
+        guruSesiStatus: guruSesi?.status ?? null,
+        guruSesiAbsen: !!guruSesi?.jamMasuk,
+        absensiId: abs?.id ?? null,
+        pencatat: abs?.guruPencatat?.nama ?? null,
+        totalSiswa: abs?.siswa.length ?? 0,
+        tercatat: abs?.siswa.filter((s) => s.status !== null).length ?? 0,
+        hadir: abs?.siswa.filter((s) => s.status === "HADIR").length ?? 0,
+        terlambat: abs?.siswa.filter((s) => s.status === "TERLAMBAT").length ?? 0,
+        izin: abs?.siswa.filter((s) => s.status === "IZIN").length ?? 0,
+        sakit: abs?.siswa.filter((s) => s.status === "SAKIT").length ?? 0,
+        alpa: abs?.siswa.filter((s) => s.status === "ALPA").length ?? 0,
+        detail: abs?.siswa ?? [],
+      }
+    })
+    .filter((s) => {
+      if (!params.guruId) return true
+      const p = pengampuMap.get(`${s.kelasId}|${s.mataPelajaranId}`)
+      if (p?.guruId === params.guruId) return true
+      return pengganti.some((x) => x.jadwalPelajaranId === s.jadwalId && x.penggantiGuruId === params.guruId)
+    })
+
+  let hasil = sesiList
+  if (params.search) {
+    const q = params.search.toLowerCase()
+    hasil = hasil.filter((s) => s.kelasNama.toLowerCase().includes(q) || s.mataPelajaranNama.toLowerCase().includes(q) || (s.guruNama ?? "").toLowerCase().includes(q))
+  }
+
+  const belumAbsen = hasil.filter((s) => !s.guruSesiAbsen && s.guruNama).length
+  return { tanggal, sesi: hasil, belumAbsenGuru: belumAbsen, jadwalTotal: jadwalHari.length }
+}
+
+// ─── SISWA SERING TIDAK HADIR (rentang tanggal) ───────────────────
+export async function getSiswaSeringTidakHadir(params: { start: string; end: string; kelasId?: string; limit?: number }) {
+  await requireAdmin()
+  const where: Record<string, unknown> = {
+    status: { in: ["ALPA", "TIDAK_HADIR"] },
+    absensi: {
+      tanggal: { gte: dayStart(new Date(params.start)), lte: dayEnd(new Date(params.end)) },
+      ...(params.kelasId ? { kelasId: params.kelasId } : {}),
+    },
+  }
+  const rows = await prisma.absensiSiswa.findMany({
+    where: where as never,
+    select: { siswaId: true, siswa: { select: { nama: true, nis: true, kelas: { select: { nama: true } } } } },
+    take: 5000,
+  })
+  const map = new Map<string, { siswaId: string; nama: string; nis: string | null; kelas: string | null; alpa: number }>()
+  for (const r of rows) {
+    const cur = map.get(r.siswaId) ?? { siswaId: r.siswaId, nama: r.siswa.nama, nis: r.siswa.nis, kelas: r.siswa.kelas?.nama ?? null, alpa: 0 }
+    cur.alpa++
+    map.set(r.siswaId, cur)
+  }
+  const hasil = Array.from(map.values()).sort((a, b) => b.alpa - a.alpa)
+  return hasil.slice(0, params.limit ?? 20)
+}
+
+// ─── KOREKSI ABSENSI SISWA OLEH ADMIN (audit log) ─────────────────
+export async function koreksiAbsensiSiswaAdmin(params: {
+  absensiId: string
+  alasan: string
+  siswaStatus: { siswaId: string; status: string; keterangan?: string }[]
+}) {
+  const admin = await requireAdmin()
+  if (!params.alasan || params.alasan.trim().length < 3) throw new Error("Alasan koreksi wajib diisi (min. 3 karakter)")
+
+  const absensi = await prisma.absensi.findUnique({ where: { id: params.absensiId }, select: { id: true } })
+  if (!absensi) throw new Error("Data absensi tidak ditemukan")
+
+  const lama = await prisma.absensiSiswa.findMany({
+    where: { absensiId: params.absensiId },
+    select: { siswaId: true, status: true, keterangan: true },
+  })
+  await prisma.absensiSiswa.deleteMany({ where: { absensiId: params.absensiId } })
+  if (params.siswaStatus.length > 0) {
+    await prisma.absensiSiswa.createMany({
+      data: params.siswaStatus.map((ss) => ({
+        absensiId: params.absensiId,
+        siswaId: ss.siswaId,
+        status: ss.status as never,
+        keterangan: ss.keterangan || null,
+      })),
+      skipDuplicates: true,
+    })
+  }
+
+  await prisma.absensiSiswaLog.create({
+    data: {
+      absensiId: params.absensiId,
+      actorGuruId: admin.guruId,
+      aksi: admin.guruId ? "KOREKSI_ADMIN" : `KOREKSI_ADMIN (${admin.email})`,
+      alasan: params.alasan.trim(),
+      dataLama: lama as never,
+      dataBaru: params.siswaStatus as never,
+    },
+  })
+
+  revalidatePath("/admin/absensi-guru")
+  return { success: true }
+}
+
+export async function getLogKoreksiSiswa(absensiId: string) {
+  await requireAdmin()
+  return prisma.absensiSiswaLog.findMany({
+    where: { absensiId },
+    include: { actor: { select: { nama: true } } },
+    orderBy: { createdAt: "desc" },
+  })
+}
+
+// ─── PENGECAULIAN VERIFIKASI (persetujuan Admin) ───────────────────
+export async function getPengecualianList(status?: string) {
+  await requireAdmin()
+  return prisma.pengecualianAbsensi.findMany({
+    where: status ? { status } : {},
+    include: {
+      guru: { select: { id: true, nama: true, nip: true } },
+    },
+    orderBy: [{ createdAt: "desc" }],
+    take: 200,
+  })
+}
+
+export async function setPengecualianStatus(id: string, status: "DISETUJUI" | "DITOLAK", catatan?: string) {
+  const admin = await requireAdmin()
+  const row = await prisma.pengecualianAbsensi.findUnique({ where: { id } })
+  if (!row) throw new Error("Pengecualian tidak ditemukan")
+  await prisma.pengecualianAbsensi.update({
+    where: { id },
+    data: { status, catatanAdmin: catatan || null, reviewedBy: null },
+  })
+  revalidatePath("/admin/absensi-guru")
+  revalidatePath("/guru/absensi")
+  return { success: true, email: admin.email }
+}
+
+// ─── OVERRIDE METODE PER GURU ──────────────────────────────────────
+export async function setMetodeGuru(guruId: string, metode: string | null) {
+  await requireAdmin()
+  const METODE_VALID = ["TANPA", "FOTO", "SIDIK_JARI", "FOTO_SIDIK_JARI", "GPS_FOTO", "GPS_SIDIK_JARI", "GPS_FOTO_SIDIK_JARI"]
+  if (metode && !METODE_VALID.includes(metode)) throw new Error("Metode tidak valid")
+  await prisma.guru.update({ where: { id: guruId }, data: { absensiMetode: metode || null } })
+  revalidatePath("/admin/absensi-guru")
+  return { success: true }
 }

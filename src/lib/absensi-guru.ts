@@ -1,5 +1,12 @@
 import { prisma } from "@/lib/prisma"
 import type { StatusAbsensiGuruSesi } from "@prisma/client"
+import {
+  getKebijakanLokasi,
+  getMetodeGuru,
+  validasiVerifikasi,
+  type KebijakanLokasi,
+  type TitikAbsensi,
+} from "@/lib/absensi-lokasi"
 
 // ─── WAKTU (server sebagai acuan absolut) ──────────────────────────
 export function resolveHari(tanggal: string): string {
@@ -50,20 +57,60 @@ export function tanggalISO(d: Date): string {
 export type KebijakanAbsensi = {
   toleransiTerlambatMenit: number
   autoTidakHadirSetelahMenit: number
+  metode: string
+  fotoRetensiHari: number
+  lokasi: KebijakanLokasi
 }
 
-const KEBIJAKAN_DEFAULT: KebijakanAbsensi = { toleransiTerlambatMenit: 15, autoTidakHadirSetelahMenit: 60 }
+const KEBIJAKAN_DEFAULT: KebijakanAbsensi = {
+  toleransiTerlambatMenit: 15,
+  autoTidakHadirSetelahMenit: 60,
+  metode: "TANPA",
+  fotoRetensiHari: 90,
+  lokasi: { metode: "TANPA", gpsWajib: false, lokasiNama: null, lat: null, lng: null, radiusMeter: 100, akurasiMaksMeter: 50 },
+}
 
 export async function getKebijakanAbsensi(): Promise<KebijakanAbsensi> {
   try {
-    const cfg = await prisma.siteConfig.findFirst({ select: { toleransiTerlambatMenit: true, autoTidakHadirSetelahMenit: true } })
-    if (!cfg) return KEBIJAKAN_DEFAULT
+    const [cfg, lokasi] = await Promise.all([
+      prisma.siteConfig.findFirst({ select: { toleransiTerlambatMenit: true, autoTidakHadirSetelahMenit: true, absensiMetode: true, fotoRetensiHari: true } }),
+      getKebijakanLokasi(),
+    ])
     return {
-      toleransiTerlambatMenit: cfg.toleransiTerlambatMenit ?? KEBIJAKAN_DEFAULT.toleransiTerlambatMenit,
-      autoTidakHadirSetelahMenit: cfg.autoTidakHadirSetelahMenit ?? KEBIJAKAN_DEFAULT.autoTidakHadirSetelahMenit,
+      toleransiTerlambatMenit: cfg?.toleransiTerlambatMenit ?? KEBIJAKAN_DEFAULT.toleransiTerlambatMenit,
+      autoTidakHadirSetelahMenit: cfg?.autoTidakHadirSetelahMenit ?? KEBIJAKAN_DEFAULT.autoTidakHadirSetelahMenit,
+      metode: cfg?.absensiMetode || "TANPA",
+      fotoRetensiHari: cfg?.fotoRetensiHari ?? KEBIJAKAN_DEFAULT.fotoRetensiHari,
+      lokasi,
     }
   } catch {
     return KEBIJAKAN_DEFAULT
+  }
+}
+
+/** Retensi foto bukti: hapus file Upload yang melewati batas retensi Admin. */
+export async function jalanRetensiFoto(): Promise<number> {
+  try {
+    const cfg = await prisma.siteConfig.findFirst({ select: { fotoRetensiHari: true } })
+    const hari = Math.max(1, cfg?.fotoRetensiHari ?? 90)
+    const batas = new Date(Date.now() - hari * 24 * 60 * 60 * 1000)
+    const rows = await prisma.absensiGuruSesi.findMany({
+      where: { fotoUrl: { not: null }, updatedAt: { lt: batas } },
+      select: { id: true, fotoUrl: true },
+      take: 200,
+    })
+    let n = 0
+    for (const r of rows) {
+      const m = /\/api\/upload\/([0-9a-fA-F-]{36})/.exec(r.fotoUrl || "")
+      if (m) {
+        await prisma.upload.delete({ where: { id: m[1] } }).catch(() => {})
+      }
+      await prisma.absensiGuruSesi.update({ where: { id: r.id }, data: { fotoUrl: null } })
+      n++
+    }
+    return n
+  } catch {
+    return 0
   }
 }
 
@@ -89,6 +136,19 @@ export type SesiAbsensi = {
   koreksiBy: string | null
   penggantiNama: string | null
   penggantiStatus: string | null
+  // ── Bukti verifikasi ──
+  metode: string
+  fotoUrl: string | null
+  gps: { lat: number; lng: number; akurasiMeter: number | null; jarakMeter: number | null; valid: boolean; mock: boolean } | null
+  sidikJariVerified: boolean
+  sidikJariProvider: string | null
+  verifikasiCatatan: string | null
+}
+
+export type VerifikasiPayload = {
+  fotoUrl?: string | null
+  gps?: TitikAbsensi | null
+  sidikJari?: { verified: boolean; provider?: string | null } | null
 }
 
 async function getPasanganPengajaran(guruId: string) {
@@ -185,6 +245,7 @@ export async function getJadwalGuruDenganStatus(guruId: string, tanggal: string)
   const hari = resolveHari(tanggal)
   const date = dayStart(new Date(tanggal))
   const kebijakan = await getKebijakanAbsensi()
+  const metode = await getMetodeGuru(guruId)
   const nm = nowMenit()
 
   const pengajaran = await getPasanganPengajaran(guruId)
@@ -266,6 +327,22 @@ export async function getJadwalGuruDenganStatus(guruId: string, tanggal: string)
       koreksiBy: rec?.koreksiBy ?? null,
       penggantiNama: pg?.nama ?? null,
       penggantiStatus: pg?.status ?? null,
+      metode,
+      fotoUrl: rec?.fotoUrl ?? null,
+      gps:
+        rec?.gpsLat != null && rec?.gpsLng != null
+          ? {
+              lat: rec.gpsLat,
+              lng: rec.gpsLng,
+              akurasiMeter: rec.gpsAkurasiMeter ?? null,
+              jarakMeter: rec.gpsJarakMeter ?? null,
+              valid: rec.gpsValid ?? false,
+              mock: rec.mockLocation ?? false,
+            }
+          : null,
+      sidikJariVerified: rec?.sidikJariVerified ?? false,
+      sidikJariProvider: rec?.sidikJariProvider ?? null,
+      verifikasiCatatan: rec?.verifikasiCatatan ?? null,
     }
   })
 }
@@ -292,14 +369,15 @@ export async function validasiKepemilikanSesi(guruId: string, jadwalPelajaranId:
   return jadwal
 }
 
-// ─── ABSEN MASUK (waktu server, cegah ganda) ───────────────────────
+// ─── ABSEN MASUK (waktu server, cegah ganda, validasi metode Admin) ──
 export async function absenMasukSesi(params: {
   guruId: string
   jadwalPelajaranId: string
   tanggal: string
   keterangan?: string | null
+  verifikasi?: VerifikasiPayload
 }): Promise<SesiAbsensi> {
-  const { guruId, jadwalPelajaranId, tanggal, keterangan } = params
+  const { guruId, jadwalPelajaranId, tanggal, keterangan, verifikasi } = params
   const jadwal = await validasiKepemilikanSesi(guruId, jadwalPelajaranId, tanggal)
   const kebijakan = await getKebijakanAbsensi()
   const date = dayStart(new Date(tanggal))
@@ -315,18 +393,45 @@ export async function absenMasukSesi(params: {
   })
   if (existing?.jamMasuk) throw new Error("Anda sudah absen masuk pada sesi ini")
 
+  // ── Validasi foto / sidik jari / GPS sesuai metode Admin ──
+  const metode = await getMetodeGuru(guruId)
+  const { catatan, hasilLokasi } = await validasiVerifikasi({
+    guruId,
+    tanggal: date,
+    metode,
+    fotoUrl: verifikasi?.fotoUrl ?? null,
+    gps: verifikasi?.gps ?? null,
+    sidikJari: verifikasi?.sidikJari ?? null,
+    tahap: "MASUK",
+  })
+
   const terlambatMenit = mulai >= 0 && nm > mulai + kebijakan.toleransiTerlambatMenit ? nm - mulai : 0
   const status: StatusAbsensiGuruSesi = terlambatMenit > 0 ? "TERLAMBAT" : "HADIR"
   const jamMasuk = jamServer()
 
+  const bukti = {
+    metodeDigunakan: metode,
+    fotoUrl: verifikasi?.fotoUrl ?? null,
+    gpsLat: verifikasi?.gps?.lat ?? null,
+    gpsLng: verifikasi?.gps?.lng ?? null,
+    gpsAkurasiMeter: verifikasi?.gps?.akurasiMeter ?? null,
+    gpsJarakMeter: hasilLokasi?.jarakMeter ?? null,
+    gpsValid: hasilLokasi?.valid ?? null,
+    gpsDiLuarRadius: hasilLokasi ? !hasilLokasi.valid : null,
+    mockLocation: verifikasi?.gps?.mock ?? null,
+    sidikJariVerified: !!verifikasi?.sidikJari?.verified,
+    sidikJariProvider: verifikasi?.sidikJari?.provider ?? null,
+    verifikasiCatatan: catatan,
+  }
+
   if (existing) {
     await prisma.absensiGuruSesi.update({
       where: { id: existing.id },
-      data: { status, jamMasuk, terlambatMenit, keterangan: keterangan ?? existing.keterangan },
+      data: { status, jamMasuk, terlambatMenit, keterangan: keterangan ?? existing.keterangan, ...bukti },
     })
   } else {
     await prisma.absensiGuruSesi.create({
-      data: { guruId, jadwalPelajaranId, tanggal: date, status, jamMasuk, terlambatMenit, keterangan: keterangan ?? null },
+      data: { guruId, jadwalPelajaranId, tanggal: date, status, jamMasuk, terlambatMenit, keterangan: keterangan ?? null, ...bukti },
     })
   }
 
@@ -336,13 +441,14 @@ export async function absenMasukSesi(params: {
   return hasil
 }
 
-// ─── ABSEN SELESAI MENGAJAR ────────────────────────────────────────
+// ─── ABSEN SELESAI MENGAJAR (validasi metode: GPS + sidik jari ulang) ──
 export async function absenSelesaiSesi(params: {
   guruId: string
   jadwalPelajaranId: string
   tanggal: string
+  verifikasi?: VerifikasiPayload
 }): Promise<SesiAbsensi> {
-  const { guruId, jadwalPelajaranId, tanggal } = params
+  const { guruId, jadwalPelajaranId, tanggal, verifikasi } = params
   await validasiKepemilikanSesi(guruId, jadwalPelajaranId, tanggal)
   const date = dayStart(new Date(tanggal))
 
@@ -352,6 +458,18 @@ export async function absenSelesaiSesi(params: {
   if (!existing) throw new Error("Anda belum absen masuk pada sesi ini")
   if (existing.jamSelesai) throw new Error("Sesi ini sudah ditutup")
 
+  // ── Validasi ulang sesuai metode (foto cukup saat masuk) ──
+  const metode = await getMetodeGuru(guruId)
+  const { catatan, hasilLokasi } = await validasiVerifikasi({
+    guruId,
+    tanggal: date,
+    metode,
+    fotoUrl: existing.fotoUrl,
+    gps: verifikasi?.gps ?? null,
+    sidikJari: verifikasi?.sidikJari ?? null,
+    tahap: "SELESAI",
+  })
+
   const jamKeluar = jamServer()
   const masukMenit = jamKeMenit(existing.jamMasuk)
   const keluarMenit = nowMenit()
@@ -359,7 +477,25 @@ export async function absenSelesaiSesi(params: {
 
   await prisma.absensiGuruSesi.update({
     where: { id: existing.id },
-    data: { jamSelesai: jamKeluar, durasiMenit },
+    data: {
+      jamSelesai: jamKeluar,
+      durasiMenit,
+      ...(verifikasi?.gps
+        ? {
+            gpsLat: verifikasi.gps.lat,
+            gpsLng: verifikasi.gps.lng,
+            gpsAkurasiMeter: verifikasi.gps.akurasiMeter ?? null,
+            gpsJarakMeter: hasilLokasi?.jarakMeter ?? existing.gpsJarakMeter,
+            gpsValid: hasilLokasi?.valid ?? existing.gpsValid,
+            gpsDiLuarRadius: hasilLokasi ? !hasilLokasi.valid : existing.gpsDiLuarRadius,
+            mockLocation: verifikasi.gps.mock ?? existing.mockLocation,
+          }
+        : {}),
+      ...(verifikasi?.sidikJari
+        ? { sidikJariVerified: !!verifikasi.sidikJari.verified, sidikJariProvider: verifikasi.sidikJari.provider ?? existing.sidikJariProvider }
+        : {}),
+      ...(catatan ? { verifikasiCatatan: catatan } : {}),
+    },
   })
 
   const list = await getJadwalGuruDenganStatus(guruId, tanggal)

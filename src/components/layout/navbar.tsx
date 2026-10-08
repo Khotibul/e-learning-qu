@@ -3,9 +3,10 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useSession, signOut } from "next-auth/react"
-import { Menu, Bell, Sun, Moon, LogOut, User, Settings } from "lucide-react"
+import { Menu, Sun, Moon, LogOut, User, Settings } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
+import { NotificationCenter } from "@/components/layout/notification-center"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -34,18 +35,11 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
       <div className="flex-1" />
 
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      >
+      <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
         {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
       </Button>
 
-      <Button variant="ghost" size="icon" className="relative">
-        <Bell className="h-5 w-5" />
-        <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
-      </Button>
+      <NotificationCenter />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

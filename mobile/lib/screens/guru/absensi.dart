@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../widgets/verifikasi_widget.dart';
 
 class GuruAbsensi extends StatefulWidget {
   const GuruAbsensi({super.key});
@@ -25,6 +26,12 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
   String guruStatus = "HADIR";
   bool guruSaved = false;
   bool savingGuru = false;
+
+  // status verifikasi per sesi (foto/GPS/sidik jari) — parent sebagai pemilik state
+  final Map<String, VerifState> _verif = {};
+
+  VerifState _verifSesi(String jadwalId) =>
+      _verif.putIfAbsent(jadwalId, () => VerifState());
 
   // riwayat
   String bulan = DateTime.now().toIso8601String().substring(0, 7);
@@ -106,6 +113,22 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
     });
   }
 
+  String _metodeSesi(Map s) {
+    final m = (s["metode"] ?? kebijakan["metode"] ?? "TANPA").toString();
+    return m.isEmpty ? "TANPA" : m;
+  }
+
+  /// Verifikasi lengkap sesuai metode & fase? (foto hanya saat masuk, GPS+sidik dua fase)
+  bool _verifLengkap(Map s, String fase) {
+    final m = _metodeSesi(s);
+    if (m == "TANPA") return true;
+    final v = _verifSesi((s["jadwalId"] ?? "").toString());
+    if (butuhFoto(m, fase) && fase == "MASUK" && v.fotoUrl == null) return false;
+    if (butuhGps(m) && v.jarakMeter == null) return false;
+    if (butuhSidik(m) && !v.sidikOk) return false;
+    return true;
+  }
+
   Future<void> _aksi(String action, Map s, {String? keterangan}) async {
     setState(() => actingId = s["jadwalId"]);
     try {
@@ -114,6 +137,8 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
         "jadwalPelajaranId": s["jadwalId"],
         "tanggal": tanggal,
         if (keterangan != null) "keterangan": keterangan,
+        if (action == "masuk" || action == "selesai")
+          "verifikasi": _verifSesi((s["jadwalId"] ?? "").toString()).toJson(),
       });
       if (mounted) {
         final pesan = action == "masuk"
@@ -129,6 +154,76 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } finally {
       if (mounted) setState(() => actingId = null);
+    }
+  }
+
+  Future<void> _ajukanPengecualian(Map s) async {
+    final v = _verifSesi((s["jadwalId"] ?? "").toString());
+    String jenis = v.jarakMeter == null && !v.sidikOk
+        ? "LOKASI"
+        : v.jarakMeter == null
+            ? "LOKASI"
+            : !v.sidikOk
+                ? "BIOMETRIK"
+                : "FOTO";
+    final alasanCtrl = TextEditingController();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: const Text("Pengajuan Pengecualian", style: TextStyle(fontSize: 15)),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text("Butuh persetujuan Admin sebelum absen dapat dilanjutkan.", style: TextStyle(fontSize: 12)),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              initialValue: jenis,
+              decoration: InputDecoration(
+                labelText: "Jenis",
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              items: const [
+                DropdownMenuItem(value: "LOKASI", child: Text("Lokasi (di luar radius / GPS bermasalah)", style: TextStyle(fontSize: 13))),
+                DropdownMenuItem(value: "BIOMETRIK", child: Text("Biometrik (sidik jari tidak tersedia)", style: TextStyle(fontSize: 13))),
+                DropdownMenuItem(value: "FOTO", child: Text("Foto (kamera tidak tersedia)", style: TextStyle(fontSize: 13))),
+              ],
+              onChanged: (val) => setD(() => jenis = val ?? "LOKASI"),
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: alasanCtrl,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: "Alasan (min. 5 karakter)",
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Batal")),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Ajukan")),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await ApiService.post("/api/mobile/guru/pengecualian", {
+        "jenis": jenis,
+        "alasan": alasanCtrl.text.trim(),
+        "tanggal": tanggal,
+        "jadwalPelajaranId": s["jadwalId"],
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Pengecualian diajukan — menunggu persetujuan Admin")));
+      }
+    } catch (e) {
+      final msg = e.toString().replaceFirst("Exception: ", "");
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -313,7 +408,8 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
           const SizedBox(height: 10),
           if (kebijakan.isNotEmpty)
             Text(
-              "Kebijakan Admin: toleransi terlambat ${kebijakan["toleransiTerlambatMenit"] ?? 15} menit • Tidak Hadir otomatis ${kebijakan["autoTidakHadirSetelahMenit"] ?? 60} menit setelah sesi berakhir",
+              "Kebijakan Admin: metode ${kebijakan["metode"] ?? "TANPA"} • toleransi terlambat ${kebijakan["toleransiTerlambatMenit"] ?? 15} menit • Tidak Hadir otomatis ${kebijakan["autoTidakHadirSetelahMenit"] ?? 60} menit setelah sesi berakhir"
+              "${((kebijakan["lokasi"] ?? {}) as Map)["gpsWajib"] == true ? " • lokasi wajib radius ${((kebijakan["lokasi"] ?? {}) as Map)["radiusMeter"] ?? 100} m" : ""}",
               style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
             ),
           const SizedBox(height: 10),
@@ -395,11 +491,21 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
             const SizedBox(height: 4),
             Text("Koreksi Admin: ${s["koreksiAlasan"]}", style: const TextStyle(fontSize: 11, color: Color(0xFFF59E0B))),
           ],
+          if (fase != "SEBELUM" && status == "BELUM_ABSEN")
+            VerifikasiWidget(
+              metode: _metodeSesi(s),
+              kebijakan: kebijakan,
+              fase: sudahMasuk ? "SELESAI" : "MASUK",
+              state: _verifSesi((s["jadwalId"] ?? "").toString()),
+              onChange: (_) => setState(() {}),
+              busy: busy,
+              onAjukanPengecualian: () => _ajukanPengecualian(s),
+            ),
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
             if (!sudahSelesai)
               FilledButton.icon(
-                onPressed: busy || !bisaAbsen
+                onPressed: busy || !bisaAbsen || !_verifLengkap(s, "MASUK")
                     ? null
                     : () => _aksi("masuk", s),
                 style: FilledButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)),
@@ -410,7 +516,7 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
               ),
             if (!sudahSelesai && sudahMasuk)
               FilledButton.icon(
-                onPressed: busy ? null : () => _aksi("selesai", s),
+                onPressed: busy || !_verifLengkap(s, "SELESAI") ? null : () => _aksi("selesai", s),
                 style: FilledButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
                 icon: busy
                     ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))

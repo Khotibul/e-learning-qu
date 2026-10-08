@@ -59,7 +59,8 @@ export async function GET(req: Request) {
   }
 }
 
-// POST: { action: "masuk" | "selesai" | "izin" | "sakit", jadwalPelajaranId, tanggal, keterangan? }
+// POST: { action: "masuk" | "selesai" | "izin" | "sakit", jadwalPelajaranId, tanggal, keterangan?, verifikasi? }
+// verifikasi: { fotoUrl?, gps?: {lat,lng,akurasiMeter?,mock?}, sidikJari?: {verified,provider?} }
 export async function POST(req: Request) {
   try {
     const guru = await getGuruFromToken(req)
@@ -69,6 +70,7 @@ export async function POST(req: Request) {
     const action = String(body.action ?? "")
     const jadwalPelajaranId = String(body.jadwalPelajaranId ?? "")
     const tanggal = String(body.tanggal ?? new Date().toISOString().slice(0, 10))
+    const verifikasi = body.verifikasi && typeof body.verifikasi === "object" ? body.verifikasi : undefined
 
     if (!jadwalPelajaranId) {
       return NextResponse.json({ error: "jadwalPelajaranId wajib" }, { status: 400, headers: corsHeaders })
@@ -76,9 +78,9 @@ export async function POST(req: Request) {
 
     let hasil
     if (action === "masuk") {
-      hasil = await absenMasukSesi({ guruId: guru.id, jadwalPelajaranId, tanggal, keterangan: body.keterangan ?? null })
+      hasil = await absenMasukSesi({ guruId: guru.id, jadwalPelajaranId, tanggal, keterangan: body.keterangan ?? null, verifikasi })
     } else if (action === "selesai") {
-      hasil = await absenSelesaiSesi({ guruId: guru.id, jadwalPelajaranId, tanggal })
+      hasil = await absenSelesaiSesi({ guruId: guru.id, jadwalPelajaranId, tanggal, verifikasi })
     } else if (action === "izin" || action === "sakit") {
       hasil = await setStatusSesiGuru({
         guruId: guru.id,
@@ -94,7 +96,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, sesi: hasil }, { headers: corsHeaders })
   } catch (e: any) {
     const msg = e?.message || "Gagal menyimpan absensi"
-    const bad = /tidak mengampu|belum aktif|sudah berakhir|sudah absen|belum absen|tidak ditemukan|sudah ditutup/.test(msg)
+    const bad = /tidak mengampu|belum aktif|sudah berakhir|sudah absen|belum absen|tidak ditemukan|sudah ditutup|wajib|ditolak|tidak valid|melebihi|menunggu|pengecualian/.test(msg)
     console.error("Mobile absensi sesi POST error:", e)
     return NextResponse.json({ error: msg }, { status: bad ? 400 : 500, headers: corsHeaders })
   }

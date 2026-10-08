@@ -19,6 +19,9 @@ import {
   UserCheck,
   AlertTriangle,
   CalendarClock,
+  Camera,
+  MapPin,
+  Fingerprint,
 } from "lucide-react"
 import {
   absenMasukAction,
@@ -30,6 +33,8 @@ import {
   getSesiAbsensiHariIni,
 } from "../actions"
 import { AbsensiClient } from "./absensi-form"
+import { VerifikasiWidget, type LokasiConfig, type VerifState } from "./verifikasi-widget"
+import { labelMetode, wajibFoto, wajibGps, wajibSidikJari } from "@/lib/absensi-metode"
 
 type KelasListType = { id: string; nama: string; siswas: { id: string; nis: string | null; nama: string }[] }[]
 
@@ -49,6 +54,18 @@ type Sesi = {
   koreksiAlasan: string | null
   penggantiNama: string | null
   penggantiStatus: string | null
+  metode: string
+  fotoUrl: string | null
+  gps: { lat: number; lng: number; akurasiMeter: number | null; jarakMeter: number | null; valid: boolean; mock: boolean } | null
+  sidikJariVerified: boolean
+  verifikasiCatatan: string | null
+}
+
+type Kebijakan = {
+  toleransiTerlambatMenit: number
+  autoTidakHadirSetelahMenit: number
+  metode?: string
+  lokasi?: LokasiConfig
 }
 
 const STATUS_STYLE: Record<string, { label: string; className: string }> = {
@@ -73,13 +90,16 @@ function StatusBadge({ status, terlambat }: { status: string; terlambat?: number
 export function SesiAbsensiClient({ kelasList }: { kelasList: KelasListType }) {
   const [tanggal, setTanggal] = useState(new Date().toISOString().slice(0, 10))
   const [sesi, setSesi] = useState<Sesi[]>([])
-  const [kebijakan, setKebijakan] = useState<{ toleransiTerlambatMenit: number; autoTidakHadirSetelahMenit: number } | null>(null)
+  const [kebijakan, setKebijakan] = useState<Kebijakan | null>(null)
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState<string | null>(null)
   const [jamSekarang, setJamSekarang] = useState("")
   const [bulan, setBulan] = useState(new Date().toISOString().slice(0, 7))
   const [riwayat, setRiwayat] = useState<any[]>([])
   const [rekap, setRekap] = useState<any>(null)
+  const [verifMap, setVerifMap] = useState<Record<string, VerifState>>({})
+
+  const setVerif = (key: string, v: VerifState) => setVerifMap((prev) => ({ ...prev, [key]: v }))
 
   const load = useCallback(async (tgl: string) => {
     try {
@@ -198,6 +218,15 @@ export function SesiAbsensiClient({ kelasList }: { kelasList: KelasListType }) {
                     {kebijakan.autoTidakHadirSetelahMenit} menit
                   </span>{" "}
                   setelah sesi berakhir
+                  {kebijakan.metode && (
+                    <>
+                      {" "}• metode absensi{" "}
+                      <span className="font-semibold text-foreground">{labelMetode(kebijakan.metode)}</span>
+                      {kebijakan.lokasi?.gpsWajib || wajibGps(kebijakan.metode)
+                        ? ` • radius ${kebijakan.lokasi?.radiusMeter ?? 100}m`
+                        : ""}
+                    </>
+                  )}
                 </p>
               )}
 
@@ -218,7 +247,31 @@ export function SesiAbsensiClient({ kelasList }: { kelasList: KelasListType }) {
                     const busy = acting === key
                     const sudahAbsen = !!s.jamMasuk
                     const sudahSelesai = !!s.jamKeluar
+                    const metode = s.metode || kebijakan?.metode || "TANPA"
+                    const lokasiCfg: LokasiConfig = kebijakan?.lokasi ?? {
+                      lat: null, lng: null, radiusMeter: 100, akurasiMaksMeter: 50, gpsWajib: false, lokasiNama: null,
+                    }
+                    const butuh = {
+                      foto: wajibFoto(metode),
+                      gps: wajibGps(metode) || !!lokasiCfg.gpsWajib,
+                      sidik: wajibSidikJari(metode),
+                    }
+                    const vMasuk = verifMap[`${key}:MASUK`] ?? {}
+                    const vSelesai = verifMap[`${key}:SELESAI`] ?? {}
+                    const verifMasukOk =
+                      (!butuh.foto || !!vMasuk.fotoUrl) &&
+                      (!butuh.gps || !!vMasuk.gpsHasil?.valid) &&
+                      (!butuh.sidik || !!vMasuk.sidik?.verified)
+                    const verifSelesaiOk =
+                      (!butuh.gps || !!vSelesai.gpsHasil?.valid) &&
+                      (!butuh.sidik || !!vSelesai.sidik?.verified)
                     const bisaAbsen =
+                      s.status === "BELUM_ABSEN" &&
+                      !sudahAbsen &&
+                      s.fase !== "SEBELUM" &&
+                      verifMasukOk
+                    const butuhVerif =
+                      (butuh.foto || butuh.gps || butuh.sidik) &&
                       s.status === "BELUM_ABSEN" &&
                       !sudahAbsen &&
                       s.fase !== "SEBELUM"
@@ -271,6 +324,26 @@ export function SesiAbsensiClient({ kelasList }: { kelasList: KelasListType }) {
                             {s.koreksiAlasan && (
                               <p className="text-xs text-amber-600">Koreksi Admin: {s.koreksiAlasan}</p>
                             )}
+                            {sudahAbsen && (
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                <Badge variant="outline" className={`text-[11px] ${s.fotoUrl ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "text-muted-foreground"}`}>
+                                  <Camera className="mr-1 h-3 w-3" /> Foto {s.fotoUrl ? "✓" : "—"}
+                                </Badge>
+                                <Badge variant="outline" className={`text-[11px] ${s.gps ? (s.gps.valid ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-red-300 bg-red-50 text-red-600") : "text-muted-foreground"}`}>
+                                  <MapPin className="mr-1 h-3 w-3" />
+                                  GPS {s.gps ? `${s.gps.jarakMeter != null ? `${s.gps.jarakMeter}m` : "tersimpan"}${s.gps.valid ? " ✓" : " ✗"}` : "—"}
+                                  {s.gps?.mock ? " (indikasi mock)" : ""}
+                                </Badge>
+                                <Badge variant="outline" className={`text-[11px] ${s.sidikJariVerified ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "text-muted-foreground"}`}>
+                                  <Fingerprint className="mr-1 h-3 w-3" /> Sidik Jari {s.sidikJariVerified ? "✓" : "—"}
+                                </Badge>
+                                {s.verifikasiCatatan && (
+                                  <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 text-[11px]">
+                                    {s.verifikasiCatatan}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2">
@@ -278,7 +351,7 @@ export function SesiAbsensiClient({ kelasList }: { kelasList: KelasListType }) {
                               <Button
                                 size="sm"
                                 disabled={busy || !bisaAbsen}
-                                onClick={() => aksi(() => absenMasukAction(key, tanggal), key, "Absen masuk tersimpan")}
+                                onClick={() => aksi(() => absenMasukAction(key, tanggal, vMasuk), key, "Absen masuk tersimpan")}
                               >
                                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
                                 Absen Masuk
@@ -288,8 +361,8 @@ export function SesiAbsensiClient({ kelasList }: { kelasList: KelasListType }) {
                               <Button
                                 size="sm"
                                 variant="secondary"
-                                disabled={busy}
-                                onClick={() => aksi(() => absenSelesaiAction(key, tanggal), key, "Sesi mengajar ditutup")}
+                                disabled={busy || ((butuh.gps || butuh.sidik) && !verifSelesaiOk)}
+                                onClick={() => aksi(() => absenSelesaiAction(key, tanggal, vSelesai), key, "Sesi mengajar ditutup")}
                               >
                                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
                                 Absen Selesai Mengajar
@@ -322,6 +395,40 @@ export function SesiAbsensiClient({ kelasList }: { kelasList: KelasListType }) {
                             )}
                           </div>
                         </div>
+
+                        {!sudahAbsen && s.status === "BELUM_ABSEN" && s.fase !== "SEBELUM" && (
+                          <VerifikasiWidget
+                            metode={metode}
+                            lokasi={lokasiCfg}
+                            tanggal={tanggal}
+                            jadwalPelajaranId={key}
+                            tahap="MASUK"
+                            value={vMasuk}
+                            onChange={(v) => setVerif(`${key}:MASUK`, v)}
+                            disabled={busy}
+                          />
+                        )}
+                        {sudahAbsen && !sudahSelesai && (butuh.gps || butuh.sidik) && (
+                          <VerifikasiWidget
+                            metode={metode}
+                            lokasi={lokasiCfg}
+                            tanggal={tanggal}
+                            jadwalPelajaranId={key}
+                            tahap="SELESAI"
+                            value={vSelesai}
+                            onChange={(v) => setVerif(`${key}:SELESAI`, v)}
+                            disabled={busy}
+                          />
+                        )}
+                        {butuhVerif && !verifMasukOk && (
+                          <p className="mt-2 text-[11px] text-amber-600">
+                            Lengkapi verifikasi ({[
+                              butuh.foto ? "foto" : null,
+                              butuh.gps ? "GPS" : null,
+                              butuh.sidik ? "sidik jari" : null,
+                            ].filter(Boolean).join(", ")}) sebelum Absen Masuk — atau ajukan pengecualian untuk persetujuan Admin.
+                          </p>
+                        )}
                       </div>
                     )
                   })}

@@ -62,6 +62,22 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  /// Upload file (multipart, auth Bearer) — dipakai bukti foto absensi.
+  static Future<String> uploadFile(String path, String filePath, {String fieldName = "file"}) async {
+    final headers = await _headers();
+    headers.remove("Content-Type"); // biar boundary di-set http
+    final req = http.MultipartRequest("POST", Uri.parse("${ApiConfig.baseUrl}$path"))
+      ..headers.addAll(headers)
+      ..files.add(await http.MultipartFile.fromPath(fieldName, filePath));
+    final streamed = await _withRetry(() => req.send().timeout(const Duration(seconds: 30)));
+    final res = await http.Response.fromStream(streamed);
+    if (res.statusCode >= 400) throw Exception("UPLOAD ${res.statusCode}: ${res.body}");
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    final url = body["url"];
+    if (url is! String) throw Exception("Upload gagal");
+    return url;
+  }
+
   // Auth — LANGSUNG KE DATABASE via /api/mobile/auth/login (1 DB dengan website)
   static Future<Map<String, dynamic>> signIn(String email, String password, String role) async {
     final res = await _withRetry(() => _client.post(

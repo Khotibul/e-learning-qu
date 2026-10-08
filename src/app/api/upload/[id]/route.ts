@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getMobileUser } from "@/lib/mobile-auth"
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Akses: sesi login web (cookie) ATAU token mobile (Bearer)
     const session = await auth()
-    if (!session?.user) {
+    const mobileUser = session?.user ? null : await getMobileUser(req)
+    if (!session?.user && !mobileUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
