@@ -22,7 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   daftarPerangkat, buatPerangkat, ubahPerangkat, hapusPerangkat, rotasiApiKey,
   daftarPemetaan, cariSiswaUntukPemetaan, tambahPemetaan, hapusPemetaan,
-  monitoringHarian, daftarEvent, getKebijakanHarianAdmin, simpanKebijakanHarian,
+  monitoringHarian, daftarEvent, daftarNotifikasiAdmin, getKebijakanHarianAdmin, simpanKebijakanHarian,
   daftarLibur, tambahLibur, hapusLibur, daftarPermintaanManual, putuskanPermintaan,
   koreksiHarian, daftarKoreksiHarian,
 } from "../actions"
@@ -64,6 +64,7 @@ export default function AdminFingerprint() {
   const [rows, setRows] = useState<Baris[]>([])
   const [summary, setSummary] = useState<Record<string, number>>({})
   const [events, setEvents] = useState<any[]>([])
+  const [notifikasi, setNotifikasi] = useState<{ rows: any[]; summary: any }>({ rows: [], summary: null })
   const [koreksi, setKoreksi] = useState<Baris | null>(null)
 
   // perangkat
@@ -90,13 +91,15 @@ export default function AdminFingerprint() {
   const muatMonitoring = useCallback(async () => {
     setBusy(true)
     try {
-      const [m, ev] = await Promise.all([
+      const [m, ev, notif] = await Promise.all([
         monitoringHarian({ tanggal, status: filter === "SEMUA" ? undefined : filter, q }),
         daftarEvent({ tanggal, take: 150 }),
+        daftarNotifikasiAdmin({ take: 100 }),
       ])
       setRows(m.rows)
       setSummary(m.summary)
       setEvents(ev)
+      setNotifikasi(notif)
     } catch (e: any) {
       toast("err", e?.message || "Gagal memuat monitoring")
     } finally {
@@ -323,6 +326,58 @@ export default function AdminFingerprint() {
                         </TableCell>
                         <TableCell className="max-w-64 truncate text-xs">{e.pesan ?? "-"}</TableCell>
                         <TableCell className="max-w-40 truncate font-mono text-[10px] text-muted-foreground">{e.eventKey}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">
+                Log Notifikasi Otomatis
+                {notifikasi.summary && (
+                  <span className="ml-2 font-normal text-muted-foreground">
+                    (total {notifikasi.summary.total} · belum dibaca {notifikasi.summary.unread} · gagal {notifikasi.summary.gagal})
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Waktu</TableHead>
+                    <TableHead>Penerima</TableHead>
+                    <TableHead>Peran</TableHead>
+                    <TableHead>Judul</TableHead>
+                    <TableHead>Tipe</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Dibaca</TableHead>
+                    <TableHead>Event Key</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {notifikasi.rows.length === 0 ? (
+                    <TableRow><TableCell colSpan={8} className="py-6 text-center text-muted-foreground">Belum ada notifikasi</TableCell></TableRow>
+                  ) : (
+                    notifikasi.rows.map((n) => (
+                      <TableRow key={n.id}>
+                        <TableCell className="font-mono text-xs">{new Date(n.createdAt).toLocaleString("id-ID")}</TableCell>
+                        <TableCell className="text-xs">{n.penerima}</TableCell>
+                        <TableCell className="text-xs">{n.rolePenerima}</TableCell>
+                        <TableCell className="max-w-56 truncate text-xs">
+                          <span className="font-medium">{n.judul}</span><br />
+                          <span className="text-muted-foreground">{n.pesan}</span>
+                        </TableCell>
+                        <TableCell><Badge variant="outline">{n.tipe}</Badge></TableCell>
+                        <TableCell>
+                          <Badge className={n.status === "GAGAL" ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"}>{n.status}</Badge>
+                        </TableCell>
+                        <TableCell>{n.isRead ? <Badge className="bg-sky-100 text-sky-800">Dibaca</Badge> : <Badge variant="outline" className="text-muted-foreground">Belum</Badge>}</TableCell>
+                        <TableCell className="max-w-40 truncate font-mono text-[10px] text-muted-foreground">{n.eventKey ?? "-"}</TableCell>
                       </TableRow>
                     ))
                   )}

@@ -282,6 +282,39 @@ export async function daftarEvent(opts?: { tanggal?: string; take?: number }) {
   }))
 }
 
+// ─── MONITORING NOTIFIKASI (log notifikasi absensi terkirim) ───────
+
+export async function daftarNotifikasiAdmin(opts?: { take?: number; unread?: boolean }) {
+  await requireAdmin()
+  const rows = await prisma.notification.findMany({
+    where: opts?.unread ? { isRead: false } : undefined,
+    orderBy: { createdAt: "desc" },
+    take: Math.min(opts?.take ?? 100, 300),
+    include: { user: { select: { name: true, email: true, role: true } } },
+  })
+  const [total, unread, gagal] = await Promise.all([
+    prisma.notification.count(),
+    prisma.notification.count({ where: { isRead: false } }),
+    prisma.notification.count({ where: { status: "GAGAL" } }),
+  ])
+  return {
+    summary: { total, unread, gagal },
+    rows: rows.map((r) => ({
+      id: r.id,
+      judul: r.judul,
+      pesan: r.pesan,
+      tipe: r.tipe,
+      status: r.status,
+      isRead: r.isRead,
+      eventKey: r.eventKey,
+      link: r.link,
+      penerima: r.user?.name || r.user?.email || "-",
+      rolePenerima: String(r.user?.role ?? "-"),
+      createdAt: r.createdAt.toISOString(),
+    })),
+  }
+}
+
 // ─── KEBIJAKAN (jam masuk/pulang, toleransi, hari libur) ───────────
 
 export async function getKebijakanHarianAdmin() {
