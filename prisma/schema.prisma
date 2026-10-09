@@ -101,6 +101,7 @@ model User {
   notifications Notification[]
   auditLogs     AuditLog[]
   pengumuman    Pengumuman[]
+  pendaftaranPpdb PendaftaranPpdb[]
 
   @@map("users")
 }
@@ -1899,8 +1900,9 @@ model GelombangPpdb {
   updatedAt      DateTime         @updatedAt
   deletedAt      DateTime?
 
-  tahunAjaran TahunAjaran   @relation(fields: [tahunAjaranId], references: [id])
+  tahunAjaran TahunAjaran    @relation(fields: [tahunAjaranId], references: [id])
   jalur       JalurPpdb[]
+  pendaftaran PendaftaranPpdb[]
 
   @@index([tahunAjaranId])
   @@index([status])
@@ -1920,9 +1922,118 @@ model JalurPpdb {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  gelombang GelombangPpdb @relation(fields: [gelombangId], references: [id], onDelete: Cascade)
+  gelombang GelombangPpdb   @relation(fields: [gelombangId], references: [id], onDelete: Cascade)
+  pilihan   PilihanPpdb[]
+  pendaftaran PendaftaranPpdb[]
 
   @@unique([gelombangId, nama])
   @@index([gelombangId])
   @@map("jalur_ppdb")
+}
+
+// ─── PPDB — PENDAFTARAN (STEP 3) ───────────────────────────────────────
+// Satu User (identitas utama) → max 1 pendaftaran per gelombang.
+// Beberapa pilihan program/jalur (PilihanPpdb, berurutan).
+// Keputusan FORMAL & PONDOK disimpan terpisah (keputusan bisa berbeda).
+
+enum JenisPendaftaran {
+  SISWA_REGULER // sekolah formal tanpa pondok
+  SISWA_SANTRI // sekolah formal + program pondok
+  SANTRI_PONDOK // pondok tanpa sekolah formal di unit yang sama
+}
+
+enum StatusPendaftaran {
+  DRAFT
+  TERKIRIM
+  MENUNGGU_VERIFIKASI
+  PERLU_PERBAIKAN
+  DIVERIFIKASI
+  SELEKSI
+  DITERIMA
+  CADANGAN
+  TIDAK_DITERIMA
+  MENGUNDURKAN_DIRI
+}
+
+enum DomainKeputusan {
+  FORMAL // keputusan penerimaan sekolah formal
+  PONDOK // keputusan penerimaan program pondok
+}
+
+enum HasilKeputusan {
+  DALAM_PROSES
+  DITERIMA
+  CADANGAN
+  TIDAK_DITERIMA
+  MENGUNDURKAN_DIRI
+}
+
+model PendaftaranPpdb {
+  id             String            @id @default(uuid()) @db.Uuid
+  userId         String            @db.Uuid // satu identitas utama
+  gelombangId    String            @db.Uuid
+  jalurId        String?           @db.Uuid // jalur utama (ringkas; detail di PilihanPpdb)
+  jenis          JenisPendaftaran
+  status         StatusPendaftaran @default(DRAFT)
+  noPendaftaran  String?           @unique // generate saat submit (STEP 11)
+  // snapshot data formulir (biodata + formulir santri) — dikunci saat submit
+  data           Json?
+  dataSantri     Json?
+  submittedAt    DateTime?
+  // hasil aktivasi (STEP 16) — relasi ke identitas siswa/santri yang dibuat
+  siswaId        String?           @db.Uuid
+  santriId       String?           @db.Uuid
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  deletedAt      DateTime?
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gelombang GelombangPpdb    @relation(fields: [gelombangId], references: [id])
+  jalur     JalurPpdb?       @relation(fields: [jalurId], references: [id], onDelete: SetNull)
+  pilihan   PilihanPpdb[]
+  keputusan KeputusanPpdb[]
+
+  @@unique([userId, gelombangId]) // 1 orang max 1 pendaftaran per gelombang
+  @@index([userId])
+  @@index([gelombangId])
+  @@index([status])
+  @@index([noPendaftaran])
+  @@map("pendaftaran_ppdb")
+}
+
+model PilihanPpdb {
+  id           String   @id @default(uuid()) @db.Uuid
+  pendaftaranId String  @db.Uuid
+  jalurId      String   @db.Uuid
+  urutan       Int // 1 = pilihan utama
+  catatan      String?
+  createdAt    DateTime @default(now())
+
+  pendaftaran PendaftaranPpdb @relation(fields: [pendaftaranId], references: [id], onDelete: Cascade)
+  jalur       JalurPpdb       @relation(fields: [jalurId], references: [id], onDelete: Cascade)
+
+  @@unique([pendaftaranId, urutan])
+  @@index([jalurId])
+  @@map("pilihan_ppdb")
+}
+
+model KeputusanPpdb {
+  id           String         @id @default(uuid()) @db.Uuid
+  pendaftaranId String        @db.Uuid
+  domain       DomainKeputusan
+  hasil        HasilKeputusan @default(DALAM_PROSES)
+  nilaiAkhir   Float?
+  peringkat    Int?
+  catatan      String?
+  decidedBy    String?        @db.Uuid // petugas panitia
+  decidedAt    DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  pendaftaran PendaftaranPpdb @relation(fields: [pendaftaranId], references: [id], onDelete: Cascade)
+
+  @@unique([pendaftaranId, domain])
+  @@index([pendaftaranId])
+  @@index([hasil])
+  @@map("keputusan_ppdb")
 }
