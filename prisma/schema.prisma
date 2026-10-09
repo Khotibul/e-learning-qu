@@ -94,6 +94,8 @@ model User {
 
   guru          Guru?
   siswa         Siswa?
+  santri        Santri?
+  waliSantri    WaliSantri[]
   accounts      Account[]
   sessions      Session[]
   notifications Notification[]
@@ -226,6 +228,7 @@ model Siswa {
   interventions    Intervention[]
   examSessions     ExamSession[]
   examAuditLogs    ExamAuditLog[]
+  santri           Santri?
 
   @@index([kelasId])
   @@index([kelasId, deletedAt])
@@ -1742,4 +1745,79 @@ model ExamAuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("exam_audit_log")
+}
+
+// ─── SISANTRI — IDENTITAS TERPADU SISWA & SANTRI ──────────────────────
+// Satu User = satu identitas utama. Siswa = identitas sekolah (sudah ada),
+// Santri = identitas kepesantrenan (baru). Satu orang boleh keduanya.
+
+enum StatusSantri {
+  CALON
+  AKTIF
+  CUTI
+  NONAKTIF
+  MUTASI
+  LULUS
+  ALUMNI
+  KELUAR
+}
+
+enum HubunganWali {
+  AYAH
+  IBU
+  WALI
+  LAINNYA
+}
+
+model Santri {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @unique @db.Uuid
+  siswaId      String?      @unique @db.Uuid // null = santri nonformal (tanpa sekolah formal)
+  nisNo        String?      @unique // Nomor Induk Santri (NISantri)
+  nama         String
+  status       StatusSantri @default(AKTIF) // status administrasi (keberadaan fisik menyusul di STEP 3)
+  tanggalMasuk DateTime?
+  catatan      String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
+
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  siswa Siswa?       @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  walis SantriWali[]
+
+  @@index([status, deletedAt])
+  @@map("santri")
+}
+
+model WaliSantri {
+  id        String       @id @default(uuid()) @db.Uuid
+  userId    String?      @unique @db.Uuid // akun login wali (diisi saat Portal Wali Santri aktif)
+  nama      String
+  hubungan  HubunganWali
+  noTelp    String?
+  alamat    String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  deletedAt DateTime?
+
+  user  User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  anak  SantriWali[]
+
+  @@map("wali_santri")
+}
+
+model SantriWali {
+  id        String   @id @default(uuid()) @db.Uuid
+  santriId  String   @db.Uuid
+  waliId    String   @db.Uuid
+  isPrimary Boolean  @default(false) // wali utama untuk notifikasi/persetujuan
+  createdAt DateTime @default(now())
+
+  santri Santri     @relation(fields: [santriId], references: [id], onDelete: Cascade)
+  wali   WaliSantri @relation(fields: [waliId], references: [id], onDelete: Cascade)
+
+  @@unique([santriId, waliId])
+  @@index([waliId])
+  @@map("santri_wali")
 }
