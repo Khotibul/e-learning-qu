@@ -523,3 +523,94 @@ export async function cekKelengkapanBerkas(pendaftaranId: string) {
   const kurang = p.berkas.filter((b) => b.wajib && !b.uploadId).map((b) => b.namaDokumen)
   return { lengkap: kurang.length === 0, kurang }
 }
+
+// ─── REVIEW & SUBMIT (STEP 9) ──────────────────────────────────────────
+
+/** Ambil ringkasan lengkap untuk halaman review (snapshot data + santri + berkas). */
+export async function getReviewPendaftaran() {
+  const userId = await requirePendaftar()
+  const p = await prisma.pendaftaranPpdb.findFirst({
+    where: { userId, deletedAt: null },
+    include: {
+      gelombang: { select: { id: true, nama: true, status: true, unit: true, jenjang: true, program: true, biayaDaftar: true } },
+      pilihan: { orderBy: { urutan: "asc" }, include: { jalur: { select: { nama: true } } } },
+      berkas: { include: { upload: { select: { id: true, filename: true, size: true } } }, orderBy: { createdAt: "asc" } },
+    },
+    orderBy: { createdAt: "desc" },
+  })
+  if (!p) return null
+  return {
+    pendaftaranId: p.id,
+    jenis: p.jenis,
+    status: p.status,
+    noPendaftaran: p.noPendaftaran,
+    submittedAt: p.submittedAt,
+    gelombang: p.gelombang,
+    jalur: p.pilihan.map((pi) => pi.jalur.nama),
+    data: (p.data as Record<string, any> | null) || {},
+    dataSantri: (p.dataSantri as Record<string, any> | null) || {},
+    berkas: p.berkas.map((b) => ({
+      namaDokumen: b.namaDokumen,
+      wajib: b.wajib,
+      status: b.status,
+      filename: b.upload?.filename || null,
+    })),
+  }
+}
+
+/**
+ * Submit pendaftaran: validasi kelengkapan (biodata + santri + berkas wajib),
+ * generate noPendaftaran (PPDB-YYYY-XXXX urut), kunci snapshot → status TERKIRIM.
+ * Setelah TERKUNCI, semua aksi edit draft menolak (guard status !== "DRAFT").
+ */
+export async function submitPendaftaran(pendaftaranId: string) {
+  const userId = await requirePendaftar()
+  const p = await prisma.pendaftaranPpdb.findUnique({
+    where: { id: pendaftaranId },
+    include: { berkas: true, gelombang: { select: { status: true, tanggalTutup: true } } },
+  })
+  if (!p || p.userId !== userId) throw new Error("Pendaftaran tidak ditemukan")
+  if (p.deletedAt) throw new Error("Pendaftaran sudah dinonaktifkan")
+  if (p.status !== "DRAFT") throw new Error("Pendaftaran sudah pernah dikirim")
+  if (p.gelombang.status !== "DIBUKA") throw new Error("Gelombang pendaftaran sudah ditutup")
+  if (new Date() > p.gelombang.tanggalTutup) throw new Error("Batas waktu pendaftaran sudah lewat")
+
+  // 1. kelengkapan biodata
+  const cBio = await cekKelengkapanBiodata(pendaftaranId)
+  if (!cBio.lengkap) throw new Error(`Data biodata belum lengkap: ${cBio.kurang.join(", ")}`)
+
+  // 2. kelengkapan santri (hanya SISWA_SANTRI/SANTRI_PONDOK)
+  const cSan = await cekKelengkapanSantri(pendaftaranId)
+  if (!cSan.lengkap) throw new Error(`Data santri belum lengkap: ${cSan.kurang.join(", ")}`)
+
+  // 3. kelengkapan berkas wajib
+  const kurangBerkas = p.berkas.filter((b) => b.wajib && !b.uploadId).map((b) => b.namaDokumen)
+  if (kurangBerkas.length > 0) throw new Error(`Berkas wajib belum lengkap: ${kurangBerkas.join(", ")}`)
+
+  // 4. generate noPendaftaran unik: PPDB-YYYY-NNNN (urut berdasar jumlah submit tahun ini)
+  const tahun = new Date().getFullYear()
+  const prefix = `PPDB-${tahun}-`
+  const last = await prisma.pendaftaranPpdb.findFirst({
+    where: { noPendaftaran: { startsWith: prefix } },
+    orderBy: { noPendaftaran: "desc" },
+    select: { noPendaftaran: true },
+  })
+  const seq = last?.noPendaftaran ? parseInt(last.noPendaftaran.slice(prefix.length), 10) + 1 : 1
+  const noPendaftaran = `${prefix}${String(seq).padStart(4, "0")}`
+
+  const updated = await prisma.pendaftaranPpdb.update({
+    where: { id: pendaftaranId },
+    data: { status: "TERKIRIM", noPendaftaran, submittedAt: new Date() },
+  })
+
+  await createAuditLog({
+    userId,
+    action: "PPDB_SUBMIT",
+    entity: "PendaftaranPpdb",
+    entityId: pendaftaranId,
+    detail: { noPendaftaran, jenis: p.jenis },
+  })
+
+  revalidatePath("/ppdb")
+  return { ok: true, noPendaftaran, submittedAt: updated.submittedAt }
+}
