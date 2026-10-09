@@ -4,7 +4,7 @@ import { getMobileUser } from "@/lib/mobile-auth"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 }
 
@@ -79,5 +79,28 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error(e)
     return NextResponse.json({ error: "Gagal upload" }, { status: 500, headers: corsHeaders })
+  }
+}
+
+/** Soft-delete materi milik guru yang login — mirror web deleteMateri(). */
+export async function DELETE(req: Request) {
+  try {
+    const user = await getMobileUser(req)
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders })
+    const guru = await prisma.guru.findFirst({ where: { userId: user.id, deletedAt: null }, select: { id: true } })
+    if (!guru) return NextResponse.json({ error: "Not guru" }, { status: 403, headers: corsHeaders })
+
+    const id = new URL(req.url).searchParams.get("id")
+    if (!id) return NextResponse.json({ error: "id wajib" }, { status: 400, headers: corsHeaders })
+
+    const updated = await prisma.materi.updateMany({
+      where: { id, guruId: guru.id, deletedAt: null },
+      data: { deletedAt: new Date() },
+    })
+    if (updated.count === 0) return NextResponse.json({ error: "Materi tidak ditemukan" }, { status: 404, headers: corsHeaders })
+    return NextResponse.json({ success: true }, { headers: corsHeaders })
+  } catch (e) {
+    console.error(e)
+    return NextResponse.json({ error: "Gagal" }, { status: 500, headers: corsHeaders })
   }
 }
