@@ -3,6 +3,7 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { rateLimit } from "@/lib/rate-limit"
 import type { JenisPendaftaran } from "@prisma/client"
 
 /**
@@ -99,4 +100,32 @@ export async function getMyPendaftaran() {
     },
     orderBy: { createdAt: "desc" },
   })
+}
+
+/**
+ * Cek status pendaftaran publik via nomor pendaftaran.
+ * Hanya mengembalikan info minimal (tanpa data pribadi).
+ */
+export async function cekStatusPpdb(noPendaftaran: string) {
+  const rl = rateLimit(`ppdb-cek-${noPendaftaran.toLowerCase()}`, 10, 60000)
+  if (!rl.success) throw new Error("Terlalu banyak permintaan — coba lagi dalam satu menit")
+  if (!noPendaftaran?.trim()) throw new Error("Nomor pendaftaran wajib diisi")
+  const p = await prisma.pendaftaranPpdb.findFirst({
+    where: { noPendaftaran: noPendaftaran.trim().toUpperCase(), deletedAt: null },
+    include: {
+      gelombang: { select: { nama: true, unit: true, jenjang: true, program: true } },
+      jalur: { select: { nama: true } },
+      keputusan: { select: { domain: true, hasil: true, decidedAt: true } },
+    },
+  })
+  if (!p) throw new Error("Nomor pendaftaran tidak ditemukan")
+  return {
+    noPendaftaran: p.noPendaftaran,
+    jenis: p.jenis,
+    status: p.status,
+    gelombang: p.gelombang,
+    jalur: p.jalur?.nama || null,
+    submittedAt: p.submittedAt,
+    keputusan: p.keputusan.map((k) => ({ domain: k.domain, hasil: k.hasil, decidedAt: k.decidedAt })),
+  }
 }
