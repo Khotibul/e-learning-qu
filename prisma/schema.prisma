@@ -475,6 +475,7 @@ model TahunAjaran {
 
   semesters Semester[]
   ujians    Ujian[]
+  gelombangPpdb GelombangPpdb[]
 
   @@map("tahun_ajaran")
 }
@@ -1857,4 +1858,71 @@ model SantriWali {
   @@unique([santriId, waliId])
   @@index([waliId])
   @@map("santri_wali")
+}
+
+// ─── PPDB — SISTEM PENERIMAAN SISWA & SANTRI BARU ──────────────────────
+// Gelombang pendaftaran per tahun ajaran + jalur penerimaan per gelombang.
+// Pendaftaran (PendaftaranPpdb) menyusul di STEP 3+.
+
+enum StatusGelombang {
+  DRAFT
+  DIJADWALKAN
+  DIBUKA
+  DITUTUP
+  SELEKSI
+  PENGUMUMAN
+  DAFTAR_ULANG
+  SELESAI
+}
+
+model GelombangPpdb {
+  id            String           @id @default(uuid()) @db.Uuid
+  tahunAjaranId String           @db.Uuid
+  nama          String // contoh: "Gelombang 1 - Masuk Sekolah"
+  unit          String? // satuan pendidikan: SMK / SMP / MTs / Pondok (bebas teks, disesuaikan satuan)
+  jenjang       String? // contoh: Kelas X / Kelas 7 / Umum
+  program       String? // contoh: Reguler / Tahfidz / Kejuruan
+  tanggalBuka  DateTime
+  tanggalTutup  DateTime
+  status        StatusGelombang  @default(DRAFT)
+  kuota         Int? // null = tanpa batas
+  biayaDaftar   Int? // rupiah, null = gratis/belum ditetapkan
+  jadwalSeleksi    DateTime?
+  jadwalPengumuman DateTime?
+  jadwalDaftarUlang DateTime?
+  deskripsi         String? @db.Text
+  // template persyaratan dokumen: [{ nama, wajib, deskripsi }] — dikonsumsi upload berkas (STEP 9)
+  persyaratanDokumen Json?
+  // template surat/bukti pendaftaran (URL upload atau teks) — dipakai STEP 11
+  templateSurat      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+
+  tahunAjaran TahunAjaran   @relation(fields: [tahunAjaranId], references: [id])
+  jalur       JalurPpdb[]
+
+  @@index([tahunAjaranId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("gelombang_ppdb")
+}
+
+model JalurPpdb {
+  id           String         @id @default(uuid()) @db.Uuid
+  gelombangId  String         @db.Uuid
+  nama         String // Domisili / Afirmasi / Prestasi / Mutasi / Reguler / Tahfidz / Beasiswa / Undangan
+  deskripsi    String?
+  kuota        Int? // null = tanpa batas
+  isActive     Boolean        @default(true)
+  // persyaratan khusus jalur (Json) — divalidasi saat pendaftaran
+  persyaratan  Json?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  gelombang GelombangPpdb @relation(fields: [gelombangId], references: [id], onDelete: Cascade)
+
+  @@unique([gelombangId, nama])
+  @@index([gelombangId])
+  @@map("jalur_ppdb")
 }

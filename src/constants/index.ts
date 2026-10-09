@@ -39,6 +39,7 @@ export const NAV_ITEMS = {
     { label: "Guru", href: "/admin/guru", icon: "UserCheck" },
     { label: "Murid", href: "/admin/murid", icon: "Users" },
     { label: "Santri", href: "/admin/santri", icon: "HeartHandshake" },
+    { label: "PPDB", href: "/admin/ppdb", icon: "Route" },
     { label: "Kelas", href: "/admin/kelas", icon: "DoorOpen" },
     { label: "Jurusan", href: "/admin/jurusan", icon: "GraduationCap" },
     { label: "Kompetensi", href: "/admin/kompetensi", icon: "Target" },
