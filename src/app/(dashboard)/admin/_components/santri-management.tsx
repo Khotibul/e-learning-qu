@@ -15,11 +15,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  Search, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Loader2, Users, HeartHandshake,
+  Search, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Loader2, Users, HeartHandshake, MapPin, History,
 } from "lucide-react"
 import {
   getSantris, getSiswaOpts, createSantriDariSiswa, createSantriNonformal, updateSantri, deleteSantri,
   getWaliOpts, createWali, deleteWali, assignWaliToSantri, unassignWaliFromSantri,
+  updateKeberadaan, getSantriStatusLog,
 } from "../santri/actions"
 
 interface SantriWaliItem { isPrimary: boolean; wali: { id: string; nama: string; hubungan: string; noTelp: string | null } }
@@ -28,6 +29,7 @@ interface Santri {
   nisNo: string | null
   nama: string
   status: string
+  keberadaan: string
   tanggalMasuk: string | null
   catatan: string | null
   user: { email: string; isActive: boolean }
@@ -49,6 +51,22 @@ const STATUS_CLASS: Record<string, string> = {
   ALUMNI: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
 }
 const HUBUNGAN_LABEL: Record<string, string> = { AYAH: "Ayah", IBU: "Ibu", WALI: "Wali", LAINNYA: "Lainnya" }
+const KEBERADAAN_LABEL: Record<string, string> = {
+  DI_PONDOK: "Di Pondok", KEGIATAN_LUAR: "Kegiatan Luar", IZIN_KELUAR: "Izin Keluar",
+  IZIN_PULANG: "Izin Pulang", DALAM_PERJALANAN: "Dalam Perjalanan", DI_RUMAH: "Di Rumah",
+  TERLAMBAT_KEMBALI: "Terlambat Kembali", BELUM_KEMBALI: "Belum Kembali", TIDAK_DIKETAHUI: "Tidak Diketahui",
+}
+const KEBERADAAN_CLASS: Record<string, string> = {
+  DI_PONDOK: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+  KEGIATAN_LUAR: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
+  IZIN_KELUAR: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  IZIN_PULANG: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  DALAM_PERJALANAN: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  DI_RUMAH: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
+  TERLAMBAT_KEMBALI: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  BELUM_KEMBALI: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  TIDAK_DIKETAHUI: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+}
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value)
@@ -183,6 +201,43 @@ export function SantriManagement(props: Props) {
     }
   }
 
+  // ── dialog keberadaan ──
+  const [kebSantri, setKebSantri] = useState<Santri | null>(null)
+  const [kebValue, setKebValue] = useState("")
+  const [kebAlasan, setKebAlasan] = useState("")
+  const [kebSubmitting, setKebSubmitting] = useState(false)
+
+  const openKeb = (s: Santri) => { setKebSantri(s); setKebValue(s.keberadaan); setKebAlasan("") }
+
+  const handleKeb = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!kebSantri || !kebValue) return
+    setKebSubmitting(true)
+    try {
+      await updateKeberadaan(kebSantri.id, kebValue as any, kebAlasan || undefined)
+      toast.success("Keberadaan santri diperbarui")
+      setKebSantri(null)
+      load(page, search, status)
+    } catch (err: any) {
+      toast.error(err?.message || "Gagal memperbarui")
+    } finally {
+      setKebSubmitting(false)
+    }
+  }
+
+  // ── dialog riwayat status ──
+  const [riwayatSantri, setRiwayatSantri] = useState<Santri | null>(null)
+  const [riwayat, setRiwayat] = useState<any[]>([])
+  const [riwayatLoading, setRiwayatLoading] = useState(false)
+
+  const openRiwayat = async (s: Santri) => {
+    setRiwayatSantri(s)
+    setRiwayatLoading(true)
+    setRiwayat([])
+    try { setRiwayat(await getSantriStatusLog(s.id)) } catch { toast.error("Gagal memuat riwayat") }
+    finally { setRiwayatLoading(false) }
+  }
+
   // ── dialog wali ──
   const [waliSantri, setWaliSantri] = useState<Santri | null>(null)
   const [waliOpts, setWaliOpts] = useState<WaliOpt[]>([])
@@ -288,17 +343,18 @@ export function SantriManagement(props: Props) {
               <TableHead className="hidden sm:table-cell">Akun</TableHead>
               <TableHead className="hidden md:table-cell">Siswa</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="hidden lg:table-cell">Kehadiran</TableHead>
               <TableHead className="hidden md:table-cell">Wali</TableHead>
-              <TableHead className="w-40">Aksi</TableHead>
+              <TableHead className="w-48">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>{Array.from({ length: 8 }).map((_, ci) => <TableCell key={ci}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
+                <TableRow key={i}>{Array.from({ length: 9 }).map((_, ci) => <TableCell key={ci}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
               ))
             ) : data.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                 {search || status ? "Tidak ada santri yang sesuai" : "Belum ada data santri"}
               </TableCell></TableRow>
             ) : (
@@ -312,16 +368,23 @@ export function SantriManagement(props: Props) {
                     {item.siswa ? `${item.siswa.nama}${item.siswa.kelas ? ` · ${item.siswa.kelas.nama}` : ""}` : <span className="italic">Nonformal</span>}
                   </TableCell>
                   <TableCell><Badge className={STATUS_CLASS[item.status] || ""}>{STATUS_LABEL[item.status] || item.status}</Badge></TableCell>
+                  <TableCell className="hidden lg:table-cell"><Badge className={KEBERADAAN_CLASS[item.keberadaan] || ""}>{KEBERADAAN_LABEL[item.keberadaan] || item.keberadaan}</Badge></TableCell>
                   <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{item.walis.length ? item.walis.map((w) => w.wali.nama).join(", ") : "-"}</TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openWali(item)} className="p-2 sm:px-3 sm:py-1" title="Kelola Wali">
+                    <div className="flex gap-1">
+                      <Button variant="outline" size="sm" onClick={() => openWali(item)} className="p-2" title="Kelola Wali">
                         <HeartHandshake className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => openEdit(item)} className="p-2 sm:px-3 sm:py-1">
-                        <Edit className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span>
+                      <Button variant="outline" size="sm" onClick={() => openKeb(item)} className="p-2" title="Ubah Keberadaan">
+                        <MapPin className="h-4 w-4" />
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => setDeleteId(item.id)} className="p-2 sm:px-3 sm:py-1">
+                      <Button variant="outline" size="sm" onClick={() => openRiwayat(item)} className="p-2" title="Riwayat Status">
+                        <History className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => openEdit(item)} className="p-2" title="Edit">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => setDeleteId(item.id)} className="p-2" title="Nonaktifkan">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -529,6 +592,74 @@ export function SantriManagement(props: Props) {
               </form>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Ubah Keberadaan */}
+      <Dialog open={!!kebSantri} onOpenChange={(o) => { if (!o) setKebSantri(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Ubah Keberadaan — {kebSantri?.nama}</DialogTitle></DialogHeader>
+          <form onSubmit={handleKeb} className="space-y-4">
+            <div className="space-y-1">
+              <span className="text-sm text-muted-foreground">Saat ini:</span>{" "}
+              <Badge className={KEBERADAAN_CLASS[kebSantri?.keberadaan || ""]}>{KEBERADAAN_LABEL[kebSantri?.keberadaan || ""] || kebSantri?.keberadaan}</Badge>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Kehadiran Baru *</label>
+              <select value={kebValue} onChange={(e) => setKebValue(e.target.value)} className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm">
+                {Object.entries(KEBERADAAN_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Alasan (opsional)</label>
+              <Input placeholder="Misal: izin keluarga, kegiatan luar..." value={kebAlasan} onChange={(e) => setKebAlasan(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setKebSantri(null)}>Batal</Button>
+              <Button type="submit" size="sm" disabled={kebSubmitting || !kebValue}>
+                {kebSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Simpan
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Riwayat Status */}
+      <Dialog open={!!riwayatSantri} onOpenChange={(o) => { if (!o) setRiwayatSantri(null) }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Riwayat Status — {riwayatSantri?.nama}</DialogTitle></DialogHeader>
+          {riwayatLoading ? (
+            <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : riwayat.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Belum ada riwayat perubahan status</p>
+          ) : (
+            <div className="max-h-96 overflow-y-auto space-y-3">
+              {riwayat.map((log) => (
+                <div key={log.id} className="border rounded-lg p-3 text-sm">
+                  <div className="flex items-center justify-between mb-1">
+                    <Badge variant={log.jenis === "KEBERADAAN" ? "default" : "secondary"}>{log.jenis === "KEBERADAAN" ? "Keberadaan" : "Administrasi"}</Badge>
+                    <span className="text-xs text-muted-foreground">{new Date(log.createdAt).toLocaleString("id-ID")}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {log.jenis === "KEBERADAAN" ? (
+                      <>
+                        <Badge className={KEBERADAAN_CLASS[log.dari] || ""}>{KEBERADAAN_LABEL[log.dari] || log.dari}</Badge>
+                        <span className="text-muted-foreground">→</span>
+                        <Badge className={KEBERADAAN_CLASS[log.ke] || ""}>{KEBERADAAN_LABEL[log.ke] || log.ke}</Badge>
+                      </>
+                    ) : (
+                      <>
+                        <Badge className={STATUS_CLASS[log.dari] || ""}>{STATUS_LABEL[log.dari] || log.dari}</Badge>
+                        <span className="text-muted-foreground">→</span>
+                        <Badge className={STATUS_CLASS[log.ke] || ""}>{STATUS_LABEL[log.ke] || log.ke}</Badge>
+                      </>
+                    )}
+                  </div>
+                  {log.alasan && <p className="mt-1 text-xs text-muted-foreground">Alasan: {log.alasan}</p>}
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

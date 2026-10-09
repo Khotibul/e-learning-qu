@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
-import type { StatusSantri, HubunganWali } from "@prisma/client"
+import type { StatusSantri, HubunganWali, StatusKehadiranSantri, JenisStatusLog } from "@prisma/client"
 
 async function requireAdmin() {
   const session = await auth()
@@ -127,26 +127,67 @@ export async function createSantriNonformal(data: {
 
 export async function updateSantri(
   id: string,
-  data: { nisNo?: string | null; tanggalMasuk?: string | null; catatan?: string | null; status?: StatusSantri }
+  data: { nisNo?: string | null; tanggalMasuk?: string | null; catatan?: string | null; status?: StatusSantri; alasan?: string }
 ) {
-  await requireAdmin()
+  const actorId = await requireAdmin()
   const santri = await prisma.santri.findUnique({ where: { id } })
   if (!santri || santri.deletedAt) throw new Error("Santri tidak ditemukan")
   if (data.nisNo) {
     const dup = await prisma.santri.findFirst({ where: { nisNo: data.nisNo, NOT: { id }, deletedAt: null } })
     if (dup) throw new Error("Nomor Induk Santri sudah dipakai")
   }
-  const updated = await prisma.santri.update({
-    where: { id },
-    data: {
-      ...(data.nisNo !== undefined && { nisNo: data.nisNo || null }),
-      ...(data.tanggalMasuk !== undefined && { tanggalMasuk: data.tanggalMasuk ? new Date(data.tanggalMasuk) : null }),
-      ...(data.catatan !== undefined && { catatan: data.catatan || null }),
-      ...(data.status !== undefined && { status: data.status }),
-    },
+  const statusBerubah = data.status !== undefined && data.status !== santri.status
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.santri.update({
+      where: { id },
+      data: {
+        ...(data.nisNo !== undefined && { nisNo: data.nisNo || null }),
+        ...(data.tanggalMasuk !== undefined && { tanggalMasuk: data.tanggalMasuk ? new Date(data.tanggalMasuk) : null }),
+        ...(data.catatan !== undefined && { catatan: data.catatan || null }),
+        ...(data.status !== undefined && { status: data.status }),
+      },
+    })
+    if (statusBerubah && data.status) {
+      await tx.santriStatusLog.create({
+        data: { santriId: id, jenis: "ADMINISTRASI", dari: santri.status, ke: data.status, alasan: data.alasan || null, verifiedBy: actorId },
+      })
+    }
+    return u
   })
   revalidatePath("/admin/santri")
   return updated
+}
+
+export async function updateKeberadaan(
+  id: string,
+  keberadaan: StatusKehadiranSantri,
+  alasan?: string
+) {
+  const actorId = await requireAdmin()
+  const santri = await prisma.santri.findUnique({ where: { id } })
+  if (!santri || santri.deletedAt) throw new Error("Santri tidak ditemukan")
+  if (santri.keberadaan === keberadaan) return santri
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.santri.update({ where: { id }, data: { keberadaan } })
+    await tx.santriStatusLog.create({
+      data: { santriId: id, jenis: "KEBERADAAN", dari: santri.keberadaan, ke: keberadaan, alasan: alasan || null, verifiedBy: actorId },
+    })
+    return u
+  })
+  revalidatePath("/admin/santri")
+  return updated
+}
+
+export async function getSantriStatusLog(santriId: string, jenis?: JenisStatusLog) {
+  await requireAdmin()
+  const where: Record<string, unknown> = { santriId }
+  if (jenis) where.jenis = jenis
+  return prisma.santriStatusLog.findMany({
+    where: where as any,
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    include: { santri: { select: { id: true, nama: true } } },
+  })
 }
 
 /** Soft-delete — akun User & data siswa TIDAK dihapus (identitas utama dipertahankan). */
