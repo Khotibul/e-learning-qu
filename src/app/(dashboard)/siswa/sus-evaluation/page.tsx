@@ -47,8 +47,8 @@ function getInterpretation(skor: number) {
 
 function calcLocalScore(jawaban: number[]) {
   if (jawaban.filter((v) => v > 0).length < 10) return null
-  const oddCorrected = [1, 3, 5, 7, 9].map((i) => (jawaban[i] || 0) - 1)
-  const evenCorrected = [2, 4, 6, 8].map((i) => 5 - (jawaban[i] || 0))
+  const oddCorrected = [0, 2, 4, 6, 8].map((i) => (jawaban[i] || 0) - 1)
+  const evenCorrected = [1, 3, 5, 7, 9].map((i) => 5 - (jawaban[i] || 0))
   const rawScore = oddCorrected.reduce((a, b) => a + b, 0) + evenCorrected.reduce((a, b) => a + b, 0)
   return rawScore * 2.5
 }

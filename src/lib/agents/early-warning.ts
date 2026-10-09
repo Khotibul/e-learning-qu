@@ -406,9 +406,38 @@ export async function getAtRiskStudents(kelasIds?: string[]) {
 
   const siswaMap = new Map(siswaList.map((s) => [s.id, s]))
 
-  return sorted.map((s) => ({
-    siswa: siswaMap.get(s.siswaId || ""),
-    warningCount: s._count._all,
-    maxSeverity: s._max.severity,
-  })).filter((s) => s.siswa)
+  // Lampirkan rincian warning per siswa (id/tipe/severity/message) agar tab
+  // Early Warning web & mobile dapat merender + resolve per-warning (fix crash
+  // entry.warnings.map yang sebelumnya undefined).
+  const warningsList = await prisma.earlyWarning.findMany({
+    where: {
+      siswaId: { in: siswaIds },
+      isResolved: false,
+      severity: { in: ["HIGH", "CRITICAL"] },
+      ...(kelasIds && kelasIds.length > 0 ? { siswa: { kelasId: { in: kelasIds } } } : {}),
+    },
+    select: {
+      id: true, siswaId: true, tipe: true, severity: true, message: true, skor: true, isResolved: true, createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+  })
+  const warningsBySiswa = new Map<string, typeof warningsList>()
+  for (const w of warningsList) {
+    const arr = warningsBySiswa.get(w.siswaId) || []
+    arr.push(w)
+    warningsBySiswa.set(w.siswaId, arr)
+  }
+
+  return sorted.map((s) => {
+    const siswa = siswaMap.get(s.siswaId || "")
+    const warnings = (s.siswaId && warningsBySiswa.get(s.siswaId)) || []
+    return {
+      siswa,
+      warningCount: s._count._all,
+      maxSeverity: s._max.severity,
+      totalWarnings: s._count._all,
+      highestSeverity: s._max.severity,
+      warnings,
+    }
+  }).filter((s) => s.siswa)
 }

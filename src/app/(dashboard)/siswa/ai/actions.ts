@@ -482,7 +482,13 @@ export async function getAdaptivePathAction() {
 export async function getStudentWarningsAction() {
   const siswa = await getCurrentSiswa()
   if (!siswa) redirect("/login")
-  return getStudentWarnings(siswa.id)
+  const warnings = await getStudentWarnings(siswa.id)
+  return {
+    total: warnings.length,
+    critical: warnings.filter((w) => w.severity === "CRITICAL").length,
+    high: warnings.filter((w) => w.severity === "HIGH").length,
+    warnings,
+  }
 }
 
 export async function runEarlyWarningAction() {

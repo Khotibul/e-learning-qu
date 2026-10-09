@@ -9,6 +9,7 @@ export interface StudentModel {
   totalSesi: number
   learningVelocity: number
   trendNilai: "naik" | "stabil" | "turun"
+  rataNilai?: number
 }
 
 const DURASI_NORMAL = { min: 2 * 60 * 1000, max: 45 * 60 * 1000 }
@@ -220,6 +221,7 @@ export async function updateStudentModel(siswaId: string): Promise<StudentModel>
     totalSesi,
     learningVelocity,
     trendNilai,
+    rataNilai,
   }
 }
 
@@ -253,6 +255,9 @@ export async function getStudentModelSummary(siswaId: string) {
     recentActivities.map((a) => new Date(a.createdAt).toISOString().split("T")[0])
   )
   const learningVelocity = Math.min(1, recentActivities.length / (Math.max(1, uniqueDays.size) * 3))
+  const rataNilai = nilaiHistory.length > 0
+    ? Math.round(nilaiHistory.reduce((s, n) => s + n.nilai, 0) / nilaiHistory.length)
+    : 0
 
   return {
     profile: {
@@ -264,6 +269,7 @@ export async function getStudentModelSummary(siswaId: string) {
       totalSesi: profile.totalSesi,
       learningVelocity,
       trendNilai,
+      rataNilai,
     },
     isNew: false,
   }

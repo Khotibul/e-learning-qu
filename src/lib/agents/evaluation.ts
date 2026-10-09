@@ -102,8 +102,9 @@ export async function getNGainForMapel(mataPelajaranId: string) {
 
 export async function submitSUSSurvey(siswaId: string, jawaban: number[], komentar?: string) {
   if (jawaban.length !== 10) throw new Error("SUS harus 10 pertanyaan")
-  const oddCorrected = [1, 3, 5, 7, 9].map((i) => (jawaban[i] || 0) - 1)
-  const evenCorrected = [2, 4, 6, 8].map((i) => 5 - (jawaban[i] || 0))
+  // Ganjil (Q1,3,5,7,9) = idx 0,2,4,6,8 → x-1; genap (Q2,4,6,8,10) = idx 1,3,5,7,9 → 5-x
+  const oddCorrected = [0, 2, 4, 6, 8].map((i) => (jawaban[i] || 0) - 1)
+  const evenCorrected = [1, 3, 5, 7, 9].map((i) => 5 - (jawaban[i] || 0))
   const rawScore = oddCorrected.reduce((a, b) => a + b, 0) + evenCorrected.reduce((a, b) => a + b, 0)
   const skor = rawScore * 2.5
 
