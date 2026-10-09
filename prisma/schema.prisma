@@ -1454,6 +1454,8 @@ model Upload {
   akses     String   @default("PRIVAT") // PRIVAT (pemilik+Admin) | INTERNAL (semua user login) | PUBLIK (tanpa login)
   createdAt DateTime @default(now())
 
+  berkasPpdb BerkasPpdb[]
+
   @@index([userId])
   @@map("upload")
 }
@@ -1992,6 +1994,7 @@ model PendaftaranPpdb {
   jalur     JalurPpdb?       @relation(fields: [jalurId], references: [id], onDelete: SetNull)
   pilihan   PilihanPpdb[]
   keputusan KeputusanPpdb[]
+  berkas    BerkasPpdb[]
 
   @@unique([userId, gelombangId]) // 1 orang max 1 pendaftaran per gelombang
   @@index([userId])
@@ -2036,6 +2039,40 @@ model KeputusanPpdb {
   @@index([pendaftaranId])
   @@index([hasil])
   @@map("keputusan_ppdb")
+}
+
+// ─── PPDB — UNDUH BERKAS PERSYARATAN (STEP 7) ──────────────────────────
+// Berkas fisik disimpan di tabel Upload (reuse); baris ini hanya metadata:
+// jenis dokumen mana yang dipakai, milik pendaftaran mana, status verifikasi.
+enum StatusBerkas {
+  DIUNGGAH
+  MENUNGGU_VERIFIKASI
+  DIVERIFIKASI
+  DITOLAK // minta unggah ulang
+  TIDAK_LENGKAP // wajib tapi belum ada
+}
+
+model BerkasPpdb {
+  id            String        @id @default(uuid()) @db.Uuid
+  pendaftaranId String        @db.Uuid
+  uploadId      String?       @db.Uuid // null = belum unggah (baris placeholder wajib)
+  // nama item dari persyaratanDokumen gelombang: "Kartu Keluarga", "Akta", dll
+  namaDokumen   String
+  wajib         Boolean       @default(true)
+  status        StatusBerkas  @default(TIDAK_LENGKAP)
+  catatanPenolakan String?    @db.Text // alasan ditolak panitia (opsional)
+  verifiedBy    String?       @db.Uuid
+  verifiedAt    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  pendaftaran PendaftaranPpdb @relation(fields: [pendaftaranId], references: [id], onDelete: Cascade)
+  upload      Upload?         @relation(fields: [uploadId], references: [id], onDelete: SetNull)
+
+  @@unique([pendaftaranId, namaDokumen]) // 1 jenis dokumen = 1 baris per pendaftaran
+  @@index([pendaftaranId])
+  @@index([status])
+  @@map("berkas_ppdb")
 }
 
 // Token verifikasi email & reset password pendaftar PPDB (STEP 5)

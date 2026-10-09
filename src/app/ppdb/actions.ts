@@ -337,3 +337,108 @@ export async function cekStatusPpdb(noPendaftaran: string) {
     keputusan: p.keputusan.map((k) => ({ domain: k.domain, hasil: k.hasil, decidedAt: k.decidedAt })),
   }
 }
+
+// ─── UNDUH BERKAS PERSYARATAN (STEP 7) ─────────────────────────────────
+
+/** Ambil daftar berkas + template persyaratan milik pendaftar login. */
+export async function getBerkasSaya(gelombangId?: string) {
+  const userId = await requirePendaftar()
+  const where: Record<string, unknown> = { userId, deletedAt: null, status: "DRAFT" }
+  if (gelombangId) where.gelombangId = gelombangId
+  const p = await prisma.pendaftaranPpdb.findFirst({
+    where: where as any,
+    include: {
+      gelombang: { select: { id: true, nama: true, status: true, persyaratanDokumen: true } },
+      berkas: { include: { upload: { select: { id: true, filename: true, mime: true, size: true } } }, orderBy: { createdAt: "asc" } },
+    },
+    orderBy: { createdAt: "desc" },
+  })
+  if (!p) return null
+  return {
+    pendaftaranId: p.id,
+    status: p.status,
+    gelombang: p.gelombang,
+    persyaratan: (p.gelombang.persyaratanDokumen as any[] | null) || [],
+    berkas: p.berkas.map((b) => ({
+      id: b.id,
+      namaDokumen: b.namaDokumen,
+      wajib: b.wajib,
+      status: b.status,
+      catatanPenolakan: b.catatanPenolakan,
+      upload: b.upload,
+    })),
+  }
+}
+
+/**
+ * Sinkronkan baris berkas dengan template persyaratanDokumen gelombang.
+ * Baris placeholder dibuat untuk item wajib yang belum ada.
+ * Dipanggil otomatis saat halaman berkas dibuka.
+ */
+export async function sinkronBerkas(gelombangId: string) {
+  const userId = await requirePendaftar()
+  const p = await prisma.pendaftaranPpdb.findFirst({
+    where: { userId, gelombangId, deletedAt: null },
+    include: { gelombang: { select: { persyaratanDokumen: true } }, berkas: true },
+  })
+  if (!p) throw new Error("Pendaftaran tidak ditemukan")
+
+  const template = (p.gelombang.persyaratanDokumen as any[] | null) || []
+  const sudahAda = new Set(p.berkas.map((b) => b.namaDokumen))
+  const baru = template
+    .filter((t) => t?.nama && !sudahAda.has(String(t.nama)))
+    .map((t) => ({
+      pendaftaranId: p.id,
+      namaDokumen: String(t.nama),
+      wajib: t.wajib !== false,
+      status: (t.wajib !== false ? "TIDAK_LENGKAP" : "TIDAK_LENGKAP") as any,
+    }))
+  if (baru.length > 0) await prisma.berkasPpdb.createMany({ data: baru, skipDuplicates: true })
+  return true
+}
+
+/**
+ * Unggah / ganti berkas satu jenis dokumen.
+ * `uploadId` harus berasal dari POST /api/upload milik user yang sama (akses PRIVAT).
+ */
+export async function unggahBerkas(berkasId: string, uploadId: string) {
+  const userId = await requirePendaftar()
+  const b = await prisma.berkasPpdb.findUnique({ where: { id: berkasId }, include: { pendaftaran: true, upload: true } })
+  if (!b || b.pendaftaran.userId !== userId) throw new Error("Berkas tidak ditemukan")
+  if (b.pendaftaran.deletedAt) throw new Error("Pendaftaran sudah dinonaktifkan")
+  if (b.pendaftaran.status !== "DRAFT") throw new Error("Pendaftaran sudah dikunci — berkas tidak dapat diganti")
+
+  const up = await prisma.upload.findUnique({ where: { id: uploadId } })
+  if (!up) throw new Error("File upload tidak ditemukan")
+  if (up.userId !== userId) throw new Error("File upload bukan milik Anda")
+  if (up.akses !== "PRIVAT") throw new Error("File upload harus berakses PRIVAT")
+
+  return prisma.berkasPpdb.update({
+    where: { id: berkasId },
+    data: { uploadId: up.id, status: "DIUNGGAH", catatanPenolakan: null },
+  })
+}
+
+/** Hapus berkas (kembalikan ke placeholder TIDAK_LENGKAP). */
+export async function hapusBerkas(berkasId: string) {
+  const userId = await requirePendaftar()
+  const b = await prisma.berkasPpdb.findUnique({ where: { id: berkasId }, include: { pendaftaran: true } })
+  if (!b || b.pendaftaran.userId !== userId) throw new Error("Berkas tidak ditemukan")
+  if (b.pendaftaran.status !== "DRAFT") throw new Error("Pendaftaran sudah dikunci")
+  return prisma.berkasPpdb.update({
+    where: { id: berkasId },
+    data: { uploadId: null, status: "TIDAK_LENGKAP", catatanPenolakan: null },
+  })
+}
+
+/**
+ * Validasi kelengkapan berkas wajib sebelum submit.
+ * Dipakai STEP 11.
+ */
+export async function cekKelengkapanBerkas(pendaftaranId: string) {
+  const userId = await requirePendaftar()
+  const p = await prisma.pendaftaranPpdb.findUnique({ where: { id: pendaftaranId }, include: { berkas: true } })
+  if (!p || p.userId !== userId) throw new Error("Pendaftaran tidak ditemukan")
+  const kurang = p.berkas.filter((b) => b.wajib && !b.uploadId).map((b) => b.namaDokumen)
+  return { lengkap: kurang.length === 0, kurang }
+}
