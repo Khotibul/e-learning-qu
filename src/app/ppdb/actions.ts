@@ -235,6 +235,81 @@ export async function getMyPendaftaran() {
   })
 }
 
+// ─── FORMULIR BIODATA BERTAHAP + AUTOSAVE (STEP 6) ────────────────────
+
+export const LANGKAH_BIODATA = ["identitas", "alamat", "orangTua", "wali", "asalSekolah", "tambahan"] as const
+export type LangkahBiodata = (typeof LANGKAH_BIODATA)[number]
+
+/** Ambil draft pendaftaran + data formulir milik pendaftar login. */
+export async function getDraftPendaftaran(gelombangId?: string) {
+  const userId = await requirePendaftar()
+  const where: Record<string, unknown> = { userId, deletedAt: null, status: "DRAFT" }
+  if (gelombangId) where.gelombangId = gelombangId
+  return prisma.pendaftaranPpdb.findFirst({
+    where: where as any,
+    include: {
+      gelombang: { select: { id: true, nama: true, status: true, tanggalTutup: true, unit: true, jenjang: true, program: true } },
+      pilihan: { orderBy: { urutan: "asc" }, include: { jalur: { select: { id: true, nama: true } } } },
+    },
+    orderBy: { createdAt: "desc" },
+  })
+}
+
+/**
+ * Autosave satu langkah formulir biodata.
+ * Data langkah lain TIDAK ditimpa (merge shallow per-key langkah).
+ * Hanya boleh mengubah pendaftaran milik sendiri yang masih DRAFT.
+ */
+export async function simpanDraftBiodata(
+  pendaftaranId: string,
+  langkah: LangkahBiodata,
+  data: Record<string, unknown>
+) {
+  const userId = await requirePendaftar()
+  if (!LANGKAH_BIODATA.includes(langkah)) throw new Error("Langkah formulir tidak valid")
+  if (!data || typeof data !== "object") throw new Error("Data formulir tidak valid")
+
+  const p = await prisma.pendaftaranPpdb.findUnique({ where: { id: pendaftaranId } })
+  if (!p || p.userId !== userId) throw new Error("Pendaftaran tidak ditemukan")
+  if (p.deletedAt) throw new Error("Pendaftaran sudah dinonaktifkan")
+  if (p.status !== "DRAFT") throw new Error("Pendaftaran sudah dikunci — tidak dapat diedit")
+
+  const lama = (p.data as Record<string, unknown> | null) || {}
+  const baru = { ...lama, [langkah]: data }
+  const updated = await prisma.pendaftaranPpdb.update({
+    where: { id: pendaftaranId },
+    data: { data: baru as any },
+  })
+  return { ok: true, updatedAt: updated.updatedAt }
+}
+
+/**
+ * Validasi kelengkapan seluruh langkah biodata sebelum submit.
+ * Dipakai STEP 11 (submit & kunci snapshot).
+ */
+export async function cekKelengkapanBiodata(pendaftaranId: string) {
+  const userId = await requirePendaftar()
+  const p = await prisma.pendaftaranPpdb.findUnique({ where: { id: pendaftaranId } })
+  if (!p || p.userId !== userId) throw new Error("Pendaftaran tidak ditemukan")
+  const data = (p.data as Record<string, any> | null) || {}
+  const kurang: string[] = []
+  const wajib: Record<LangkahBiodata, string[]> = {
+    identitas: ["namaLengkap", "jenisKelamin", "tempatLahir", "tanggalLahir"],
+    alamat: ["provinsi", "kabupaten", "alamatLengkap"],
+    orangTua: ["namaAyah", "namaIbu"],
+    wali: ["nama"],
+    asalSekolah: ["namaSekolah"],
+    tambahan: [],
+  }
+  for (const langkah of LANGKAH_BIODATA) {
+    const isi = data[langkah] as Record<string, unknown> | undefined
+    for (const f of wajib[langkah] || []) {
+      if (!isi?.[f]) kurang.push(`${langkah}.${f}`)
+    }
+  }
+  return { lengkap: kurang.length === 0, kurang }
+}
+
 /**
  * Cek status pendaftaran publik via nomor pendaftaran.
  * Hanya mengembalikan info minimal (tanpa data pribadi).
