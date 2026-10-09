@@ -111,7 +111,7 @@ export default function HomePage() {
                 <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
               </div>
             )}
-            <span className="text-lg sm:text-xl font-bold">{siteConfig.siteName}</span>
+            <span className="text-lg sm:text-xl font-bold truncate max-w-[45vw] sm:max-w-none">{siteConfig.siteName}</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/login">
@@ -140,14 +140,14 @@ export default function HomePage() {
           >
             <motion.div
               variants={itemVariants}
-              className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary"
+              className="mb-6 mx-auto flex w-fit max-w-full flex-wrap justify-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-center text-sm font-medium text-primary"
             >
-              <Sparkles className="h-4 w-4" />
-              {siteConfig.tagline}
+              <Sparkles className="h-4 w-4 shrink-0 self-center" />
+              <span className="break-words">{siteConfig.tagline}</span>
             </motion.div>
             <motion.h1
               variants={itemVariants}
-              className="text-2xl sm:text-5xl lg:text-7xl font-bold tracking-tight px-2 sm:px-0"
+              className="text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-balance px-2 sm:px-0"
             >
               Belajar Jadi Lebih{" "}
               <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
@@ -156,7 +156,7 @@ export default function HomePage() {
             </motion.h1>
             <motion.p
               variants={itemVariants}
-              className="mt-3 sm:mt-6 text-sm sm:text-lg lg:text-xl leading-6 sm:leading-8 text-muted-foreground px-4 sm:px-0"
+              className="mt-3 sm:mt-6 text-sm sm:text-base lg:text-xl leading-6 sm:leading-8 text-muted-foreground text-pretty break-words px-4 sm:px-0"
             >
               {siteConfig.description || "Platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan."}
             </motion.p>
@@ -190,8 +190,8 @@ export default function HomePage() {
               transition={{ duration: 0.5 }}
               className="mx-auto max-w-2xl text-center"
             >
-              <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">Fitur Unggulan</h2>
-              <p className="mt-3 sm:mt-4 text-base sm:text-lg text-muted-foreground px-4 sm:px-0">
+              <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">Fitur Unggulan</h2>
+              <p className="mt-3 sm:mt-4 text-sm sm:text-lg text-muted-foreground text-pretty px-4 sm:px-0">
                 Semua yang Anda butuhkan untuk pengalaman belajar mengajar yang lebih baik.
               </p>
             </motion.div>
@@ -214,8 +214,8 @@ export default function HomePage() {
                         <div className={`mb-4 inline-flex rounded-xl bg-gradient-to-br ${color} p-3 text-white shadow-sm`}>
                           <Icon className="h-6 w-6" />
                         </div>
-                        <h3 className="mb-2 text-lg font-semibold">{feature.title}</h3>
-                        <p className="text-sm text-muted-foreground">{feature.description}</p>
+                        <h3 className="mb-2 text-lg font-semibold break-words">{feature.title}</h3>
+                        <p className="text-sm text-muted-foreground text-pretty break-words">{feature.description}</p>
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -236,8 +236,8 @@ export default function HomePage() {
               transition={{ duration: 0.5 }}
               className="mx-auto max-w-3xl text-center"
             >
-              <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">{siteConfig.aboutTitle || "Tentang Kami"}</h2>
-              <p className="mt-4 sm:mt-6 text-base sm:text-lg leading-7 sm:leading-8 text-muted-foreground">
+              <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">{siteConfig.aboutTitle || "Tentang Kami"}</h2>
+              <p className="mt-4 sm:mt-6 text-sm sm:text-base lg:text-lg leading-6 sm:leading-8 text-muted-foreground text-pretty break-words">
                 {siteConfig.aboutText}
               </p>
             </motion.div>
@@ -255,8 +255,8 @@ export default function HomePage() {
             className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary to-purple-600 px-5 py-10 sm:px-16 sm:py-24 text-center text-white"
           >
             <div className="relative">
-              <h2 className="text-xl sm:text-4xl font-bold tracking-tight">Siap Memulai Perjalanan Belajar?</h2>
-              <p className="mx-auto mt-2 sm:mt-4 max-w-xl text-xs sm:text-lg text-white/80 px-2 sm:px-0">
+              <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">Siap Memulai Perjalanan Belajar?</h2>
+              <p className="mx-auto mt-2 sm:mt-4 max-w-xl text-sm sm:text-lg text-white/80 text-pretty break-words px-2 sm:px-0">
                 Bergabunglah dengan ribuan Guru dan Siswa yang sudah menggunakan {siteConfig.siteName} untuk pengalaman belajar yang lebih baik.
               </p>
               <div className="mt-6 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
@@ -274,7 +274,7 @@ export default function HomePage() {
 
       <footer className="border-t border-border py-6 sm:py-8">
         <div className="mx-auto max-w-7xl px-4 text-center text-xs sm:text-sm text-muted-foreground sm:px-6 lg:px-8">
-          <p>&copy; {new Date().getFullYear()} {siteConfig.siteName}. All rights reserved.</p>
+          <p className="break-words">&copy; {new Date().getFullYear()} {siteConfig.siteName}. All rights reserved.</p>
         </div>
       </footer>
     </div>

@@ -1365,6 +1365,7 @@ model SiteConfig {
   tagline     String   @default("Platform E-Learning Modern")
   description String   @default("Platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
   logoUrl     String?
+  faviconUrl  String?
   toleransiTerlambatMenit   Int      @default(15)
   autoTidakHadirSetelahMenit Int     @default(60)
   // ── Metode absensi (ditentukan Admin) ──

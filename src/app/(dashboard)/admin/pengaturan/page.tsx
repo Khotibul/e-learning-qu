@@ -44,6 +44,7 @@ export default function PengaturanPage() {
   const [tagline, setTagline] = useState("")
   const [description, setDescription] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
+  const [faviconUrl, setFaviconUrl] = useState("")
   const [aboutTitle, setAboutTitle] = useState("")
   const [aboutText, setAboutText] = useState("")
   const [features, setFeatures] = useState<Feature[]>([])
@@ -51,6 +52,7 @@ export default function PengaturanPage() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const faviconInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     Promise.all([
@@ -62,6 +64,7 @@ export default function PengaturanPage() {
         setTagline(config.tagline || "")
         setDescription(config.description || "")
         setLogoUrl(config.logoUrl || "")
+        setFaviconUrl(config.faviconUrl || "")
         setAboutTitle(config.aboutTitle || "")
         setAboutText(config.aboutText || "")
         if (Array.isArray(feats)) setFeatures(feats)
@@ -90,13 +93,33 @@ export default function PengaturanPage() {
     }
   }
 
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch("/api/upload?akses=PUBLIK", { method: "POST", body: formData })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setFaviconUrl(data.url)
+      toast.success("Favicon berhasil diupload")
+    } catch {
+      toast.error("Gagal upload favicon")
+    } finally {
+      setUploading(false)
+      if (faviconInputRef.current) faviconInputRef.current.value = ""
+    }
+  }
+
   const handleSaveInfo = async () => {
     setSaving(true)
     try {
       const res = await fetch("/api/site-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteName, tagline, description, logoUrl, aboutTitle, aboutText }),
+        body: JSON.stringify({ siteName, tagline, description, logoUrl, faviconUrl, aboutTitle, aboutText }),
       })
       if (!res.ok) throw new Error()
       toast.success("Informasi berhasil disimpan")
@@ -195,6 +218,31 @@ export default function PengaturanPage() {
                 )}
               </div>
             </div>
+          </div>
+          <Separator />
+          <div className="space-y-2">
+            <Label>Favicon (Ikon Tab Browser)</Label>
+            <div className="flex items-center gap-4">
+              {faviconUrl ? (
+                <img src={faviconUrl} alt="Favicon" className="h-10 w-10 rounded-lg object-contain border bg-white" />
+              ) : (
+                <div className="h-10 w-10 rounded-lg border flex items-center justify-center bg-muted">
+                  <Image className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )}
+              <div>
+                <input type="file" accept="image/*,.ico" ref={faviconInputRef} onChange={handleFaviconUpload} className="hidden" />
+                <Button variant="outline" size="sm" onClick={() => faviconInputRef.current?.click()} disabled={uploading}>
+                  {uploading ? "Uploading..." : "Upload Favicon"}
+                </Button>
+                {faviconUrl && (
+                  <Button variant="ghost" size="sm" onClick={() => setFaviconUrl("")} className="ml-2 text-destructive">
+                    Hapus
+                  </Button>
+                )}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Ikon muncul di tab browser. Disarankan gambar persegi (PNG/SVG/ICO, ideal 64&times;64). Kosongkan untuk memakai ikon default.</p>
           </div>
           <Separator />
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">

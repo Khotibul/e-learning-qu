@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 
 export async function GET() {
   try {
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const { siteName, tagline, description, logoUrl, aboutTitle, aboutText } = body
+    const { siteName, tagline, description, logoUrl, faviconUrl, aboutTitle, aboutText } = body
 
     let config = await prisma.siteConfig.findFirst()
     if (config) {
@@ -40,16 +41,18 @@ export async function POST(req: Request) {
           ...(tagline !== undefined && { tagline }),
           ...(description !== undefined && { description }),
           ...(logoUrl !== undefined && { logoUrl }),
+          ...(faviconUrl !== undefined && { faviconUrl }),
           ...(aboutTitle !== undefined && { aboutTitle }),
           ...(aboutText !== undefined && { aboutText }),
         },
       })
     } else {
       config = await prisma.siteConfig.create({
-        data: { siteName, tagline, description, logoUrl, aboutTitle, aboutText },
+        data: { siteName, tagline, description, logoUrl, faviconUrl, aboutTitle, aboutText },
       })
     }
 
+    revalidateTag("site-config", "max")
     return NextResponse.json(config)
   } catch {
     return NextResponse.json({ error: "Gagal menyimpan konfigurasi" }, { status: 500 })
