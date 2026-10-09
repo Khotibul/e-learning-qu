@@ -10,10 +10,11 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2, ArrowLeft, ArrowRight, Check, Save, ClipboardList } from "lucide-react"
 import {
   getDraftPendaftaran, simpanDraftBiodata, createPendaftaran, getGelombangPublik,
-  LANGKAH_BIODATA,
+  LANGKAH_BIODATA, getDraftSantri, simpanDraftSantri, LANGKAH_SANTRI,
 } from "../actions"
 
 type Langkah = (typeof LANGKAH_BIODATA)[number]
+type LangkahS = (typeof LANGKAH_SANTRI)[number]
 
 const JUDUL: Record<Langkah, string> = {
   identitas: "Identitas Calon Peserta",
@@ -22,6 +23,14 @@ const JUDUL: Record<Langkah, string> = {
   wali: "Data Wali",
   asalSekolah: "Asal Sekolah",
   tambahan: "Informasi Tambahan",
+}
+
+const JUDUL_SANTRI: Record<LangkahS, string> = {
+  fisik: "Data Fisik",
+  pendidikanSebelumnya: "Pendidikan Sebelumnya",
+  hafalan: "Hafalan Al-Qur'an",
+  minatEkstra: "Minat & Ekstrakurikuler",
+  kesehatan: "Kesehatan",
 }
 
 const FIELD: Record<Langkah, { key: string; label: string; type?: string; wajib?: boolean; options?: string[] }[]> = {
@@ -80,6 +89,38 @@ const FIELD: Record<Langkah, { key: string; label: string; type?: string; wajib?
   ],
 }
 
+const FIELD_SANTRI: Record<LangkahS, { key: string; label: string; type?: string; wajib?: boolean; options?: string[] }[]> = {
+  fisik: [
+    { key: "tinggiBadan", label: "Tinggi Badan (cm)", type: "number", wajib: true },
+    { key: "beratBadan", label: "Berat Badan (kg)", type: "number", wajib: true },
+    { key: "golonganDarah", label: "Golongan Darah", type: "select", options: ["A", "B", "AB", "O", "Tidak Tahu"] },
+    { key: "riwayatOperasi", label: "Riwayat operasi besar (jika ada)" },
+  ],
+  pendidikanSebelumnya: [
+    { key: "namaMadrasah", label: "Nama Madrasah/Pesantren Sebelumnya", wajib: true },
+    { key: "tahunMasuk", label: "Tahun Masuk", type: "number" },
+    { key: "tahunKeluar", label: "Tahun Keluar", type: "number" },
+    { key: "nilaiRata", label: "Nilai rata-rata rapor terakhir" },
+  ],
+  hafalan: [
+    { key: "juzHafalan", label: "Jumlah Juz yang dihafal", type: "number" },
+    { key: "surahTerakhir", label: "Surah terakhir yang dihafal" },
+    { key: "targetHafalan", label: "Target hafalan selama di pondok" },
+    { key: "penghafalSejak", label: "Sejak kapan mulai menghafal" },
+  ],
+  minatEkstra: [
+    { key: "ekstrakurikuler", label: "Ekstrakurikuler yang diminati" },
+    { key: "prestasi", label: "Prestasi/organisasi pernah diikuti" },
+    { key: "keterampilan", label: "Keterampilan khusus" },
+  ],
+  kesehatan: [
+    { key: "riwayatPenyakit", label: "Riwayat penyakit menular/kronis" },
+    { key: "alergi", label: "Alergi (makanan/obat/lingkungan)" },
+    { key: "obatRutin", label: "Obat yang dikonsumsi rutin" },
+    { key: "catatanKesehatan", label: "Catatan kesehatan lain" },
+  ],
+}
+
 interface PendaftaranDraft {
   id: string
   jenis: string
@@ -100,15 +141,30 @@ export default function FormulirPage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [pilihGelombang, setPilihGelombang] = useState({ gelombangId: "", jenis: "SISWA_REGULER" })
+  // mode santri: hanya SISWA_SANTRI / SANTRI_PONDOK
+  const [modeSantri, setModeSantri] = useState(false)
+  const [fase, setFase] = useState<"biodata" | "santri">("biodata")
+  const [langkahSantri, setLangkahSantri] = useState<LangkahS>("fisik")
+  const [formSantri, setFormSantri] = useState<Record<string, string>>({})
+  const [dataSantri, setDataSantri] = useState<Record<string, Record<string, string>>>({})
 
   // load draft + opsi gelombang
   useEffect(() => {
     Promise.all([getDraftPendaftaran(), getGelombangPublik()])
-      .then(([draft, gols]) => {
+      .then(async ([draft, gols]) => {
         setPendaftaran(draft as any)
         setGelombangOpts(gols as any[])
         if (draft) {
-          setForm(((draft as any).data?.[ "identitas" ]) || {})
+          setForm(((draft as any).data?.["identitas"]) || {})
+          const j = (draft as any).jenis
+          const isSantri = j === "SISWA_SANTRI" || j === "SANTRI_PONDOK"
+          setModeSantri(isSantri)
+          if (isSantri) {
+            const ds = (await getDraftSantri()) as any
+            const map = ds?.dataSantri || {}
+            setDataSantri(map)
+            setFormSantri(map["fisik"] || {})
+          }
         }
       })
       .catch(() => toast.error("Gagal memuat data"))
@@ -119,6 +175,11 @@ export default function FormulirPage() {
     setLangkah(l)
     setForm(pendaftaran?.data?.[l] || {})
   }, [pendaftaran])
+
+  const muatLangkahSantri = useCallback((l: LangkahS) => {
+    setLangkahSantri(l)
+    setFormSantri(dataSantri[l] || {})
+  }, [dataSantri])
 
   // autosave debounce 1.5s setelah perubahan
   const simpanOtomatis = useCallback(async (l: Langkah, data: Record<string, string>) => {
@@ -134,6 +195,19 @@ export default function FormulirPage() {
     }
   }, [pendaftaran])
 
+  const simpanOtomatisSantri = useCallback(async (l: LangkahS, data: Record<string, string>) => {
+    if (!pendaftaran) return
+    setSaving(true)
+    try {
+      const res = await simpanDraftSantri(pendaftaran.id, l, data) as any
+      setLastSaved(new Date(res.updatedAt))
+    } catch (err: any) {
+      // diamkan
+    } finally {
+      setSaving(false)
+    }
+  }, [pendaftaran])
+
   const handleChange = (key: string, value: string) => {
     const baru = { ...form, [key]: value }
     setForm(baru)
@@ -141,16 +215,30 @@ export default function FormulirPage() {
     saveTimer.current = setTimeout(() => simpanOtomatis(langkah, baru), 1500)
   }
 
+  const handleChangeSantri = (key: string, value: string) => {
+    const baru = { ...formSantri, [key]: value }
+    setFormSantri(baru)
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => simpanOtomatisSantri(langkahSantri, baru), 1500)
+  }
+
   const handleSimpanManual = async () => {
     if (!pendaftaran) return
     setSaving(true)
     try {
-      await simpanDraftBiodata(pendaftaran.id, langkah, form)
+      if (fase === "santri") {
+        await simpanDraftSantri(pendaftaran.id, langkahSantri, formSantri)
+      } else {
+        await simpanDraftBiodata(pendaftaran.id, langkah, form)
+      }
       setLastSaved(new Date())
       toast.success("Draft tersimpan")
-      // refresh pendaftaran agar data langkah lain ter-update
       const fresh = await getDraftPendaftaran() as any
       setPendaftaran(fresh)
+      if (modeSantri) {
+        const ds = (await getDraftSantri()) as any
+        setDataSantri(ds?.dataSantri || {})
+      }
     } catch (err: any) {
       toast.error(err?.message || "Gagal menyimpan")
     } finally {
@@ -160,24 +248,53 @@ export default function FormulirPage() {
 
   const handleLanjut = async () => {
     if (!pendaftaran) return
-    // validasi wajib langkah ini
-    const kurang = FIELD[langkah].filter((f) => f.wajib && !form[f.key]?.trim())
-    if (kurang.length > 0) {
-      toast.error(`Lengkapi: ${kurang.map((f) => f.label).join(", ")}`)
-      return
-    }
     setSaving(true)
     try {
-      await simpanDraftBiodata(pendaftaran.id, langkah, form)
-      const fresh = await getDraftPendaftaran() as any
-      setPendaftaran(fresh)
-      const idx = LANGKAH_BIODATA.indexOf(langkah)
-      if (idx < LANGKAH_BIODATA.length - 1) {
-        const next = LANGKAH_BIODATA[idx + 1]
-        setLangkah(next)
-        setForm(fresh?.data?.[next] || {})
+      if (fase === "biodata") {
+        const kurang = FIELD[langkah].filter((f) => f.wajib && !form[f.key]?.trim())
+        if (kurang.length > 0) {
+          toast.error(`Lengkapi: ${kurang.map((f) => f.label).join(", ")}`)
+          return
+        }
+        await simpanDraftBiodata(pendaftaran.id, langkah, form)
+        const fresh = await getDraftPendaftaran() as any
+        setPendaftaran(fresh)
+        const idx = LANGKAH_BIODATA.indexOf(langkah)
+        if (idx < LANGKAH_BIODATA.length - 1) {
+          const next = LANGKAH_BIODATA[idx + 1]
+          setLangkah(next)
+          setForm(fresh?.data?.[next] || {})
+          return
+        }
+        // biodata selesai
+        if (modeSantri) {
+          setFase("santri")
+          setLangkahSantri("fisik")
+          setFormSantri(dataSantri["fisik"] || {})
+          toast.success("Biodata selesai — lanjutkan ke formulir santri")
+          return
+        }
+        toast.success("Semua langkah selesai — lanjutkan ke unggah berkas")
+        router.push("/ppdb/berkas")
+        return
+      }
+
+      // fase santri
+      const kurangS = FIELD_SANTRI[langkahSantri].filter((f) => f.wajib && !formSantri[f.key]?.trim())
+      if (kurangS.length > 0) {
+        toast.error(`Lengkapi: ${kurangS.map((f) => f.label).join(", ")}`)
+        return
+      }
+      await simpanDraftSantri(pendaftaran.id, langkahSantri, formSantri)
+      const ds = (await getDraftSantri()) as any
+      setDataSantri(ds?.dataSantri || {})
+      const idxS = LANGKAH_SANTRI.indexOf(langkahSantri)
+      if (idxS < LANGKAH_SANTRI.length - 1) {
+        const next = LANGKAH_SANTRI[idxS + 1]
+        setLangkahSantri(next)
+        setFormSantri(ds?.dataSantri?.[next] || {})
       } else {
-        toast.success("Semua langkah biodata selesai — lanjutkan ke unggah berkas")
+        toast.success("Formulir santri selesai — lanjutkan ke unggah berkas")
         router.push("/ppdb/berkas")
       }
     } catch (err: any) {
@@ -188,6 +305,21 @@ export default function FormulirPage() {
   }
 
   const handleMundur = () => {
+    if (fase === "santri") {
+      const idxS = LANGKAH_SANTRI.indexOf(langkahSantri)
+      if (idxS > 0) {
+        const prev = LANGKAH_SANTRI[idxS - 1]
+        setLangkahSantri(prev)
+        setFormSantri(dataSantri[prev] || {})
+      } else {
+        // balik ke langkah biodata terakhir
+        setFase("biodata")
+        const last = LANGKAH_BIODATA[LANGKAH_BIODATA.length - 1]
+        setLangkah(last)
+        setForm(pendaftaran?.data?.[last] || {})
+      }
+      return
+    }
     const idx = LANGKAH_BIODATA.indexOf(langkah)
     if (idx > 0) {
       const prev = LANGKAH_BIODATA[idx - 1]
@@ -278,8 +410,18 @@ export default function FormulirPage() {
     )
   }
 
-  const idxLangkah = LANGKAH_BIODATA.indexOf(langkah)
-  const progres = Math.round(((idxLangkah + 1) / LANGKAH_BIODATA.length) * 100)
+  const totalLangkah = LANGKAH_BIODATA.length + (modeSantri ? LANGKAH_SANTRI.length : 0)
+  const posisiGlobal = fase === "santri"
+    ? LANGKAH_BIODATA.length + LANGKAH_SANTRI.indexOf(langkahSantri)
+    : LANGKAH_BIODATA.indexOf(langkah)
+  const progres = Math.round(((posisiGlobal + 1) / totalLangkah) * 100)
+  const diLangkahTerakhir = posisiGlobal === totalLangkah - 1
+  const judulAktif = fase === "santri" ? JUDUL_SANTRI[langkahSantri] : JUDUL[langkah]
+  const fieldAktif = fase === "santri" ? FIELD_SANTRI[langkahSantri] : FIELD[langkah]
+  const formAktif = fase === "santri" ? formSantri : form
+  const handleChangeAktif = fase === "santri" ? handleChangeSantri : handleChange
+  const isiLangkah = (l: string) => fase === "santri" ? !!dataSantri[l] : !!pendaftaran.data?.[l]
+  const bisaMundur = fase === "santri" ? true : LANGKAH_BIODATA.indexOf(langkah) > 0
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-6">
@@ -297,7 +439,7 @@ export default function FormulirPage() {
       {/* stepper */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Langkah {idxLangkah + 1}/{LANGKAH_BIODATA.length}: {JUDUL[langkah]}</span>
+          <span>Langkah {posisiGlobal + 1}/{totalLangkah}: {judulAktif}</span>
           <span>{progres}%</span>
         </div>
         <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -308,15 +450,30 @@ export default function FormulirPage() {
             <button
               key={l}
               type="button"
-              onClick={() => muatLangkah(l)}
+              onClick={() => { setFase("biodata"); muatLangkah(l) }}
               className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
-                l === langkah ? "bg-primary text-primary-foreground" :
-                pendaftaran.data?.[l] ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" :
+                fase === "biodata" && l === langkah ? "bg-primary text-primary-foreground" :
+                isiLangkah(l) ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" :
                 "bg-muted text-muted-foreground"
               }`}
             >
-              {pendaftaran.data?.[l] ? <Check className="inline h-3 w-3 mr-0.5" /> : null}
+              {isiLangkah(l) ? <Check className="inline h-3 w-3 mr-0.5" /> : null}
               {i + 1}. {JUDUL[l]}
+            </button>
+          ))}
+          {modeSantri && LANGKAH_SANTRI.map((l, i) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => { setFase("santri"); muatLangkahSantri(l) }}
+              className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
+                fase === "santri" && l === langkahSantri ? "bg-primary text-primary-foreground" :
+                isiLangkah(l) ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" :
+                "bg-muted text-muted-foreground"
+              }`}
+            >
+              {isiLangkah(l) ? <Check className="inline h-3 w-3 mr-0.5" /> : null}
+              {LANGKAH_BIODATA.length + i + 1}. {JUDUL_SANTRI[l]}
             </button>
           ))}
         </div>
@@ -325,39 +482,39 @@ export default function FormulirPage() {
       {/* form langkah */}
       <div className="rounded-2xl border p-5 sm:p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">{JUDUL[langkah]}</h2>
+          <h2 className="font-semibold">{judulAktif}</h2>
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             {saving ? <><Loader2 className="h-3 w-3 animate-spin" /> Menyimpan…</> :
              lastSaved ? <><Save className="h-3 w-3" /> Tersimpan {lastSaved.toLocaleTimeString("id-ID")}</> : "Autosave aktif"}
           </span>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          {FIELD[langkah].map((f) => (
-            <div key={f.key} className={`space-y-1.5 ${f.key === "alamatLengkap" || f.key === "alamatDomisili" || f.key === "kebutuhanDukungan" || f.key === "riwayatNonformal" || f.key === "infoPenting" ? "sm:col-span-2" : ""}`}>
+          {fieldAktif.map((f) => (
+            <div key={f.key} className={`space-y-1.5 ${f.key === "alamatLengkap" || f.key === "alamatDomisili" || f.key === "kebutuhanDukungan" || f.key === "riwayatNonformal" || f.key === "infoPenting" || f.key === "riwayatPenyakit" || f.key === "alergi" || f.key === "catatanKesehatan" || f.key === "prestasi" || f.key === "keterampilan" ? "sm:col-span-2" : ""}`}>
               <label className="text-sm font-medium">
                 {f.label} {f.wajib && <span className="text-red-500">*</span>}
               </label>
               {f.type === "select" ? (
                 <select
-                  value={form[f.key] || ""}
-                  onChange={(e) => handleChange(f.key, e.target.value)}
+                  value={formAktif[f.key] || ""}
+                  onChange={(e) => handleChangeAktif(f.key, e.target.value)}
                   className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm"
                 >
                   <option value="">— Pilih —</option>
                   {f.options?.map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
-              ) : f.key.includes("alamat") || f.key.includes("Dukungan") || f.key.includes("riwayat") || f.key.includes("infoPenting") ? (
+              ) : f.key.includes("alamat") || f.key.includes("Dukungan") || f.key.includes("riwayat") || f.key.includes("infoPenting") || f.key.includes("alergi") || f.key.includes("catatanKesehatan") || f.key.includes("prestasi") || f.key.includes("keterampilan") ? (
                 <textarea
                   rows={2}
-                  value={form[f.key] || ""}
-                  onChange={(e) => handleChange(f.key, e.target.value)}
+                  value={formAktif[f.key] || ""}
+                  onChange={(e) => handleChangeAktif(f.key, e.target.value)}
                   className="flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm"
                 />
               ) : (
                 <Input
                   type={f.type === "number" ? "number" : f.type || "text"}
-                  value={form[f.key] || ""}
-                  onChange={(e) => handleChange(f.key, e.target.value)}
+                  value={formAktif[f.key] || ""}
+                  onChange={(e) => handleChangeAktif(f.key, e.target.value)}
                 />
               )}
             </div>
@@ -367,14 +524,14 @@ export default function FormulirPage() {
 
       {/* navigasi */}
       <div className="flex items-center justify-between gap-2">
-        <Button variant="outline" onClick={handleMundur} disabled={idxLangkah === 0 || saving}>
+        <Button variant="outline" onClick={handleMundur} disabled={!bisaMundur || saving}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Mundur
         </Button>
         <Button variant="ghost" onClick={handleSimpanManual} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />} Simpan Draft
         </Button>
         <Button onClick={handleLanjut} disabled={saving}>
-          {idxLangkah === LANGKAH_BIODATA.length - 1 ? "Selesai" : "Lanjut"} <ArrowRight className="h-4 w-4 ml-1" />
+          {diLangkahTerakhir ? "Selesai" : "Lanjut"} <ArrowRight className="h-4 w-4 ml-1" />
         </Button>
       </div>
 

@@ -310,6 +310,87 @@ export async function cekKelengkapanBiodata(pendaftaranId: string) {
   return { lengkap: kurang.length === 0, kurang }
 }
 
+// ─── FORMULIR SANTRI BERTAHAP (STEP 8) ─────────────────────────────────
+// Khusus jenis SISWA_SANTRI & SANTRI_PONDOK. Snapshot terpisah di `dataSantri`.
+
+export const LANGKAH_SANTRI = ["fisik", "pendidikanSebelumnya", "hafalan", "minatEkstra", "kesehatan"] as const
+export type LangkahSantri = (typeof LANGKAH_SANTRI)[number]
+
+/** Ambil draft pendaftaran + dataSantri milik pendaftar login. */
+export async function getDraftSantri(gelombangId?: string) {
+  const userId = await requirePendaftar()
+  const where: Record<string, unknown> = { userId, deletedAt: null, status: "DRAFT" }
+  if (gelombangId) where.gelombangId = gelombangId
+  const p = await prisma.pendaftaranPpdb.findFirst({
+    where: where as any,
+    include: {
+      gelombang: { select: { id: true, nama: true, status: true, unit: true, jenjang: true, program: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  })
+  if (!p) return null
+  return {
+    pendaftaranId: p.id,
+    jenis: p.jenis,
+    status: p.status,
+    gelombang: p.gelombang,
+    dataSantri: (p.dataSantri as Record<string, Record<string, unknown>> | null) || {},
+  }
+}
+
+/** Autosave satu langkah formulir santri (merge shallow per-key langkah, mirror biodata). */
+export async function simpanDraftSantri(
+  pendaftaranId: string,
+  langkah: LangkahSantri,
+  data: Record<string, unknown>
+) {
+  const userId = await requirePendaftar()
+  if (!LANGKAH_SANTRI.includes(langkah)) throw new Error("Langkah formulir santri tidak valid")
+  if (!data || typeof data !== "object") throw new Error("Data formulir tidak valid")
+
+  const p = await prisma.pendaftaranPpdb.findUnique({ where: { id: pendaftaranId } })
+  if (!p || p.userId !== userId) throw new Error("Pendaftaran tidak ditemukan")
+  if (p.deletedAt) throw new Error("Pendaftaran sudah dinonaktifkan")
+  if (p.status !== "DRAFT") throw new Error("Pendaftaran sudah dikunci — tidak dapat diedit")
+  if (p.jenis === "SISWA_REGULER") throw new Error("Formulir santri hanya untuk pendaftar santri")
+
+  const lama = (p.dataSantri as Record<string, unknown> | null) || {}
+  const baru = { ...lama, [langkah]: data }
+  const updated = await prisma.pendaftaranPpdb.update({
+    where: { id: pendaftaranId },
+    data: { dataSantri: baru as any },
+  })
+  return { ok: true, updatedAt: updated.updatedAt }
+}
+
+/**
+ * Validasi kelengkapan formulir santri sebelum submit.
+ * Hanya berlaku untuk jenis SISWA_SANTRI / SANTRI_PONDOK.
+ */
+export async function cekKelengkapanSantri(pendaftaranId: string) {
+  const userId = await requirePendaftar()
+  const p = await prisma.pendaftaranPpdb.findUnique({ where: { id: pendaftaranId } })
+  if (!p || p.userId !== userId) throw new Error("Pendaftaran tidak ditemukan")
+  if (p.jenis === "SISWA_REGULER") return { lengkap: true, kurang: [] as string[] }
+
+  const data = (p.dataSantri as Record<string, any> | null) || {}
+  const kurang: string[] = []
+  const wajib: Record<LangkahSantri, string[]> = {
+    fisik: ["tinggiBadan", "beratBadan"],
+    pendidikanSebelumnya: ["namaMadrasah"],
+    hafalan: [],
+    minatEkstra: [],
+    kesehatan: [],
+  }
+  for (const langkah of LANGKAH_SANTRI) {
+    const isi = data[langkah] as Record<string, unknown> | undefined
+    for (const f of wajib[langkah] || []) {
+      if (!isi?.[f]) kurang.push(`${langkah}.${f}`)
+    }
+  }
+  return { lengkap: kurang.length === 0, kurang }
+}
+
 /**
  * Cek status pendaftaran publik via nomor pendaftaran.
  * Hanya mengembalikan info minimal (tanpa data pribadi).
