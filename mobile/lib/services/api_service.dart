@@ -62,6 +62,13 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  static Future<dynamic> delete(String path) async {
+    final headers = await _headers();
+    final res = await _withRetry(() => _client.delete(Uri.parse("${ApiConfig.baseUrl}$path"), headers: headers).timeout(const Duration(seconds: 15)));
+    if (res.statusCode >= 400) throw Exception("DELETE $path: ${res.statusCode} ${res.body}");
+    return res.body.isEmpty ? null : jsonDecode(res.body);
+  }
+
   /// Upload file (multipart, auth Bearer) — dipakai bukti foto absensi.
   static Future<String> uploadFile(String path, String filePath, {String fieldName = "file"}) async {
     final headers = await _headers();
@@ -233,7 +240,17 @@ class ApiService {
   }
 
   // AI Tutor — RAG via backend (1 DB + Gemini)
-  static Future<Map<String, dynamic>> askAiTutor(String message, {String? mapelId}) async {
-    return await post("/api/mobile/ai/tutor", {"message": message, "mapelId": mapelId});
+  static Future<Map<String, dynamic>> askAiTutor(String message, {String? mapelId, String? sessionId}) async {
+    final body = <String, dynamic>{"message": message, "mapelId": mapelId};
+    if (sessionId != null) body["sessionId"] = sessionId;
+    return await post("/api/mobile/ai/tutor", body);
+  }
+
+  static Future<List<dynamic>> getAiTutorSessions() async {
+    return await get("/api/mobile/ai/tutor?tab=sessions", useCache: false);
+  }
+
+  static Future<List<dynamic>> getAiTutorMessages(String sessionId) async {
+    return await get("/api/mobile/ai/tutor?tab=messages&sessionId=$sessionId", useCache: false);
   }
 }

@@ -49,15 +49,32 @@ class _GuruMateriState extends State<GuruMateri> {
     final file = result.files.first;
     final titleCtrl = TextEditingController(text: file.name.split(".").first);
     final descCtrl = TextEditingController();
+
+    // Daftar mapel guru untuk picker
+    List<dynamic> mapels = [];
+    try {
+      final mv = await ApiService.get("/api/mobile/guru/mapel");
+      if (mv is List) mapels = mv;
+    } catch (_) {}
+    String? mapelId = mapels.isNotEmpty ? (mapels.first as Map)["id"] as String? : null;
+
     if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setDlg) => AlertDialog(
         title: const Text("Upload Materi"),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: "Judul", border: OutlineInputBorder())),
           const SizedBox(height: 12),
           TextField(controller: descCtrl, decoration: const InputDecoration(labelText: "Deskripsi (opsional)", border: OutlineInputBorder()), maxLines: 2),
+          const SizedBox(height: 12),
+          if (mapels.isNotEmpty)
+            DropdownButtonFormField<String>(
+              initialValue: mapelId,
+              decoration: const InputDecoration(labelText: "Mata Pelajaran", border: OutlineInputBorder()),
+              items: mapels.map((m) => DropdownMenuItem<String>(value: (m as Map)["id"] as String, child: Text("${m["nama"]}"))).toList(),
+              onChanged: (v) => setDlg(() => mapelId = v),
+            ),
           const SizedBox(height: 8),
           Text("${file.name} (${(file.size / 1024).toStringAsFixed(1)} KB)", style: const TextStyle(fontSize: 12, color: Colors.black54)),
         ]),
@@ -65,7 +82,7 @@ class _GuruMateriState extends State<GuruMateri> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Batal")),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Upload")),
         ],
-      ),
+      )),
     );
     if (confirmed != true) return;
 
@@ -77,7 +94,7 @@ class _GuruMateriState extends State<GuruMateri> {
       final formData = FormData.fromMap({
         "judul": titleCtrl.text,
         "deskripsi": descCtrl.text,
-        "mataPelajaranId": "", // akan diisi via dialog mapel jika ada
+        "mataPelajaranId": mapelId ?? "",
         "file": await MultipartFile.fromFile(file.path!, filename: file.name),
       });
       final res = await dio.post(
@@ -98,6 +115,38 @@ class _GuruMateriState extends State<GuruMateri> {
     }
   }
 
+  Future<void> _confirmDelete(Map m) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Hapus Materi?"),
+        content: Text("Materi \"${m["judul"] ?? "-"}\" akan dihapus."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Batal")),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () => Navigator.pop(ctx, true), child: const Text("Hapus")),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("auth_token");
+      final dio = Dio();
+      final res = await dio.delete(
+        "${ApiConfig.baseUrl}/api/mobile/guru/materi?id=${m["id"]}",
+        options: Options(headers: {"Authorization": "Bearer $token"}),
+      );
+      if (res.statusCode == 200) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Materi dihapus")));
+        _load();
+      } else {
+        throw Exception(res.data);
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal hapus: $e")));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF8FAFC),
@@ -113,7 +162,7 @@ class _GuruMateriState extends State<GuruMateri> {
         ? const Center(child: CircularProgressIndicator())
         : Column(children: [
             Padding(padding: const EdgeInsets.all(12), child: TextField(controller: searchCtrl, decoration: InputDecoration(hintText: "Cari materi atau mapel...", prefixIcon: const Icon(Icons.search, size: 18), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
-            Expanded(child: filtered.isEmpty ? const Center(child: Text("Tidak ada materi", style: TextStyle(color: Colors.black54))) : RefreshIndicator(onRefresh: _load, child: ListView.builder(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), itemCount: filtered.length, itemBuilder: (_, i) { final m = filtered[i] as Map; return Container(margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))), child: ListTile(contentPadding: const EdgeInsets.all(16), leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFF4F46E5).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.description_outlined, color: Color(0xFF4F46E5), size: 20)), title: Text(m["judul"] ?? "-", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)), subtitle: Text("${m["mataPelajaran"]?["nama"] ?? ""} • ${m["fileType"] ?? ""}", style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))), trailing: IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red), onPressed: () {}))); }))),
+            Expanded(child: filtered.isEmpty ? const Center(child: Text("Tidak ada materi", style: TextStyle(color: Colors.black54))) : RefreshIndicator(onRefresh: _load, child: ListView.builder(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), itemCount: filtered.length, itemBuilder: (_, i) { final m = filtered[i] as Map; return Container(margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))), child: ListTile(contentPadding: const EdgeInsets.all(16), leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFF4F46E5).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.description_outlined, color: Color(0xFF4F46E5), size: 20)), title: Text(m["judul"] ?? "-", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)), subtitle: Text("${m["mataPelajaran"]?["nama"] ?? ""} • ${m["fileType"] ?? ""}", style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))), trailing: IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red), onPressed: () => _confirmDelete(m)))); }))),
           ]),
   );
 }

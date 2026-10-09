@@ -13,8 +13,8 @@ class _SiswaStrukturKelasState extends State<SiswaStrukturKelas> {
   @override
   void initState() {
     super.initState();
-    ApiService.getStrukturKelas().then((v) {
-      if (mounted) setState(() { data = v is Map ? v.first : null; loading = false; });
+    ApiService.get("/api/mobile/siswa/struktur-kelas", useCache: false).then((v) {
+      if (mounted) setState(() { data = v is Map<String, dynamic> ? v : null; loading = false; });
     }).catchError((_) { if (mounted) setState(() => loading = false); });
   }
 

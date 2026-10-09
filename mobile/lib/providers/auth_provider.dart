@@ -51,4 +51,11 @@ class AuthProvider extends ChangeNotifier {
     await prefs.remove("auth_token");
     notifyListeners();
   }
+
+  void refreshName(String name) {
+    if (_user == null) return;
+    _user = User(id: _user!.id, email: _user!.email, name: name, image: _user!.image, role: _user!.role);
+    SharedPreferences.getInstance().then((prefs) => prefs.setString("auth_user", jsonEncode(_user!.toJson())));
+    notifyListeners();
+  }
 }

@@ -6,11 +6,18 @@ import 'absensi_harian.dart';
 import 'nilai.dart';
 import 'ranking.dart';
 import 'jadwal.dart';
+import 'jadwal_piket.dart';
 import 'ai_tutor.dart';
 import 'latihan.dart';
 import 'struktur_kelas.dart';
-import 'jadwal_piket.dart';
 import 'profil_belajar.dart';
+import 'bendahara.dart';
+import 'iuran_saya.dart';
+import 'pengaturan.dart';
+import 'sekretaris.dart';
+import 'sus.dart';
+import 'ai_analitik.dart';
+import '../notifikasi.dart';
 
 class SiswaDashboard extends StatefulWidget {
   const SiswaDashboard({super.key});
@@ -35,7 +42,7 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
     if (loading) return Scaffold(appBar: AppBar(title: const Text("Beranda")), body: const Center(child: CircularProgressIndicator()));
     final s = stats ?? {};
     return Scaffold(
-      appBar: AppBar(title: const Text("Beranda Siswa"), backgroundColor: Colors.white),
+      appBar: AppBar(title: const Text("Beranda Siswa"), backgroundColor: Colors.white, actions: const [NotifBell(), SizedBox(width: 8)]),
       body: Container(
         decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFEEF2FF), Color(0xFFF8FAFC)])),
         child: RefreshIndicator(
@@ -120,6 +127,7 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                 _MenuCard(icon: Icons.smart_toy_outlined, label: "AI Tutor", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAiTutor()))),
                 _MenuCard(icon: Icons.menu_book_outlined, label: "Latihan", color: const Color(0xFF6366F1), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaLatihan()))),
                 _MenuCard(icon: Icons.calendar_today_outlined, label: "Jadwal", color: const Color(0xFFEC4899), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwal()))),
+                _MenuCard(icon: Icons.cleaning_services_outlined, label: "Piket", color: const Color(0xFF0EA5E9), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwalPiket()))),
                 _MenuCard(icon: Icons.groups_outlined, label: "Kelas", color: const Color(0xFF14B8A6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaStrukturKelas()))),
                 _MenuCard(icon: Icons.psychology_outlined, label: "Profil", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaProfilBelajar()))),
                 _MenuCard(
@@ -132,8 +140,14 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hanya Bendahara yang dapat mengakses fitur ini — sama seperti website"), backgroundColor: Color(0xFFEF4444)));
                       return;
                     }
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur Bendahara — iuran, denda, pengeluaran (1 DB)")));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaBendahara()));
                   },
+                ),
+                _MenuCard(
+                  icon: Icons.savings_outlined,
+                  label: "Iuran",
+                  color: const Color(0xFF14B8A6),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaIuranSaya())),
                 ),
                 _MenuCard(
                   icon: Icons.assignment_outlined,
@@ -145,8 +159,26 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hanya Sekretaris yang dapat mengakses fitur ini — sama seperti website"), backgroundColor: Color(0xFFEF4444)));
                       return;
                     }
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwalPiket()));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaSekretaris()));
                   },
+                ),
+                _MenuCard(
+                  icon: Icons.settings_outlined,
+                  label: "Pengaturan",
+                  color: const Color(0xFF64748B),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaPengaturanNew())),
+                ),
+                _MenuCard(
+                  icon: Icons.assignment_turned_in_outlined,
+                  label: "Evaluasi SUS",
+                  color: const Color(0xFF0EA5E9),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaSus())),
+                ),
+                _MenuCard(
+                  icon: Icons.insights_outlined,
+                  label: "AI Analitik",
+                  color: const Color(0xFF8B5CF6),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAiAnalitik())),
                 ),
               ],
             ),

@@ -10,6 +10,9 @@ import 'screens/siswa/materi.dart';
 import 'screens/siswa/ai_tutor.dart';
 import 'screens/guru/dashboard.dart';
 import 'screens/guru/murid_detail.dart';
+import 'screens/guru/absensi.dart';
+import 'screens/guru/analitik.dart';
+import 'screens/guru/ujian.dart';
 import 'models/user.dart';
 
 void main() async {
@@ -105,9 +108,9 @@ class _RoleScaffoldState extends State<RoleScaffold> {
     final guruPages = [
       const GuruDashboard(),
       const GuruMurid(),
-      const SiswaUjian(), // reuse ujian list, backend sama
-      const SiswaAbsensiHarian(),
-      const GuruDashboard(), // analitik ringkas
+      const GuruUjian(), // kelola ujian: buat/mulai/hentikan/reset
+      const GuruAbsensi(), // absensi sesi mengajar + absensi siswa per mapel
+      const GuruAnalitik(), // analitik guru
     ];
 
     // Admin tidak ada di Android — khusus web
