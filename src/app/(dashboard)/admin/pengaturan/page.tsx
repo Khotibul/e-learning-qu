@@ -77,7 +77,7 @@ export default function PengaturanPage() {
     try {
       const formData = new FormData()
       formData.append("file", file)
-      const res = await fetch("/api/upload", { method: "POST", body: formData })
+      const res = await fetch("/api/upload?akses=PUBLIK", { method: "POST", body: formData })
       if (!res.ok) throw new Error()
       const data = await res.json()
       setLogoUrl(data.url)

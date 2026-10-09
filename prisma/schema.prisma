@@ -1444,8 +1444,11 @@ model Upload {
   mime      String
   size      Int
   data      Bytes
+  userId    String?  @db.Uuid // pemilik upload (null = baris lama)
+  akses     String   @default("PRIVAT") // PRIVAT (pemilik+Admin) | INTERNAL (semua user login) | PUBLIK (tanpa login)
   createdAt DateTime @default(now())
 
+  @@index([userId])
   @@map("upload")
 }
 

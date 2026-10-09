@@ -1,3 +1,4 @@
+import { ymd } from "@/lib/utils"
 import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
 import { jamKeMenit } from "@/lib/absensi-guru"
@@ -177,13 +178,20 @@ export async function prosesScan(params: {
         return await selesai("DUPLIKAT", `Absen masuk sudah tercatat pukul ${baris.jamMasuk}`, ringkas(baris))
       }
       const h = hitungStatusMasuk(jamServer, cfg)
-      const updated = await prisma.absensiHarianSiswa.update({
-        where: { id: baris.id },
+      // Update bersyarat (jamMasuk masih null) — mencegah scan serentak
+      // dari dua mesin mengisi absen masuk dua kali (race condition).
+      const res = await prisma.absensiHarianSiswa.updateMany({
+        where: { id: baris.id, jamMasuk: null },
         data: { jamMasuk: jamServer, statusMasuk: h.status, terlambatMenit: h.terlambatMenit, sumberMasuk: "FINGERPRINT", eventMasukId: event.id },
       })
-      await selesai("SUKSES", `Absen masuk tercatat pukul ${jamServer} (${h.status})`, ringkas(updated))
+      if (res.count === 0) {
+        const barisAkhir = await prisma.absensiHarianSiswa.findUnique({ where: { id: baris.id } })
+        return await selesai("DUPLIKAT", `Absen masuk sudah tercatat pukul ${barisAkhir?.jamMasuk ?? jamServer}`, barisAkhir ? ringkas(barisAkhir) : null)
+      }
+      const updated = await prisma.absensiHarianSiswa.findUnique({ where: { id: baris.id } })
+      await selesai("SUKSES", `Absen masuk tercatat pukul ${jamServer} (${h.status})`, updated ? ringkas(updated) : null)
       await kabarkan(siswa.id, "MASUK", jamServer, h.status, h.terlambatMenit, event.id)
-      return { status: "SUKSES", pesan: `Absen masuk tercatat pukul ${jamServer} (${h.status})`, eventKey, absensi: ringkas(updated) }
+      return { status: "SUKSES", pesan: `Absen masuk tercatat pukul ${jamServer} (${h.status})`, eventKey, absensi: updated ? ringkas(updated) : null }
     }
 
     // PULANG
@@ -194,13 +202,20 @@ export async function prosesScan(params: {
       return await selesai("DUPLIKAT", `Absen pulang sudah tercatat pukul ${baris.jamPulang}`, ringkas(baris))
     }
     const hp = hitungStatusPulang(jamServer, cfg)
-    const updated = await prisma.absensiHarianSiswa.update({
-      where: { id: baris.id },
+    // Update bersyarat (jamPulang masih null) — cegah pencatatan pulang ganda
+    // saat sinkronisasi/retry berjalan bersamaan.
+    const resP = await prisma.absensiHarianSiswa.updateMany({
+      where: { id: baris.id, jamPulang: null },
       data: { jamPulang: jamServer, statusPulang: hp.status, sumberPulang: "FINGERPRINT", eventPulangId: event.id },
     })
-    await selesai("SUKSES", `Absen pulang tercatat pukul ${jamServer} (${hp.status})`, ringkas(updated))
+    if (resP.count === 0) {
+      const barisAkhir = await prisma.absensiHarianSiswa.findUnique({ where: { id: baris.id } })
+      return await selesai("DUPLIKAT", `Absen pulang sudah tercatat pukul ${barisAkhir?.jamPulang ?? jamServer}`, barisAkhir ? ringkas(barisAkhir) : null)
+    }
+    const updatedP = await prisma.absensiHarianSiswa.findUnique({ where: { id: baris.id } })
+    await selesai("SUKSES", `Absen pulang tercatat pukul ${jamServer} (${hp.status})`, updatedP ? ringkas(updatedP) : null)
     await kabarkan(siswa.id, "PULANG", jamServer, hp.status, null, event.id)
-    return { status: "SUKSES", pesan: `Absen pulang tercatat pukul ${jamServer} (${hp.status})`, eventKey, absensi: ringkas(updated) }
+    return { status: "SUKSES", pesan: `Absen pulang tercatat pukul ${jamServer} (${hp.status})`, eventKey, absensi: updatedP ? ringkas(updatedP) : null }
   } catch (e: any) {
     console.error("prosesScan error:", e)
     return await selesai("GAGAL", "Gagal memproses scan — coba lagi (retry aman)")
@@ -338,7 +353,7 @@ export async function putuskanAbsensiManual(params: {
   const penerima = await penerimaKehadiranSiswa(req.siswaId)
   await kirimNotifikasi(penerima, {
     judul: `Absensi ${req.tipe} (manual disetujui)`,
-    pesan: `Absensi ${req.tipe} sekolah untuk ${req.siswa.nama} pada ${tanggal.toISOString().slice(0, 10)} telah disetujui Admin dan dicatat pukul ${jamServer} WIB.`,
+    pesan: `Absensi ${req.tipe} sekolah untuk ${req.siswa.nama} pada ${ymd(tanggal)} telah disetujui Admin dan dicatat pukul ${jamServer} WIB.`,
     tipe: "ABSENSI",
     link: "/siswa/kehadiran",
     eventKey: `absensi-manual:${req.id}`,

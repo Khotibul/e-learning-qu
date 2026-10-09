@@ -1,5 +1,7 @@
 "use client"
 
+import { ymd } from "@/lib/utils"
+
 import { useCallback, useEffect, useState } from "react"
 import {
   AlertTriangle, CalendarOff, Copy, Fingerprint, KeyRound, Loader2, MapPin, Plus,
@@ -45,7 +47,7 @@ type Baris = {
   koreksiAlasan: string | null
 }
 
-const hariIni = () => new Date().toISOString().slice(0, 10)
+const hariIni = () => ymd()
 
 export default function AdminFingerprint() {
   const [tab, setTab] = useState("monitoring")

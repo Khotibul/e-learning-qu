@@ -1,5 +1,7 @@
 "use server"
 
+import { ymd, ym } from "@/lib/utils"
+
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
@@ -1233,7 +1235,7 @@ export async function getKehadiranHariIni() {
   ])
 
   return {
-    tanggal: tgl.toISOString().slice(0, 10),
+    tanggal: ymd(tgl),
     kebijakan,
     hariIni: hariIni
       ? {
@@ -1257,7 +1259,7 @@ export async function getRiwayatKehadiranSaya(bulan?: string) {
   const siswa = await prisma.siswa.findUnique({ where: { userId: session.user.id }, select: { id: true } })
   if (!siswa) throw new Error("Siswa tidak ditemukan")
 
-  const b = bulan && /^\d{4}-\d{2}$/.test(bulan) ? bulan : new Date().toISOString().slice(0, 7)
+  const b = bulan && /^\d{4}-\d{2}$/.test(bulan) ? bulan : ym()
   const [y, m] = b.split("-").map((v) => parseInt(v, 10))
   const start = new Date(y, m - 1, 1)
   const end = new Date(y, m, 0, 23, 59, 59, 999)
@@ -1286,7 +1288,7 @@ export async function getRiwayatKehadiranSaya(bulan?: string) {
       persenKehadiran: Math.round((hadir / hariSekolah) * 100),
     },
     rows: rows.map((r) => ({
-      tanggal: r.tanggal.toISOString().slice(0, 10),
+      tanggal: ymd(r.tanggal),
       jamMasuk: r.jamMasuk,
       jamPulang: r.jamPulang,
       statusMasuk: r.statusMasuk,
@@ -1304,7 +1306,7 @@ export async function getAbsensiPelajaranSaya(bulan?: string) {
   const siswa = await prisma.siswa.findUnique({ where: { userId: session.user.id }, select: { id: true, kelasId: true } })
   if (!siswa) throw new Error("Siswa tidak ditemukan")
 
-  const b = bulan && /^\d{4}-\d{2}$/.test(bulan) ? bulan : new Date().toISOString().slice(0, 7)
+  const b = bulan && /^\d{4}-\d{2}$/.test(bulan) ? bulan : ym()
   const [y, m] = b.split("-").map((v) => parseInt(v, 10))
   const start = new Date(y, m - 1, 1)
   const end = new Date(y, m, 0, 23, 59, 59, 999)
@@ -1326,7 +1328,7 @@ export async function getAbsensiPelajaranSaya(bulan?: string) {
   return rows
     .filter((r) => r.siswa.length > 0)
     .map((r) => ({
-      tanggal: r.tanggal.toISOString().slice(0, 10),
+      tanggal: ymd(r.tanggal),
       mataPelajaran: r.mataPelajaran.nama,
       status: r.siswa[0].status,
       keterangan: r.siswa[0].keterangan,
@@ -1364,7 +1366,7 @@ export async function getPermintaanManualSaya() {
   }).then((rows) =>
     rows.map((r) => ({
       ...r,
-      tanggal: r.tanggal.toISOString().slice(0, 10),
+      tanggal: ymd(r.tanggal),
       createdAt: r.createdAt.toISOString(),
     }))
   )

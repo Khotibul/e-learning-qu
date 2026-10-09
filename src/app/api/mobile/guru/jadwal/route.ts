@@ -1,3 +1,4 @@
+import { ymd } from "@/lib/utils"
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getMobileUser } from "@/lib/mobile-auth"
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
     if (!guru) return NextResponse.json({ error: "Not guru" }, { status: 403, headers: corsHeaders })
 
     const { searchParams } = new URL(req.url)
-    const tanggal = searchParams.get("tanggal") || new Date().toISOString().slice(0, 10)
+    const tanggal = searchParams.get("tanggal") || ymd()
     const dayName = new Date(tanggal + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long" })
     const hari = dayName.charAt(0).toUpperCase() + dayName.slice(1)
 

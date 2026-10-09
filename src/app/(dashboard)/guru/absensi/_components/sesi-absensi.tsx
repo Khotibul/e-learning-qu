@@ -1,5 +1,7 @@
 "use client"
 
+import { ymd, ym } from "@/lib/utils"
+
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
@@ -88,13 +90,13 @@ function StatusBadge({ status, terlambat }: { status: string; terlambat?: number
 }
 
 export function SesiAbsensiClient({ kelasList }: { kelasList: KelasListType }) {
-  const [tanggal, setTanggal] = useState(new Date().toISOString().slice(0, 10))
+  const [tanggal, setTanggal] = useState(ymd())
   const [sesi, setSesi] = useState<Sesi[]>([])
   const [kebijakan, setKebijakan] = useState<Kebijakan | null>(null)
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState<string | null>(null)
   const [jamSekarang, setJamSekarang] = useState("")
-  const [bulan, setBulan] = useState(new Date().toISOString().slice(0, 7))
+  const [bulan, setBulan] = useState(ym())
   const [riwayat, setRiwayat] = useState<any[]>([])
   const [rekap, setRekap] = useState<any>(null)
   const [verifMap, setVerifMap] = useState<Record<string, VerifState>>({})

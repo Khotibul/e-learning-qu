@@ -1,5 +1,7 @@
 "use server"
 
+import { ymd } from "@/lib/utils"
+
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
@@ -173,7 +175,7 @@ export async function hapusPemetaan(id: string) {
 
 export async function monitoringHarian(opts?: { tanggal?: string; kelasId?: string; status?: string; q?: string }) {
   await requireAdmin()
-  const tanggal = hariTanggal(new Date(opts?.tanggal || new Date().toISOString().slice(0, 10)))
+  const tanggal = hariTanggal(new Date(opts?.tanggal || ymd()))
   const where: Record<string, unknown> = { tanggal }
   if (opts?.kelasId) where.siswa = { kelasId: opts.kelasId }
 
@@ -252,12 +254,12 @@ export async function monitoringHarian(opts?: { tanggal?: string; kelasId?: stri
     pulang: gabung.filter((r) => r.jamPulang).length,
     pulangAwal: gabung.filter((r) => r.statusPulang === "AWAL").length,
   }
-  return { tanggal: tanggal.toISOString().slice(0, 10), rows: gabung, summary }
+  return { tanggal: ymd(tanggal), rows: gabung, summary }
 }
 
 export async function daftarEvent(opts?: { tanggal?: string; take?: number }) {
   await requireAdmin()
-  const tanggal = hariTanggal(new Date(opts?.tanggal || new Date().toISOString().slice(0, 10)))
+  const tanggal = hariTanggal(new Date(opts?.tanggal || ymd()))
   const rows = await prisma.fingerprintEvent.findMany({
     where: { serverAt: { gte: tanggal, lt: new Date(tanggal.getTime() + 86400000) } },
     include: {
@@ -353,7 +355,7 @@ export async function simpanKebijakanHarian(input: {
 export async function daftarLibur() {
   await requireAdmin()
   const rows = await prisma.tanggalLibur.findMany({ orderBy: { tanggal: "desc" }, take: 120 })
-  return rows.map((r) => ({ id: r.id, tanggal: r.tanggal.toISOString().slice(0, 10), keterangan: r.keterangan }))
+  return rows.map((r) => ({ id: r.id, tanggal: ymd(r.tanggal), keterangan: r.keterangan }))
 }
 
 export async function tambahLibur(tanggal: string, keterangan?: string) {
@@ -393,7 +395,7 @@ export async function daftarPermintaanManual(status?: string) {
     nama: r.siswa.nama,
     nis: r.siswa.nis,
     kelas: r.siswa.kelas?.nama ?? "-",
-    tanggal: r.tanggal.toISOString().slice(0, 10),
+    tanggal: ymd(r.tanggal),
     tipe: r.tipe,
     alasan: r.alasan,
     status: r.status,

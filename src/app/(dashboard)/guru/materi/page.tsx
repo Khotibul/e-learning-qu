@@ -86,7 +86,7 @@ export default function MateriPage() {
     try {
       const formData = new FormData()
       formData.append("file", f)
-      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
+      const uploadRes = await fetch("/api/upload?akses=INTERNAL", { method: "POST", body: formData })
       if (!uploadRes.ok) throw new Error("Upload file gagal")
       const data = await uploadRes.json()
       setUploaded({ url: data.url, text: data.text || null })

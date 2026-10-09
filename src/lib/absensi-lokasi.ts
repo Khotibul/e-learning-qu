@@ -126,13 +126,23 @@ export async function cekPengecualianAktif(
   tanggal: Date,
   jenis: JenisPengecualian
 ): Promise<{ status: "DISETUJUI" | "MENUNGGU" | "TIDAK_ADA"; id?: string }> {
-  const row = await prisma.pengecualianAbsensi.findFirst({
-    where: { guruId, tanggal, jenis, status: { in: ["DISETUJUI", "MENUNGGU"] } },
+  // Prioritas: DISETUJUI menang atas MENUNGGU — pengajuan baru (MENUNGGU)
+  // tidak boleh menutup pengecualian yang sudah disetujui untuk hari yang sama.
+  const disetujui = await prisma.pengecualianAbsensi.findFirst({
+    where: { guruId, tanggal, jenis, status: "DISETUJUI" },
     orderBy: { updatedAt: "desc" },
     select: { id: true, status: true },
   })
-  if (!row) return { status: "TIDAK_ADA" }
-  return { status: row.status as "DISETUJUI" | "MENUNGGU", id: row.id }
+  if (disetujui) return { status: "DISETUJUI", id: disetujui.id }
+
+  const menunggu = await prisma.pengecualianAbsensi.findFirst({
+    where: { guruId, tanggal, jenis, status: "MENUNGGU" },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, status: true },
+  })
+  if (menunggu) return { status: "MENUNGGU", id: menunggu.id }
+
+  return { status: "TIDAK_ADA" }
 }
 
 /**

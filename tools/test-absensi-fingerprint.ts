@@ -5,6 +5,7 @@ import {
   hariTanggal, buatApiKey,
 } from "../src/lib/absensi-harian"
 import { kirimNotifikasi, penerimaKehadiranSiswa } from "../src/lib/notifikasi"
+import { cekPengecualianAktif } from "../src/lib/absensi-lokasi"
 
 let lulus = 0
 let gagal = 0
@@ -20,6 +21,7 @@ function ymd(d: Date) {
 }
 
 async function main() {
+  const mulaiUji = new Date()
   const tanggal = hariTanggal(new Date())
   const tanggalStr = ymd(tanggal)
 
@@ -32,8 +34,15 @@ async function main() {
       apiKeyHash: hashApiKey(apiKey),
     },
   })
+  // Pilih siswa di kelas yang punya wali kelas (userId) agar uji link notifikasi
+  // & scoping wali kelas ikut terbukti; fallback ke siswa berkelas mana pun.
+  const guruRows = await prisma.guru.findMany({ select: { id: true, userId: true } })
+  const waliGuruIds = guruRows.filter((g) => g.userId).map((g) => g.id)
+  const kelasBerguru = waliGuruIds.length
+    ? (await prisma.kelas.findMany({ where: { guruId: { in: waliGuruIds } }, select: { id: true } })).map((k) => k.id)
+    : []
   const siswa = await prisma.siswa.findFirst({
-    where: { deletedAt: null, kelasId: { not: null } },
+    where: { deletedAt: null, ...(kelasBerguru.length ? { kelasId: { in: kelasBerguru } } : { kelasId: { not: null } }) },
     select: { id: true, nama: true, userId: true, kelasId: true },
     orderBy: { nama: "asc" },
   })
@@ -90,6 +99,19 @@ async function main() {
   const notifAll2 = await prisma.notification.count({ where: { userId: siswa.userId, eventKey: { contains: "absensi-harian" } } })
   cek("notifikasi tidak ganda setelah sinkronisasi ulang", notifAll2 === notifAll1, { notifAll1, notifAll2, notif1 })
 
+  // ── 2b. Balapan (race): dua scan serentak hari sama ──
+  console.log("2b) Balapan dua scan serentak (race condition)")
+  await prisma.absensiHarianSiswa.deleteMany({ where: { siswaId: siswa.id, tanggal } })
+  const [ra, rb] = await Promise.all([
+    prosesScan({ eventKey: `${perangkat.kode}:RACE-A`, perangkatKode: perangkat.kode, apiKey, perangkatUserId: uid, tipe: "MASUK" }),
+    prosesScan({ eventKey: `${perangkat.kode}:RACE-B`, perangkatKode: perangkat.kode, apiKey, perangkatUserId: uid, tipe: "MASUK" }),
+  ])
+  const statusRace = [ra.status, rb.status]
+  cek("tepat 1 SUKSES dari 2 scan serentak", statusRace.filter((s) => s === "SUKSES").length === 1, statusRace)
+  cek("scan yang kalah -> DUPLIKAT", statusRace.filter((s) => s === "DUPLIKAT").length === 1, statusRace)
+  const barisRace = await prisma.absensiHarianSiswa.findUnique({ where: { siswaId_tanggal: { siswaId: siswa.id, tanggal } } })
+  cek("tetap 1 baris + jamMasuk terisi", !!barisRace?.jamMasuk, barisRace)
+
   // ── 3. Fingerprint tidak dikenal ──
   console.log("3) Fingerprint tidak dikenal")
   const r4 = await prosesScan({ eventKey: `${perangkat.kode}:S3`, perangkatKode: perangkat.kode, apiKey, perangkatUserId: "UID-TIDAK-ADA", tipe: "MASUK" })
@@ -141,6 +163,47 @@ async function main() {
   cek("kirim pertama terkirim", k1.terkirim >= 1, k1)
   cek("kirim kedua diduplikat (tidak ganda)", k2.duplikat >= 1 && k2.terkirim === 0, k2)
   await prisma.notification.deleteMany({ where: { eventKey: payload.eventKey } })
+
+  // ── 8b. Prioritas pengecualian: DISETUJUI menang atas MENUNGGU ──
+  console.log("8b) Pengecualian: DISETUJUI > MENUNGGU (pengajuan baru)")
+  const guruUji = await prisma.guru.findFirst({ select: { id: true } })
+  if (guruUji) {
+    await prisma.pengecualianAbsensi.deleteMany({ where: { guruId: guruUji.id, tanggal, jenis: "LOKASI" } })
+    await prisma.pengecualianAbsensi.create({ data: { guruId: guruUji.id, tanggal, jenis: "LOKASI", alasan: "Uji sudah disetujui", status: "DISETUJUI" } })
+    // pengajuan kedua dibuat belakangan (updatedAt lebih baru, status MENUNGGU)
+    await prisma.pengecualianAbsensi.create({ data: { guruId: guruUji.id, tanggal, jenis: "LOKASI", alasan: "Uji pengajuan baru", status: "MENUNGGU" } })
+    const hasilExc = await cekPengecualianAktif(guruUji.id, tanggal, "LOKASI")
+    cek("DISETUJUI tetap menang meski ada MENUNGGU yang lebih baru", hasilExc.status === "DISETUJUI", hasilExc)
+    await prisma.pengecualianAbsensi.deleteMany({ where: { guruId: guruUji.id, tanggal, jenis: "LOKASI" } })
+    const hasilExc2 = await cekPengecualianAktif(guruUji.id, tanggal, "LOKASI")
+    cek("setelah dibersihkan -> TIDAK_ADA", hasilExc2.status === "TIDAK_ADA", hasilExc2)
+  } else {
+    console.log("  (lewati: tidak ada data guru)")
+  }
+
+  // ── 8c. Link notifikasi per-penerima (wali kelas) ──
+  console.log("8c) Link notifikasi wali kelas")
+  const kelasUji = siswa.kelasId
+    ? await prisma.kelas.findUnique({ where: { id: siswa.kelasId }, select: { guru: { select: { userId: true } } } })
+    : null
+  if (kelasUji?.guru?.userId) {
+    const waliUserId = kelasUji.guru.userId
+    const pWali = penerima.find((p) => p.label === "wali-kelas")
+    cek("penerima wali kelas punya link /guru/wali-kelas", pWali?.link === "/guru/wali-kelas", pWali)
+    const pSiswa = penerima.find((p) => p.label === "siswa")
+    cek("penerima siswa tanpa override link", !pSiswa?.link, pSiswa)
+    const notifWali = await prisma.notification.findMany({
+      where: { userId: waliUserId, eventKey: { contains: "absensi-harian" }, createdAt: { gte: mulaiUji } },
+      select: { link: true },
+    })
+    cek(
+      "semua notif absensi-harian untuk wali kelas memakai /guru/wali-kelas",
+      notifWali.length >= 1 && notifWali.every((n) => n.link === "/guru/wali-kelas"),
+      notifWali
+    )
+  } else {
+    console.log("  (lewati: kelas uji tanpa wali kelas)")
+  }
 
   // ── 9. Pemisahan absensi harian ↔ absensi per pelajaran ──
   console.log("9) Pemisahan absensi harian vs absensi per pelajaran")

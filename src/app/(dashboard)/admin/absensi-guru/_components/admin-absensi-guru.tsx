@@ -1,5 +1,7 @@
 "use client"
 
+import { ymd } from "@/lib/utils"
+
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
@@ -94,7 +96,7 @@ export function AdminAbsensiGuru() {
   const [pendukung, setPendukung] = useState<{ guru: any[]; kelas: any[]; mapel: any[] }>({ guru: [], kelas: [], mapel: [] })
 
   // monitoring
-  const [tanggal, setTanggal] = useState(new Date().toISOString().slice(0, 10))
+  const [tanggal, setTanggal] = useState(ymd())
   const [fGuru, setFGuru] = useState(ONE)
   const [fKelas, setFKelas] = useState(ONE)
   const [fMapel, setFMapel] = useState(ONE)
@@ -105,7 +107,7 @@ export function AdminAbsensiGuru() {
 
   // rekap
   const [start, setStart] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`)
-  const [end, setEnd] = useState(new Date().toISOString().slice(0, 10))
+  const [end, setEnd] = useState(ymd())
   const [rGuru, setRGuru] = useState(ONE)
   const [rKelas, setRKelas] = useState(ONE)
   const [rMapel, setRMapel] = useState(ONE)
@@ -117,7 +119,7 @@ export function AdminAbsensiGuru() {
   // pengganti
   const [pengganti, setPengganti] = useState<any[]>([])
   const [dialogPengganti, setDialogPengganti] = useState(false)
-  const [pgForm, setPgForm] = useState({ jadwalPelajaranId: ONE, asliGuruId: ONE, penggantiGuruId: ONE, alasan: "", tanggal: new Date().toISOString().slice(0, 10) })
+  const [pgForm, setPgForm] = useState({ jadwalPelajaranId: ONE, asliGuruId: ONE, penggantiGuruId: ONE, alasan: "", tanggal: ymd() })
   const [jadwalList, setJadwalList] = useState<any[]>([])
 
   // kebijakan

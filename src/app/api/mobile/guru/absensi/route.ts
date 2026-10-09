@@ -1,3 +1,4 @@
+import { ymd } from "@/lib/utils"
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getMobileUser } from "@/lib/mobile-auth"
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
     if (!guru) return NextResponse.json({ error: "Not guru" }, { status: 403, headers: corsHeaders })
 
     const { searchParams } = new URL(req.url)
-    const tanggal = searchParams.get("tanggal") || new Date().toISOString().slice(0, 10)
+    const tanggal = searchParams.get("tanggal") || ymd()
     const date = new Date(tanggal)
     date.setHours(0, 0, 0, 0)
     const nextDay = new Date(date.getTime() + 24 * 60 * 60 * 1000)
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
     if (!guru) return NextResponse.json({ error: "Not guru" }, { status: 403, headers: corsHeaders })
 
     const body = await req.json()
-    const tanggal = String(body.tanggal ?? new Date().toISOString().slice(0, 10))
+    const tanggal = String(body.tanggal ?? ymd())
     const status = String(body.status ?? "HADIR").toUpperCase()
     const keterangan = body.keterangan ? String(body.keterangan) : null
 

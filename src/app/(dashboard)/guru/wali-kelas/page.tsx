@@ -1,6 +1,7 @@
 // @ts-nocheck
 "use client"
 
+import { ymd } from "@/lib/utils"
 import { useEffect, useState, useCallback, useRef } from "react"
 import { motion } from "framer-motion"
 import { toast } from "react-hot-toast"
@@ -103,7 +104,7 @@ export default function WaliKelasPage() {
   const [detailAbsensiOpen, setDetailAbsensiOpen] = useState(false)
   // monitoring kehadiran harian (fingerprint)
   const [kehadiran, setKehadiran] = useState<any>(null)
-  const [kehadiranTanggal, setKehadiranTanggal] = useState(() => new Date().toISOString().slice(0, 10))
+  const [kehadiranTanggal, setKehadiranTanggal] = useState(() => ymd())
   const [periodeMode, setPeriodeMode] = useState<"minggu" | "bulan" | "semester">("minggu")
   const [rekapPeriode, setRekapPeriode] = useState<any>(null)
   const [filterStatus, setFilterStatus] = useState<"SEMUA" | "BELUM" | "TERLAMBAT" | "PULANG" | "AWAL">("SEMUA")
@@ -111,7 +112,6 @@ export default function WaliKelasPage() {
 
   function rentangPeriode(mode: "minggu" | "bulan" | "semester") {
     const now = new Date()
-    const ymd = (d: Date) => d.toISOString().slice(0, 10)
     if (mode === "minggu") {
       const start = new Date(now)
       start.setDate(now.getDate() - ((now.getDay() + 6) % 7))
@@ -388,7 +388,7 @@ export default function WaliKelasPage() {
     setPelanggaranDeskripsi(p.deskripsi || "")
     setPelanggaranPoin(p.poin != null ? String(p.poin) : "")
     setPelanggaranTindakan(p.tindakan || "")
-    setPelanggaranTanggal(p.tanggal ? new Date(p.tanggal).toISOString().slice(0, 10) : "")
+    setPelanggaranTanggal(p.tanggal ? ymd(new Date(p.tanggal)) : "")
     handleFotoPelanggaran(null)
     setPelanggaranFotoPreview(p.fotoUrl || null)
     setPelanggaranDialog(true)
@@ -404,7 +404,7 @@ export default function WaliKelasPage() {
         const file = await compressImage(pelanggaranFoto)
         const formData = new FormData()
         formData.append("file", file)
-        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
+        const uploadRes = await fetch("/api/upload?akses=INTERNAL", { method: "POST", body: formData })
         if (!uploadRes.ok) throw new Error("Gagal upload foto")
         const { url } = await uploadRes.json()
         fotoUrl = url

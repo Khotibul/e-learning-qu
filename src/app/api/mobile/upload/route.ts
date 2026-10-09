@@ -39,6 +39,7 @@ export async function POST(req: Request) {
         mime: file.type,
         size: file.size,
         data: buffer,
+        userId: user.id, // privat: hanya pemilik + Admin (bukti foto absensi)
       },
     })
 

@@ -57,8 +57,8 @@ export function NotificationCenter() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
       })
-      setRows((r) => r.map((n) => (!ids || ids.includes(n.id) ? { ...n, isRead: true } : n)))
-      setUnread((u) => (ids ? Math.max(0, u - ids.length) : 0))
+      // Resync dari server agar jumlah "belum dibaca" selalu akurat
+      await muat()
     } catch {
       /* abaikan */
     }
@@ -97,16 +97,8 @@ export function NotificationCenter() {
           </div>
         ) : (
           <ul className="divide-y">
-            {rows.map((n) => (
-              <li key={n.id}>
-                <Link
-                  href={n.link || "#"}
-                  onClick={() => buka(n)}
-                  className={cn(
-                    "block px-4 py-3 transition-colors hover:bg-muted/50",
-                    !n.isRead && "bg-primary/5"
-                  )}
-                >
+            {rows.map((n) => {
+              const isi = (
                   <div className="flex items-start gap-2">
                     {!n.isRead && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
                     <div className={cn("min-w-0 flex-1", n.isRead && "pl-4")}>
@@ -122,9 +114,25 @@ export function NotificationCenter() {
                       )}
                     </div>
                   </div>
-                </Link>
-              </li>
-            ))}
+              )
+              const kelas = cn(
+                "block px-4 py-3 transition-colors hover:bg-muted/50",
+                !n.isRead && "bg-primary/5"
+              )
+              return (
+                <li key={n.id}>
+                  {n.link ? (
+                    <Link href={n.link} onClick={() => buka(n)} className={kelas}>
+                      {isi}
+                    </Link>
+                  ) : (
+                    <button type="button" onClick={() => buka(n)} className={cn(kelas, "w-full text-left")}>
+                      {isi}
+                    </button>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         )}
       </DropdownMenuContent>

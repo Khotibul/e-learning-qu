@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getMobileUser } from "@/lib/mobile-auth"
 import { getKebijakanHarian, hariTanggal, ajukanAbsensiManual } from "@/lib/absensi-harian"
+import { ymd, ym } from "@/lib/utils"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
     if (!siswa) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders })
 
     const { searchParams } = new URL(req.url)
-    const bulan = searchParams.get("bulan") || new Date().toISOString().slice(0, 7)
+    const bulan = searchParams.get("bulan") || ym()
     const [y, m] = bulan.split("-").map((v) => parseInt(v, 10))
     const start = new Date(y, m - 1, 1)
     const end = new Date(y, m, 0, 23, 59, 59, 999)
@@ -65,7 +66,7 @@ export async function GET(req: Request) {
         persenKehadiran: Math.round((hadir / hariSekolah) * 100),
       },
       rows,
-      permintaan: permintaan.map((p) => ({ ...p, tanggal: p.tanggal.toISOString().slice(0, 10), createdAt: p.createdAt.toISOString() })),
+      permintaan: permintaan.map((p) => ({ ...p, tanggal: ymd(p.tanggal), createdAt: p.createdAt.toISOString() })),
     }, { headers: corsHeaders })
   } catch (e) {
     console.error("Mobile kehadiran GET error:", e)
@@ -79,10 +80,10 @@ export async function POST(req: Request) {
     const siswa = await getSiswa(req)
     if (!siswa) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders })
 
-    const body = await req.json()
+    const body = await req.json().catch(() => ({}))
     await ajukanAbsensiManual({
       siswaId: siswa.id,
-      tanggal: String(body.tanggal ?? new Date().toISOString().slice(0, 10)),
+      tanggal: String(body.tanggal ?? ymd()),
       tipe: String(body.tipe ?? "MASUK") as "MASUK" | "PULANG",
       alasan: String(body.alasan ?? ""),
     })

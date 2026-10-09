@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma"
 export type PenerimaNotifikasi = {
   userId: string
   label: string // untuk debugging/audit: "siswa" | "wali-kelas" | "wali-murid"
+  link?: string // override tujuan per penerima (wali kelas ≠ siswa)
 }
 
 export type PayloadNotifikasi = {
@@ -40,7 +41,7 @@ export async function kirimNotifikasi(
           judul: payload.judul,
           pesan: payload.pesan,
           tipe: payload.tipe ?? "INFO",
-          link: payload.link ?? null,
+          link: p.link ?? payload.link ?? null,
           eventKey: payload.eventKey ?? null,
           status: "TERKIRIM",
         },
@@ -62,7 +63,7 @@ export async function kirimNotifikasi(
             judul: payload.judul,
             pesan: payload.pesan,
             tipe: payload.tipe ?? "INFO",
-            link: payload.link ?? null,
+            link: p.link ?? payload.link ?? null,
             status: "GAGAL",
           },
         })
@@ -95,7 +96,8 @@ export async function penerimaKehadiranSiswa(siswaId: string): Promise<PenerimaN
 
   const hasil: PenerimaNotifikasi[] = [{ userId: siswa.userId, label: "siswa" }]
   if (siswa.kelas?.guru?.userId) {
-    hasil.push({ userId: siswa.kelas.guru.userId, label: "wali-kelas" })
+    // Wali kelas membuka dashboard kelasnya, bukan halaman siswa
+    hasil.push({ userId: siswa.kelas.guru.userId, label: "wali-kelas", link: "/guru/wali-kelas" })
   }
   // TODO(wali-murid): bila tabel relasi wali murid tersedia, tambahkan userId wali di sini.
   return hasil

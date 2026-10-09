@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     // Upload ke /api/upload dulu (reuse logic) — untuk mobile, simpan langsung
     const bytes = Buffer.from(await file.arrayBuffer())
     const upload = await prisma.upload.create({
-      data: { filename: file.name, mime: file.type || "application/octet-stream", size: file.size, data: bytes },
+      data: { filename: file.name, mime: file.type || "application/octet-stream", size: file.size, data: bytes, userId: user.id, akses: "INTERNAL" },
     })
     const fileUrl = `/api/upload/${upload.id}`
     const fileType = file.name.split(".").pop()?.toLowerCase() || ""

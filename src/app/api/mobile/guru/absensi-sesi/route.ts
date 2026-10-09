@@ -1,3 +1,4 @@
+import { ymd, ym } from "@/lib/utils"
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getMobileUser } from "@/lib/mobile-auth"
@@ -38,7 +39,7 @@ export async function GET(req: Request) {
     const view = searchParams.get("view")
 
     if (view === "rekap") {
-      const bulan = searchParams.get("bulan") || new Date().toISOString().slice(0, 7)
+      const bulan = searchParams.get("bulan") || ym()
       const [y, m] = bulan.split("-").map((v) => parseInt(v, 10))
       const start = `${y}-${String(m).padStart(2, "0")}-01`
       const lastDay = new Date(y, m || 1, 0).getDate()
@@ -50,7 +51,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ riwayat, rekap }, { headers: corsHeaders })
     }
 
-    const tanggal = searchParams.get("tanggal") || new Date().toISOString().slice(0, 10)
+    const tanggal = searchParams.get("tanggal") || ymd()
     const [sesi, kebijakan] = await Promise.all([getJadwalGuruDenganStatus(guru.id, tanggal), getKebijakanAbsensi()])
     return NextResponse.json({ tanggal, sesi, kebijakan }, { headers: corsHeaders })
   } catch (e) {
@@ -69,7 +70,7 @@ export async function POST(req: Request) {
     const body = await req.json()
     const action = String(body.action ?? "")
     const jadwalPelajaranId = String(body.jadwalPelajaranId ?? "")
-    const tanggal = String(body.tanggal ?? new Date().toISOString().slice(0, 10))
+    const tanggal = String(body.tanggal ?? ymd())
     const verifikasi = body.verifikasi && typeof body.verifikasi === "object" ? body.verifikasi : undefined
 
     if (!jadwalPelajaranId) {

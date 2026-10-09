@@ -1,5 +1,7 @@
 "use client"
 
+import { ymd } from "@/lib/utils"
+
 import { useEffect, useState, useMemo } from "react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
@@ -39,7 +41,7 @@ interface AbsensiRecord {
 }
 
 export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: string; siswas: SiswaItem[] }[] }) {
-  const [tanggal, setTanggal] = useState(new Date().toISOString().slice(0, 10))
+  const [tanggal, setTanggal] = useState(ymd())
   const [jadwalList, setJadwalList] = useState<JadwalItem[]>([])
   const [absensiData, setAbsensiData] = useState<AbsensiRecord[]>([])
   const [absensiForm, setAbsensiForm] = useState<Record<string, Record<string, string>>>({})

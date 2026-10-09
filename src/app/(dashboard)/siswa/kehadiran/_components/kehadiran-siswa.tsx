@@ -1,5 +1,7 @@
 "use client"
 
+import { ymd, ym } from "@/lib/utils"
+
 import { useCallback, useEffect, useState } from "react"
 import {
   AlertTriangle, Clock, Fingerprint, Loader2, LogIn, LogOut, RefreshCw,
@@ -20,7 +22,7 @@ import {
   ajukanAbsensiManualSaya, getPermintaanManualSaya,
 } from "../../actions"
 
-const bulanIni = () => new Date().toISOString().slice(0, 7)
+const bulanIni = () => ym()
 
 export default function KehadiranSiswa() {
   const [loading, setLoading] = useState(true)
@@ -32,7 +34,7 @@ export default function KehadiranSiswa() {
   const [permintaan, setPermintaan] = useState<any[]>([])
   const [bulan, setBulan] = useState(bulanIni())
   const [dialog, setDialog] = useState(false)
-  const [form, setForm] = useState({ tanggal: new Date().toISOString().slice(0, 10), tipe: "MASUK", alasan: "" })
+  const [form, setForm] = useState({ tanggal: ymd(), tipe: "MASUK", alasan: "" })
 
   const muat = useCallback(async () => {
     try {

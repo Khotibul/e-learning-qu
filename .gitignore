@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# artefak supervisor server (scripts/)
+scripts/.server.pid
+scripts/logs/

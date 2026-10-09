@@ -107,7 +107,7 @@ export default function PelanggaranBKPage() {
         const file = await compressImage(foto)
         const formData = new FormData()
         formData.append("file", file)
-        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData })
+        const uploadRes = await fetch("/api/upload?akses=INTERNAL", { method: "POST", body: formData })
         if (!uploadRes.ok) throw new Error("Gagal upload foto")
         const { url } = await uploadRes.json()
         fotoUrl = url

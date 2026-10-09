@@ -1,5 +1,7 @@
 "use client"
 
+import { ymd } from "@/lib/utils"
+
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
@@ -41,7 +43,7 @@ export function AdminAbsensiSiswa({
 }: {
   pendukung: { guru: any[]; kelas: any[]; mapel: any[] }
 }) {
-  const [tanggal, setTanggal] = useState(new Date().toISOString().slice(0, 10))
+  const [tanggal, setTanggal] = useState(ymd())
   const [fKelas, setFKelas] = useState(ONE)
   const [fMapel, setFMapel] = useState(ONE)
   const [fGuru, setFGuru] = useState(ONE)
@@ -51,7 +53,7 @@ export function AdminAbsensiSiswa({
 
   // siswa sering tidak hadir
   const [start, setStart] = useState(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`)
-  const [end, setEnd] = useState(new Date().toISOString().slice(0, 10))
+  const [end, setEnd] = useState(ymd())
   const [alpaList, setAlpaList] = useState<any[]>([])
 
   // dialog detail + koreksi

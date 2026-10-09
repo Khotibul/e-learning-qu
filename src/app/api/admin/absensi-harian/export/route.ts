@@ -1,3 +1,4 @@
+import { ymd } from "@/lib/utils"
 import { NextResponse } from "next/server"
 import ExcelJS from "exceljs"
 import PDFDocument from "pdfkit"
@@ -15,7 +16,7 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url)
-    const start = searchParams.get("tanggal") || new Date().toISOString().slice(0, 10)
+    const start = searchParams.get("tanggal") || ymd()
     const end = searchParams.get("end") || start
     const format = searchParams.get("format") === "pdf" ? "pdf" : "xlsx"
     const kelasId = searchParams.get("kelasId") || undefined
@@ -36,7 +37,7 @@ export async function GET(req: Request) {
     const kebijakan = await getKebijakanHarian()
 
     const data = rows.map((r) => ({
-      tanggal: r.tanggal.toISOString().slice(0, 10),
+      tanggal: ymd(r.tanggal),
       nama: r.siswa.nama,
       nis: r.siswa.nis ?? "-",
       kelas: r.siswa.kelas?.nama ?? "-",

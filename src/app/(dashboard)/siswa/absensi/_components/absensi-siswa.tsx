@@ -1,5 +1,7 @@
 "use client"
 
+import { ymd } from "@/lib/utils"
+
 import { useEffect, useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -71,7 +73,7 @@ export function AbsensiSiswaClient() {
   const harianData: HarianGroup[] = useMemo(() => {
     const map = new Map<string, AbsensiItem[]>()
     for (const item of data) {
-      const key = new Date(item.tanggal).toISOString().slice(0, 10)
+      const key = ymd(new Date(item.tanggal))
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(item)
     }

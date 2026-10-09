@@ -29,12 +29,19 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
+    // Tingkat akses: PRIVAT (default: pemilik+Admin) | INTERNAL (semua user login)
+    // | PUBLIK (tanpa login). Dipakai via ?akses= atau field form "akses".
+    const aksesParam = String(formData.get("akses") ?? new URL(req.url).searchParams.get("akses") ?? "").toUpperCase()
+    const akses = aksesParam === "PUBLIK" || aksesParam === "INTERNAL" ? aksesParam : "PRIVAT"
+
     const upload = await prisma.upload.create({
       data: {
         filename: file.name || "file",
         mime: file.type || "application/octet-stream",
         size: file.size,
         data: buffer,
+        userId: session.user.id,
+        akses,
       },
     })
 

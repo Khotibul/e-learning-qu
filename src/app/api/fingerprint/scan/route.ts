@@ -38,6 +38,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Kode perangkat dan API key wajib" }, { status: 401, headers: corsHeaders })
     }
 
+    // Auth perangkat diputuskan di sini (HTTP 401/403), bukan 200 + hasil:
+    // kegagalan autentikasi harus terbedakan dari penolakan bisnis scan.
+    // prosesScan tetap memeriksa ulang (defense-in-depth) — tidak ada absensi
+    // yang dibuat bila auth gagal.
+    const { prisma } = await import("@/lib/prisma")
+    const { hashApiKey } = await import("@/lib/absensi-harian")
+    const perangkat = await prisma.perangkatFingerprint.findUnique({ where: { kode: perangkatKode } })
+    if (!perangkat || perangkat.apiKeyHash !== hashApiKey(key)) {
+      return NextResponse.json(
+        { success: false, error: "API key perangkat tidak valid" },
+        { status: 401, headers: corsHeaders }
+      )
+    }
+    if (perangkat.status !== "AKTIF") {
+      return NextResponse.json(
+        { success: false, error: "Perangkat dinonaktifkan Admin" },
+        { status: 403, headers: corsHeaders }
+      )
+    }
+
     const scans: any[] = Array.isArray(body?.scans) ? body.scans : [body]
     if (scans.length === 0) {
       return NextResponse.json({ error: "Tidak ada scan" }, { status: 400, headers: corsHeaders })
@@ -70,7 +90,6 @@ export async function POST(req: Request) {
 
     const sukses = hasil.filter((h) => h.status === "SUKSES" || h.status === "DUPLIKAT").length
     if (sukses === hasil.length) {
-      const { prisma } = await import("@/lib/prisma")
       await prisma.perangkatFingerprint
         .updateMany({ where: { kode: perangkatKode }, data: { lastSyncAt: new Date() } })
         .catch(() => {})

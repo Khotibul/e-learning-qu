@@ -1,3 +1,4 @@
+import { ymd } from "@/lib/utils"
 import { NextResponse } from "next/server"
 import ExcelJS from "exceljs"
 import PDFDocument from "pdfkit"
@@ -21,7 +22,7 @@ async function ambilData(req: Request) {
   if (!session?.user?.email || session.user.role !== "ADMIN") return null
 
   const { searchParams } = new URL(req.url)
-  const start = searchParams.get("start") || new Date().toISOString().slice(0, 10)
+  const start = searchParams.get("start") || ymd()
   const end = searchParams.get("end") || start
   const guruId = searchParams.get("guruId") || undefined
   const kelasId = searchParams.get("kelasId") || undefined
@@ -142,7 +143,7 @@ export async function GET(req: Request) {
       ws.getRow(ws.rowCount).font = { bold: true }
       for (const r of rows) {
         ws.addRow([
-          r.tanggal.toISOString().slice(0, 10),
+          ymd(r.tanggal),
           r.guru.nama,
           r.guru.nip ?? "-",
           r.jadwal.kelas.nama,
@@ -185,7 +186,7 @@ export async function GET(req: Request) {
       for (const a of absensiSiswa) {
         const c = ringkasSiswa(a)
         ws2.addRow([
-          a.tanggal.toISOString().slice(0, 10),
+          ymd(a.tanggal),
           a.kelas.nama,
           a.mataPelajaran.nama,
           a.jadwal ? `${a.jadwal.jamMulai}-${a.jadwal.jamSelesai}` : "-",
@@ -210,7 +211,7 @@ export async function GET(req: Request) {
         if (detailCount > 8000) break
         for (const s of a.siswa) {
           ws3.addRow([
-            a.tanggal.toISOString().slice(0, 10),
+            ymd(a.tanggal),
             a.kelas.nama,
             a.mataPelajaran.nama,
             s.siswa.nama,
@@ -253,7 +254,7 @@ export async function GET(req: Request) {
     for (const r of rows.slice(0, 200)) {
       const y = doc.y
       const baris = [
-        r.tanggal.toISOString().slice(0, 10),
+        ymd(r.tanggal),
         r.guru.nama,
         r.jadwal.kelas.nama,
         r.jadwal.mataPelajaran.nama,
@@ -300,7 +301,7 @@ export async function GET(req: Request) {
         const y = doc.y
         const c = ringkasSiswa(a)
         const baris = [
-          a.tanggal.toISOString().slice(0, 10),
+          ymd(a.tanggal),
           a.kelas.nama,
           a.mataPelajaran.nama,
           a.jadwal ? `${a.jadwal.jamMulai}-${a.jadwal.jamSelesai}` : "-",

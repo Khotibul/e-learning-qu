@@ -18,6 +18,23 @@ export function formatDateOnly(date: Date | string) {
   }).format(new Date(date))
 }
 
+/**
+ * Format tanggal lokal YYYY-MM-DD (bukan UTC).
+ * `new Date().toISOString().slice(0,10)` di browser memberi tanggal UTC —
+ * pada 00:00–07:00 WIB tanggalnya masih "kemarin". Pakai ini untuk
+ * default input date & tampilan tanggal di komponen klien.
+ */
+export function ymd(d: Date = new Date()) {
+  const p = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+/** Format bulan lokal YYYY-MM. */
+export function ym(d: Date = new Date()) {
+  const p = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}`
+}
+
 export function generateRandomString(length: number = 8) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
   return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join("")

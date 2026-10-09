@@ -1,3 +1,4 @@
+import { ymd } from "@/lib/utils"
 import { NextResponse } from "next/server"
 import { getMobileUser } from "@/lib/mobile-auth"
 import { prisma } from "@/lib/prisma"
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
     if (!guruId) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders })
 
     const { searchParams } = new URL(req.url)
-    const tanggal = searchParams.get("tanggal") || new Date().toISOString().slice(0, 10)
+    const tanggal = searchParams.get("tanggal") || ymd()
     const date = new Date(tanggal + "T00:00:00")
     date.setHours(0, 0, 0, 0)
 
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
     const body = await req.json()
     const jenis = String(body.jenis ?? "")
     const alasan = String(body.alasan ?? "").trim()
-    const tanggal = String(body.tanggal ?? new Date().toISOString().slice(0, 10))
+    const tanggal = String(body.tanggal ?? ymd())
     const jadwalPelajaranId = body.jadwalPelajaranId ? String(body.jadwalPelajaranId) : null
 
     if (!["LOKASI", "BIOMETRIK", "FOTO"].includes(jenis)) {
