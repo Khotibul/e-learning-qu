@@ -4,6 +4,10 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { rateLimit } from "@/lib/rate-limit"
+import { createAuditLog } from "@/lib/audit"
+import { kirimEmailVerifikasi, kirimEmailReset } from "@/lib/email-ppdb"
+import bcrypt from "bcryptjs"
+import crypto from "crypto"
 import type { JenisPendaftaran } from "@prisma/client"
 
 /**
@@ -18,6 +22,135 @@ async function requirePendaftar() {
   // pendaftar = akun SISWA (role default) — ADMIN/GURU tidak mendaftar via PPDB
   if (user.role === "ADMIN" || user.role === "GURU") throw new Error("Akun ini tidak dapat mendaftar PPDB")
   return session.user.id
+}
+
+// ─── REGISTRASI AKUN PENDAFTAR (STEP 5) ────────────────────────────────
+
+function validEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+/**
+ * 1. Daftar akun pendaftar: buat User (role SISWA) + kirim email verifikasi.
+ * Rate-limited 5/jam per email. Cegah akun ganda (email unique).
+ */
+export async function daftarAkunPpdb(input: { email: string; nama: string; setujuPrivasi: boolean }) {
+  const email = input.email?.trim().toLowerCase()
+  if (!email || !validEmail(email)) throw new Error("Email tidak valid")
+  if (!input.nama || input.nama.trim().length < 3) throw new Error("Nama minimal 3 karakter")
+  if (!input.setujuPrivasi) throw new Error("Anda harus menyetujui kebijakan privasi")
+
+  const rl = rateLimit(`ppdb-daftar-${email}`, 5, 3600000) // 5/jam
+  if (!rl.success) throw new Error("Terlalu banyak percobaan — coba lagi nanti")
+
+  const existing = await prisma.user.findUnique({ where: { email } })
+  if (existing?.emailVerified) throw new Error("Email sudah terdaftar — silakan login")
+  if (existing && !existing.emailVerified) {
+    // kirim ulang verifikasi (akun menunggu verifikasi)
+    const ulang = await kirimUlangVerifikasiInt(email)
+    return { ok: true, message: "Email sudah terdaftar menunggu verifikasi — tautan verifikasi dikirim ulang", ...(ulang as any) }
+  }
+
+  const hash = crypto.randomBytes(32).toString("hex")
+  const expires = new Date(Date.now() + 24 * 3600000) // 24 jam
+
+  const user = existing ?? await prisma.user.create({
+    data: { email, name: input.nama.trim(), role: "SISWA", isActive: true },
+  })
+  // (existing tanpa emailVerified = akun dari Google belum verifikasi — update nama saja)
+  if (existing) await prisma.user.update({ where: { id: user.id }, data: { name: input.nama.trim() } })
+
+  await prisma.ppdbToken.create({ data: { email, token: hash, jenis: "VERIFIKASI_EMAIL", expires } })
+  const hasil = await kirimEmailVerifikasi(email, input.nama.trim(), hash)
+  await createAuditLog({ userId: user.id, action: "PPDB_DAFTAR", entity: "User", entityId: user.id, detail: { email } })
+
+  return { ok: true, message: "Pendaftaran berhasil — cek email untuk verifikasi", ...(hasil as any) }
+}
+
+async function kirimUlangVerifikasiInt(email: string) {
+  const hash = crypto.randomBytes(32).toString("hex")
+  const expires = new Date(Date.now() + 24 * 3600000)
+  await prisma.ppdbToken.deleteMany({ where: { email, jenis: "VERIFIKASI_EMAIL", usedAt: null } })
+  await prisma.ppdbToken.create({ data: { email, token: hash, jenis: "VERIFIKASI_EMAIL", expires } })
+  const user = await prisma.user.findUnique({ where: { email } })
+  return kirimEmailVerifikasi(email, user?.name || "", hash)
+}
+
+/** 2. Kirim ulang email verifikasi (rate-limited 3/jam). */
+export async function kirimUlangVerifikasi(email: string) {
+  const e = email?.trim().toLowerCase()
+  if (!e || !validEmail(e)) throw new Error("Email tidak valid")
+  const rl = rateLimit(`ppdb-resend-${e}`, 3, 3600000)
+  if (!rl.success) throw new Error("Terlalu banyak permintaan — coba lagi nanti")
+  const user = await prisma.user.findUnique({ where: { email: e } })
+  if (!user) throw new Error("Email tidak terdaftar")
+  if (user.emailVerified) throw new Error("Email sudah terverifikasi — silakan login")
+  await kirimUlangVerifikasiInt(e)
+  return { ok: true, message: "Tautan verifikasi dikirim ulang" }
+}
+
+/**
+ * 3. Verifikasi email via token. Set emailVerified + buat password sekaligus.
+ * Token sekali pakai, kedaluwarsa 24 jam.
+ */
+export async function verifikasiAkunPpdb(token: string, password: string) {
+  if (!token?.trim()) throw new Error("Token tidak valid")
+  if (!password || password.length < 8) throw new Error("Password minimal 8 karakter")
+
+  const rl = rateLimit(`ppdb-verif-${token.slice(0, 8)}`, 10, 3600000)
+  if (!rl.success) throw new Error("Terlalu banyak percobaan")
+
+  const t = await prisma.ppdbToken.findUnique({ where: { token } })
+  if (!t || t.jenis !== "VERIFIKASI_EMAIL") throw new Error("Tautan verifikasi tidak valid")
+  if (t.usedAt) throw new Error("Tautan verifikasi sudah dipakai")
+  if (t.expires < new Date()) throw new Error("Tautan verifikasi kedaluwarsa — minta kirim ulang")
+
+  const user = await prisma.user.findUnique({ where: { email: t.email } })
+  if (!user) throw new Error("Akun tidak ditemukan")
+
+  const hash = await bcrypt.hash(password, 12)
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: user.id }, data: { emailVerified: new Date(), password: hash } }),
+    prisma.ppdbToken.update({ where: { id: t.id }, data: { usedAt: new Date() } }),
+  ])
+  await createAuditLog({ userId: user.id, action: "PPDB_VERIFIKASI", entity: "User", entityId: user.id, detail: { email: t.email } })
+  return { ok: true, message: "Email terverifikasi — akun aktif, silakan login" }
+}
+
+/**
+ * 4. Lupa password: kirim tautan reset (berlaku 1 jam). Rate-limited 3/jam.
+ */
+export async function lupaPasswordPpdb(email: string) {
+  const e = email?.trim().toLowerCase()
+  if (!e || !validEmail(e)) throw new Error("Email tidak valid")
+  const rl = rateLimit(`ppdb-lupa-${e}`, 3, 3600000)
+  if (!rl.success) throw new Error("Terlalu banyak permintaan — coba lagi nanti")
+  const user = await prisma.user.findUnique({ where: { email: e } })
+  if (!user || !user.password) throw new Error("Email tidak terdaftar")
+  const hash = crypto.randomBytes(32).toString("hex")
+  await prisma.ppdbToken.deleteMany({ where: { email: e, jenis: "RESET_PASSWORD", usedAt: null } })
+  await prisma.ppdbToken.create({ data: { email: e, token: hash, jenis: "RESET_PASSWORD", expires: new Date(Date.now() + 3600000) } })
+  await kirimEmailReset(e, user.name || "", hash)
+  return { ok: true, message: "Tautan reset password dikirim ke email Anda" }
+}
+
+/** 5. Reset password via token (sekali pakai, 1 jam). */
+export async function resetPasswordPpdb(token: string, password: string) {
+  if (!token?.trim()) throw new Error("Token tidak valid")
+  if (!password || password.length < 8) throw new Error("Password minimal 8 karakter")
+  const t = await prisma.ppdbToken.findUnique({ where: { token } })
+  if (!t || t.jenis !== "RESET_PASSWORD") throw new Error("Tautan reset tidak valid")
+  if (t.usedAt) throw new Error("Tautan reset sudah dipakai")
+  if (t.expires < new Date()) throw new Error("Tautan reset kedaluwarsa")
+  const user = await prisma.user.findUnique({ where: { email: t.email } })
+  if (!user) throw new Error("Akun tidak ditemukan")
+  const hash = await bcrypt.hash(password, 12)
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: user.id }, data: { password: hash } }),
+    prisma.ppdbToken.update({ where: { id: t.id }, data: { usedAt: new Date() } }),
+  ])
+  await createAuditLog({ userId: user.id, action: "PPDB_RESET_PASSWORD", entity: "User", entityId: user.id, detail: { email: t.email } })
+  return { ok: true, message: "Password berhasil direset — silakan login" }
 }
 
 /** Gelombang yang sedang DIBUKA untuk publik (landing + form). */

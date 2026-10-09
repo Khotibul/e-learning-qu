@@ -37,6 +37,7 @@
     "@radix-ui/react-tabs": "^1.1.7",
     "@radix-ui/react-toast": "^1.2.11",
     "@radix-ui/react-tooltip": "^1.2.4",
+    "@tailwindcss/postcss": "^4",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-table": "^8.20.6",
     "bcryptjs": "^3.0.3",
@@ -55,13 +56,13 @@
     "react-dom": "19.2.4",
     "react-hook-form": "^7.81.0",
     "react-hot-toast": "^2.5.2",
+    "resend": "^6.32.1",
     "tailwind-merge": "^2.6.0",
+    "tailwindcss": "^4",
     "tsx": "^4.19.4",
     "uuid": "^11.1.0",
     "zod": "^4.4.3",
-    "zustand": "^5.0.14",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4"
+    "zustand": "^5.0.14"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -2037,3 +2037,23 @@ model KeputusanPpdb {
   @@index([hasil])
   @@map("keputusan_ppdb")
 }
+
+// Token verifikasi email & reset password pendaftar PPDB (STEP 5)
+enum JenisTokenPpdb {
+  VERIFIKASI_EMAIL
+  RESET_PASSWORD
+}
+
+model PpdbToken {
+  id        String          @id @default(uuid()) @db.Uuid
+  email     String
+  token     String          @unique
+  jenis     JenisTokenPpdb
+  expires   DateTime
+  usedAt    DateTime?
+  createdAt DateTime        @default(now())
+
+  @@index([email, jenis])
+  @@index([expires])
+  @@map("ppdb_token")
+}
