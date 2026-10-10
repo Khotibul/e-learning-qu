@@ -32,3 +32,32 @@ export async function getMobileUser(req: Request) {
     return null
   }
 }
+
+/**
+ * Verifikasi token mobile dari header Authorization via next/headers —
+ * untuk dipakai di server action (tanpa objek Request).
+ */
+export async function getMobileUserFromHeaders() {
+  const { headers } = await import("next/headers")
+  const h = await headers()
+  const auth = h.get("authorization") || h.get("Authorization")
+  if (!auth || !auth.startsWith("Bearer ")) return null
+  const token = auth.slice(7).trim()
+  if (!token) return null
+  try {
+    const decoded = Buffer.from(token, "base64").toString("utf-8")
+    const [userId, role] = decoded.split(":")
+    if (!userId || !role) return null
+    const ts = Number(decoded.split(":")[2])
+    if (ts && Date.now() - ts > 7 * 24 * 60 * 60 * 1000) return null
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true, role: true, isActive: true },
+    })
+    if (!user || !user.isActive) return null
+    if (user.role !== role) return null
+    return user
+  } catch {
+    return null
+  }
+}
