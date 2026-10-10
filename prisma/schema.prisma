@@ -177,6 +177,7 @@ model Guru {
   pengecualian   PengecualianAbsensi[]
   penggantiAktif PenggantiGuru[] @relation("PenggantiAsli")
   penggantiSebagai PenggantiGuru[] @relation("PenggantiGuru")
+  asramaDibina   Asrama[]
 
   @@index([userId])
   @@index([deletedAt])
@@ -230,6 +231,7 @@ model Siswa {
   examSessions     ExamSession[]
   examAuditLogs    ExamAuditLog[]
   santri           Santri?
+  konflikIzin      IzinKonflikAbsensi[]
 
   @@index([kelasId])
   @@index([kelasId, deletedAt])
@@ -1455,6 +1457,7 @@ model Upload {
   createdAt DateTime @default(now())
 
   berkasPpdb BerkasPpdb[]
+  izinLampiran IzinSantri[]
 
   @@index([userId])
   @@map("upload")
@@ -1798,6 +1801,8 @@ model Santri {
   nama         String
   status       StatusSantri         @default(AKTIF) // status administrasi
   keberadaan   StatusKehadiranSantri @default(DI_PONDOK) // status keberadaan fisik (terpisah dari administrasi)
+  asramaId     String?              @db.Uuid // 1 DB — tempat tinggal santri
+  kamarId      String?              @db.Uuid
   tanggalMasuk DateTime?
   catatan      String?
   createdAt    DateTime             @default(now())
@@ -1806,8 +1811,11 @@ model Santri {
 
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   siswa     Siswa?            @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  asrama    Asrama?           @relation(fields: [asramaId], references: [id], onDelete: SetNull)
+  kamar     Kamar?            @relation(fields: [kamarId], references: [id], onDelete: SetNull)
   walis     SantriWali[]
   statusLog SantriStatusLog[]
+  izins     IzinSantri[]
 
   @@index([status, deletedAt])
   @@index([keberadaan, deletedAt])
@@ -2093,4 +2101,177 @@ model PpdbToken {
   @@index([email, jenis])
   @@index([expires])
   @@map("ppdb_token")
+}
+
+// ─── E-IZIN SANTRI — PERIZINAN PULANG & STATUS KEBERADAAN OTOMATIS ──────
+// Asrama/Kamar (fondasi SISANTRI) + IzinSantri + alur persetujuan
+// wali → musyrif → admin pondok + check-out/check-in gerbang.
+// Keberadaan fisik memakai enum StatusKehadiranSantri yang sudah ada;
+// status administrasi tetap StatusSantri.AKTIF selama izin berlangsung.
+
+model Asrama {
+  id          String   @id @default(uuid()) @db.Uuid
+  nama        String   @unique
+  deskripsi   String?
+  musyrifId   String?  @db.Uuid // Guru pembina asrama (jabatan MUSYRIF)
+  aktif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  musyrif Guru?   @relation(fields: [musyrifId], references: [id], onDelete: SetNull)
+  kamars  Kamar[]
+  santris Santri[]
+
+  @@index([aktif])
+  @@map("asrama")
+}
+
+model Kamar {
+  id         String   @id @default(uuid()) @db.Uuid
+  asramaId   String   @db.Uuid
+  nama       String
+  kapasitas  Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  asrama  Asrama   @relation(fields: [asramaId], references: [id], onDelete: Cascade)
+  santris Santri[]
+
+  @@unique([asramaId, nama])
+  @@map("kamar")
+}
+
+enum JenisIzin {
+  PULANG_RUMAH
+  KELUAR_SEMENTARA
+  BEROBAT
+  KEGIATAN_KELUARGA
+  KEGIATAN_SEKOLAH
+  DARURAT
+  LIBURAN_PONDOK
+}
+
+enum StatusIzinSantri {
+  DRAFT
+  DIAJUKU
+  MENUNGGU_WALI
+  MENUNGGU_MUSYRIF
+  MENUNGGU_ADMIN
+  DISETUJUI
+  DITOLAK
+  DIBATALKAN
+  KEDALUWARSA
+  SELESAI
+}
+
+enum TahapIzin {
+  DIAJUKU
+  WALI
+  MUSYRIF
+  ADMIN
+  GERBANG_KELUAR
+  GERBANG_MASUK
+  SISTEM
+}
+
+model IzinSantri {
+  id              String            @id @default(uuid()) @db.Uuid
+  santriId        String            @db.Uuid
+  jenis           JenisIzin
+  alasan          String            @db.Text
+  rencanaKeluar   DateTime
+  rencanaKembali  DateTime
+  alamatTujuan    String            @db.Text
+  namaPenjemput   String
+  hubunganPenjemput HubunganWali
+  noTelpPenjemput String
+  lampiranId      String?           @db.Uuid // lampiran surat/dokumen (opsional, reuse Upload)
+  status          StatusIzinSantri  @default(DRAFT)
+  alasanKeputusan String?           @db.Text // alasan penolakan/pembatalan
+
+  // jejak persetujuan (null = tahap tidak wajib / belum dilalui)
+  waliApprovedAt     DateTime?
+  waliApprovedBy     String?      @db.Uuid
+  musyrifApprovedAt  DateTime?
+  musyrifApprovedBy  String?      @db.Uuid
+  adminApprovedAt    DateTime?
+  adminApprovedBy    String?      @db.Uuid
+
+  // surat izin digital + QR (diterbitkan saat DISETUJUI)
+  suratNomor     String?    @unique // contoh: IZIN/2026/10/0001
+  suratToken     String?    @unique // token aman untuk QR verifikasi
+  suratExpiresAt DateTime? // batas validitas QR = rencanaKembali + grace
+
+  // check-out / check-in gerbang (waktu server, transaksi)
+  checkoutAt       DateTime?
+  checkoutBy       String?    @db.Uuid
+  penjemputVerifiedAt DateTime?
+  penjemputVerifiedBy String? @db.Uuid
+  checkinAt        DateTime?
+  checkinBy        String?    @db.Uuid
+  perjalananConfirmedAt DateTime? // konfirmasi "tiba di rumah" (opsional)
+  terlambatNotifiedAt   DateTime? // penanda notifikasi keterlambatan terkirim
+
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  santri   Santri            @relation(fields: [santriId], references: [id], onDelete: Cascade)
+  lampiran Upload?           @relation(fields: [lampiranId], references: [id], onDelete: SetNull)
+  approvals IzinApprovalLog[]
+  konflik   IzinKonflikAbsensi[]
+
+  @@index([santriId, status])
+  @@index([status])
+  @@index([rencanaKembali])
+  @@map("izin_santri")
+}
+
+model IzinApprovalLog {
+  id          String     @id @default(uuid()) @db.Uuid
+  izinId      String     @db.Uuid
+  tahap       TahapIzin
+  keputusan   String // DISETUJUI | DITOLAK | DIAJUKU | CHECKOUT | CHECKIN | DIBATALKAN | KEDALUWARSA
+  actorUserId String?    @db.Uuid // petugas/akun yang melakukan
+  catatan     String?    @db.Text
+  createdAt   DateTime   @default(now())
+
+  izin IzinSantri @relation(fields: [izinId], references: [id], onDelete: Cascade)
+
+  @@index([izinId])
+  @@index([createdAt])
+  @@map("izin_approval_log")
+}
+
+// Pengaturan per jenis izin: butuh tahap persetujuan mana (admin atur).
+model IzinPengaturan {
+  id            String   @id @default(uuid()) @db.Uuid
+  jenis         JenisIzin @unique
+  butuhWali     Boolean  @default(true)
+  butuhMusyrif  Boolean  @default(true)
+  butuhAdmin    Boolean  @default(true)
+  aktif         Boolean  @default(true) // false = jenis izin tidak dapat diajukan
+  updatedAt     DateTime @updatedAt
+
+  @@map("izin_pengaturan")
+}
+
+// Penanda konflik: santri tercatat HADIR di absensi padahal sedang
+// checkout izin (diperiksa admin; absensi aktual tidak ditimpa).
+model IzinKonflikAbsensi {
+  id            String   @id @default(uuid()) @db.Uuid
+  izinId        String   @db.Uuid
+  siswaId       String   @db.Uuid
+  absensiSiswaId String? @db.Uuid // baris absensi yang konflik (jika ada)
+  tanggal       DateTime @db.Date
+  catatan       String   @db.Text
+  resolvedAt    DateTime?
+  resolvedBy    String?  @db.Uuid
+  createdAt     DateTime @default(now())
+
+  izin  IzinSantri @relation(fields: [izinId], references: [id], onDelete: Cascade)
+  siswa Siswa      @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@index([izinId])
+  @@index([siswaId, tanggal])
+  @@map("izin_konflik_absensi")
 }

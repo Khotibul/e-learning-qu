@@ -53,6 +53,8 @@ export const NAV_ITEMS = {
     { label: "Jadwal Ujian", href: "/admin/jadwal-ujian", icon: "CalendarClock" },
     { label: "Pengumuman", href: "/admin/pengumuman", icon: "Megaphone" },
     { label: "Nilai", href: "/admin/nilai", icon: "Award" },
+    { label: "Izin Santri", href: "/admin/izin", icon: "ShieldCheck" },
+    { label: "Gerbang Pondok", href: "/gerbang", icon: "Fingerprint" },
     { label: "Pengaturan", href: "/admin/pengaturan", icon: "Settings" },
     { label: "Researcher", href: "/admin/researcher", icon: "BarChart3" },
     { label: "Statistik", href: "/admin/statistik", icon: "BarChart3" },
@@ -72,6 +74,8 @@ export const NAV_ITEMS = {
     { label: "Analitik", href: "/guru/analitik", icon: "BarChart3" },
     { label: "Intervensi", href: "/guru/intervensi", icon: "ShieldCheck" },
     { label: "Anti-Cheat", href: "/guru/anti-cheat", icon: "Shield" },
+    { label: "Izin Musyrif", href: "/guru/izin-musyrif", icon: "ShieldCheck" },
+    { label: "Gerbang Pondok", href: "/gerbang", icon: "Fingerprint" },
     { label: "Pengaturan", href: "/guru/pengaturan", icon: "Settings" },
   ],
   SISWA: [
@@ -91,6 +95,8 @@ export const NAV_ITEMS = {
     { label: "Sekretaris", href: "/siswa/sekretaris", icon: "ClipboardList" },
     { label: "Nilai", href: "/siswa/nilai", icon: "Award" },
     { label: "Ranking", href: "/siswa/ranking", icon: "Trophy" },
+    { label: "Perizinan Santri", href: "/santri/izin", icon: "FileText" },
+    { label: "Persetujuan Izin", href: "/wali-santri/izin", icon: "ShieldCheck" },
     { label: "Pengaturan", href: "/siswa/pengaturan", icon: "Settings" },
   ],
 }

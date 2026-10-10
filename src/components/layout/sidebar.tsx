@@ -82,9 +82,14 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
       .catch(() => {})
   }, [role, session])
 
-  const items = (NAV_ITEMS[role as keyof typeof NAV_ITEMS] || []).filter(
-    (item) => item.href !== "/guru/pelanggaran" || guruJabatan === "BK"
-  )
+  const items = (NAV_ITEMS[role as keyof typeof NAV_ITEMS] || []).filter((item) => {
+    if (item.href === "/guru/pelanggaran") return guruJabatan === "BK"
+    // menu izin musyrif & gerbang hanya untuk jabatan terkait (ADMIN selalu lihat)
+    if (item.href === "/guru/izin-musyrif" || item.href === "/gerbang") {
+      return role === "ADMIN" || ["MUSYRIF", "GERBANG", "PENGASUH"].includes(guruJabatan ?? "")
+    }
+    return true
+  })
 
   return (
     <>
