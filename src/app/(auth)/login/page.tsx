@@ -11,7 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Sparkles, Mail, Lock, Loader2, ArrowLeft } from "lucide-react"
 import { toast } from "react-hot-toast"
 
-type LoginMode = "google" | "siswa" | "guru" | "admin"
+type LoginMode = "google" | "siswa" | "guru" | "admin" | "pondok"
+type PondokRole = "KEPALA_PONDOK" | "PENGURUS_PONDOK" | "USTADZ_PONDOK"
+const PONDOK_HOME: Record<PondokRole, string> = { KEPALA_PONDOK: "/kepala-pondok", PENGURUS_PONDOK: "/pengurus", USTADZ_PONDOK: "/ustadz" }
+const PONDOK_LABEL: Record<PondokRole, string> = { KEPALA_PONDOK: "Kepala Pondok", PENGURUS_PONDOK: "Pengurus Pondok", USTADZ_PONDOK: "Ustadz/Ustadzah" }
 
 function LoginForm() {
   const { data: session, status } = useSession()
@@ -20,6 +23,7 @@ function LoginForm() {
   const error = searchParams.get("error")
 
   const [mode, setMode] = useState<LoginMode>("google")
+  const [pondokRole, setPondokRole] = useState<PondokRole>("KEPALA_PONDOK")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -49,6 +53,9 @@ function LoginForm() {
             if (role === "ADMIN") router.push("/admin")
             else if (role === "GURU") router.push("/guru")
             else if (role === "SISWA") router.push("/siswa")
+            else if (role === "KEPALA_PONDOK") router.push("/kepala-pondok")
+            else if (role === "PENGURUS_PONDOK") router.push("/pengurus")
+            else if (role === "USTADZ_PONDOK") router.push("/ustadz")
             else router.push("/register")
           } else {
             router.push("/register")
@@ -58,7 +65,7 @@ function LoginForm() {
     }
   }, [session, status, router, error])
 
-  async function handleCredentialsLogin(e: React.FormEvent, role: "ADMIN" | "GURU" | "SISWA") {
+  async function handleCredentialsLogin(e: React.FormEvent, role: "ADMIN" | "GURU" | "SISWA" | PondokRole) {
     e.preventDefault()
     if (!email || !password) {
       toast.error("Email dan password wajib diisi")
@@ -75,7 +82,7 @@ function LoginForm() {
       if (result?.error) {
         toast.error("Email atau password salah")
       } else {
-        const target = role === "ADMIN" ? "/admin" : role === "GURU" ? "/guru" : "/siswa"
+        const target = role === "ADMIN" ? "/admin" : role === "GURU" ? "/guru" : role === "SISWA" ? "/siswa" : PONDOK_HOME[role as PondokRole]
         router.push(target)
         router.refresh()
       }
@@ -129,6 +136,7 @@ function LoginForm() {
               {mode === "siswa" && "Masuk sebagai Siswa"}
               {mode === "guru" && "Masuk sebagai Guru"}
               {mode === "admin" && "Masuk sebagai Admin"}
+              {mode === "pondok" && `Masuk sebagai ${PONDOK_LABEL[pondokRole]}`}
             </CardDescription>
           </div>
         </CardHeader>
@@ -185,6 +193,16 @@ function LoginForm() {
                 onClick={() => setMode("admin")}
               >
                 Login Admin
+              </Button>
+
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full gap-3 text-base"
+                onClick={() => setMode("pondok")}
+              >
+                <Mail className="h-5 w-5" />
+                Login Pengelola Pondok (Email)
               </Button>
             </>
           )}
@@ -296,6 +314,56 @@ function LoginForm() {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Masuk sebagai Admin
+              </Button>
+            </form>
+          )}
+
+          {mode === "pondok" && (
+            <form onSubmit={(e) => handleCredentialsLogin(e, pondokRole)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="pondok-role">Peran</Label>
+                <select
+                  id="pondok-role"
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  value={pondokRole}
+                  onChange={(e) => setPondokRole(e.target.value as PondokRole)}
+                >
+                  <option value="KEPALA_PONDOK">Kepala Pondok / Pengasuh</option>
+                  <option value="PENGURUS_PONDOK">Pengurus Pondok</option>
+                  <option value="USTADZ_PONDOK">Ustadz / Ustadzah</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pondok-email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="pondok-email"
+                    type="email"
+                    placeholder="email@pesantren.sch.id"
+                    className="pl-10"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pondok-password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="pondok-password"
+                    type="password"
+                    placeholder="••••••••"
+                    className="pl-10"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Masuk sebagai {PONDOK_LABEL[pondokRole]}
               </Button>
             </form>
           )}

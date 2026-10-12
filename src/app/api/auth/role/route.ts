@@ -29,7 +29,7 @@ export const GET = auth(async (req) => {
     ])
 
     return NextResponse.json({
-      profileComplete: user?.role === "ADMIN" || !!(guru || siswa),
+      profileComplete: user?.role === "ADMIN" || ["KEPALA_PONDOK", "PENGURUS_PONDOK", "USTADZ_PONDOK"].includes(user?.role ?? "") || !!(guru || siswa),
       role: user?.role,
     })
   } catch (error) {

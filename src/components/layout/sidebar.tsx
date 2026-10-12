@@ -82,11 +82,12 @@ export function Sidebar({ role, isOpen, onClose }: SidebarProps) {
       .catch(() => {})
   }, [role, session])
 
+  const PONDOK_ROLES = ["KEPALA_PONDOK", "PENGURUS_PONDOK", "USTADZ_PONDOK"]
   const items = (NAV_ITEMS[role as keyof typeof NAV_ITEMS] || []).filter((item) => {
     if (item.href === "/guru/pelanggaran") return guruJabatan === "BK"
-    // menu izin musyrif & gerbang hanya untuk jabatan terkait (ADMIN selalu lihat)
+    // menu izin musyrif & gerbang hanya untuk jabatan/role terkait (ADMIN & role pondok selalu lihat)
     if (item.href === "/guru/izin-musyrif" || item.href === "/gerbang") {
-      return role === "ADMIN" || ["MUSYRIF", "GERBANG", "PENGASUH"].includes(guruJabatan ?? "")
+      return role === "ADMIN" || PONDOK_ROLES.includes(role) || ["MUSYRIF", "GERBANG", "PENGASUH"].includes(guruJabatan ?? "")
     }
     return true
   })

@@ -25,11 +25,11 @@ interface IzinRow {
   santri: { nama: string; nisNo: string | null; asrama: { nama: string } | null; kamar: { nama: string } | null }
 }
 
-type Pengaturan = { jenis: string; butuhWali: boolean; butuhMusyrif: boolean; butuhAdmin: boolean; aktif: boolean }
+type Pengaturan = { jenis: string; butuhWali: boolean; butuhPengurus: boolean; butuhMusyrif: boolean; butuhKepala: boolean; butuhAdmin: boolean; aktif: boolean }
 type Asrama = { id: string; nama: string; musyrif: { id: string; nama: string } | null; kamars: { id: string; nama: string; kapasitas: number | null }[] }
 type Konflik = { id: string; tanggal: string; catatan: string; siswa: { id: string; nama: string; nis: string | null }; izin: { suratNomor: string | null; jenis: string; rencanaKembali: string } }
 
-const HUB_LABEL: Record<string, string> = { butuhWali: "Wali", butuhMusyrif: "Musyrif", butuhAdmin: "Admin" }
+const HUB_LABEL: Record<string, string> = { butuhWali: "Wali", butuhPengurus: "Pengurus", butuhMusyrif: "Musyrif", butuhKepala: "Kepala Pondok", butuhAdmin: "Admin" }
 
 export function IzinAdminUI(props: {
   antrean: IzinRow[]; statistik: { totalSantri: number; diPondok: number; izinAktif: number; menunggu: number; sedangPulang: number; terlambat: number }
@@ -58,11 +58,11 @@ export function IzinAdminUI(props: {
     } catch (e) { toast.error(e instanceof Error ? e.message : "Gagal") } finally { setLoading(false) }
   }
 
-  const togglePengaturan = async (p: Pengaturan, key: "butuhWali" | "butuhMusyrif" | "butuhAdmin" | "aktif") => {
+  const togglePengaturan = async (p: Pengaturan, key: "butuhWali" | "butuhPengurus" | "butuhMusyrif" | "butuhKepala" | "butuhAdmin" | "aktif") => {
     const baru = { ...p, [key]: !p[key] }
     setPengaturan((ps) => ps.map((x) => (x.jenis === p.jenis ? baru : x)))
     try {
-      await simpanPengaturanIzinAction(p.jenis as never, { butuhWali: baru.butuhWali, butuhMusyrif: baru.butuhMusyrif, butuhAdmin: baru.butuhAdmin, aktif: baru.aktif })
+      await simpanPengaturanIzinAction(p.jenis as never, { butuhWali: baru.butuhWali, butuhPengurus: baru.butuhPengurus, butuhMusyrif: baru.butuhMusyrif, butuhKepala: baru.butuhKepala, butuhAdmin: baru.butuhAdmin, aktif: baru.aktif })
       toast.success("Pengaturan tersimpan")
     } catch (e) { toast.error(e instanceof Error ? e.message : "Gagal"); setPengaturan((ps) => ps.map((x) => (x.jenis === p.jenis ? p : x))) }
   }
@@ -184,7 +184,7 @@ export function IzinAdminUI(props: {
               <div key={p.jenis} className="flex flex-wrap items-center justify-between gap-3 border rounded-lg p-3">
                 <span className="text-sm font-medium">{JENIS_IZIN_LABEL[p.jenis] ?? p.jenis}</span>
                 <div className="flex flex-wrap gap-3">
-                  {(["butuhWali", "butuhMusyrif", "butuhAdmin"] as const).map((k) => (
+                  {(["butuhWali", "butuhPengurus", "butuhMusyrif", "butuhKepala", "butuhAdmin"] as const).map((k) => (
                     <label key={k} className="flex items-center gap-1.5 text-xs">
                       <input type="checkbox" checked={p[k]} onChange={() => togglePengaturan(p, k)} className="rounded" />
                       {HUB_LABEL[k]}

@@ -13,6 +13,33 @@ enum Role {
   GURU
   SISWA
   RESEARCHER
+  KEPALA_PONDOK
+  PENGURUS_PONDOK
+  USTADZ_PONDOK
+}
+
+// Tipe penugasan staf pondok (multi-role via assignment; role utama tetap di User.role).
+enum PondokTugas {
+  PENGURUS
+  USTADZ_DINIYAH
+  USTADZ_TAHFIDZ
+  MUSYRIF
+  PEMBINA_KEGIATAN
+  WALI_KELOMPOK
+  PETUGAS_GERBANG
+}
+
+enum StatusPembinaanSantri {
+  MENUNGGU
+  DISETUJUI
+  DITOLAK
+  SELESAI
+}
+
+enum StatusSetoranTahfidz {
+  DITERIMA
+  ULANG
+  BERKELANJUTAN
 }
 
 enum MasteryKategori {
@@ -102,6 +129,14 @@ model User {
   auditLogs     AuditLog[]
   pengumuman    Pengumuman[]
   pendaftaranPpdb PendaftaranPpdb[]
+  pondokAssignments PondokStaffAssignment[]    @relation("UserPondokAssignment")
+  pondokGrants      PondokPermissionGrant[]    @relation("UserPondokGrant")
+  halaqahDibina     Halaqah[]                  @relation("HalaqahPengampu")
+  kelasDiniyahDiampu KelasDiniyah[]            @relation("KelasDiniyahPengampu")
+  kegiatanDijawab   KegiatanPondok[]           @relation("KegiatanPenanggungJawab")
+  setoranDiberikan  SetoranTahfidz[]           @relation("SetoranUstadz")
+  pembinaanDicatat  PembinaanSantri[]          @relation("PembinaanPetugas")
+  pengumumanDisetujui Pengumuman[]             @relation("PengumumanApprover")
 
   @@map("users")
 }
@@ -835,15 +870,19 @@ model Pengumuman {
   isi       String    @db.Text
   gambar    String?
   lampiran  String?
-  tipe      String    @default("UMUM")
+  tipe      String    @default("UMUM") // UMUM | KELAS | PENTING
+  status    String    @default("TERBIT") // DRAFT | MENUNGGU | TERBIT  (non-destruktif: baris lama = TERBIT)
   userId    String    @db.Uuid
   kelasId   String?   @db.Uuid
+  approvedBy String?  @db.Uuid // penyetuju resmi (Kepala Pondok/Admin)
+  approvedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user  User   @relation(fields: [userId], references: [id])
-  kelas Kelas? @relation(fields: [kelasId], references: [id])
+  user     User    @relation(fields: [userId], references: [id])
+  kelas    Kelas?  @relation(fields: [kelasId], references: [id])
+  approver User?   @relation("PengumumanApprover", fields: [approvedBy], references: [id])
 
   @@map("pengumuman")
 }
@@ -1803,6 +1842,8 @@ model Santri {
   keberadaan   StatusKehadiranSantri @default(DI_PONDOK) // status keberadaan fisik (terpisah dari administrasi)
   asramaId     String?              @db.Uuid // 1 DB — tempat tinggal santri
   kamarId      String?              @db.Uuid
+  halaqahId    String?              @db.Uuid // penugasan halaqah tahfidz (opsional)
+  kelasDiniyahId String?            @db.Uuid // penugasan kelas diniyah (opsional)
   tanggalMasuk DateTime?
   catatan      String?
   createdAt    DateTime             @default(now())
@@ -1813,9 +1854,15 @@ model Santri {
   siswa     Siswa?            @relation(fields: [siswaId], references: [id], onDelete: SetNull)
   asrama    Asrama?           @relation(fields: [asramaId], references: [id], onDelete: SetNull)
   kamar     Kamar?            @relation(fields: [kamarId], references: [id], onDelete: SetNull)
+  halaqah   Halaqah?          @relation(fields: [halaqahId], references: [id], onDelete: SetNull)
+  kelasDiniyah KelasDiniyah?  @relation(fields: [kelasDiniyahId], references: [id], onDelete: SetNull)
   walis     SantriWali[]
   statusLog SantriStatusLog[]
   izins     IzinSantri[]
+  absensiKegiatan AbsensiKegiatanPondok[]
+  absensiDiniyah  AbsensiDiniyah[]
+  setoranTahfidz  SetoranTahfidz[]
+  pembinaan       PembinaanSantri[]
 
   @@index([status, deletedAt])
   @@index([keberadaan, deletedAt])
@@ -2121,6 +2168,8 @@ model Asrama {
   musyrif Guru?   @relation(fields: [musyrifId], references: [id], onDelete: SetNull)
   kamars  Kamar[]
   santris Santri[]
+  staffAssignments PondokStaffAssignment[]
+  halaqahs         Halaqah[]
 
   @@index([aktif])
   @@map("asrama")
@@ -2155,7 +2204,9 @@ enum StatusIzinSantri {
   DRAFT
   DIAJUKU
   MENUNGGU_WALI
+  MENUNGGU_PENGURUS
   MENUNGGU_MUSYRIF
+  MENUNGGU_KEPALA
   MENUNGGU_ADMIN
   DISETUJUI
   DITOLAK
@@ -2167,7 +2218,9 @@ enum StatusIzinSantri {
 enum TahapIzin {
   DIAJUKU
   WALI
+  PENGURUS
   MUSYRIF
+  KEPALA
   ADMIN
   GERBANG_KELUAR
   GERBANG_MASUK
@@ -2192,8 +2245,12 @@ model IzinSantri {
   // jejak persetujuan (null = tahap tidak wajib / belum dilalui)
   waliApprovedAt     DateTime?
   waliApprovedBy     String?      @db.Uuid
+  pengurusApprovedAt DateTime?
+  pengurusApprovedBy String?      @db.Uuid
   musyrifApprovedAt  DateTime?
   musyrifApprovedBy  String?      @db.Uuid
+  kepalaApprovedAt   DateTime?
+  kepalaApprovedBy   String?      @db.Uuid
   adminApprovedAt    DateTime?
   adminApprovedBy    String?      @db.Uuid
 
@@ -2247,7 +2304,9 @@ model IzinPengaturan {
   id            String   @id @default(uuid()) @db.Uuid
   jenis         JenisIzin @unique
   butuhWali     Boolean  @default(true)
+  butuhPengurus Boolean  @default(false)
   butuhMusyrif  Boolean  @default(true)
+  butuhKepala   Boolean  @default(false)
   butuhAdmin    Boolean  @default(true)
   aktif         Boolean  @default(true) // false = jenis izin tidak dapat diajukan
   updatedAt     DateTime @updatedAt
@@ -2274,4 +2333,216 @@ model IzinKonflikAbsensi {
   @@index([izinId])
   @@index([siswaId, tanggal])
   @@map("izin_konflik_absensi")
+}
+
+// ============================================================
+// EKOSISTEM PONDOK — STAF, PENUGASAN, KEGIATAN, DINIYAH, TAHFIDZ
+// (semua non-destruktif; role lama tidak disentuh)
+// ============================================================
+
+// Penugasan aktif staf pondok — sumber multi-role + scope akses.
+// default deny: tanpa assignment aktif, staf tidak melihat santri/kelas tertentu.
+model PondokStaffAssignment {
+  id             String       @id @default(uuid()) @db.Uuid
+  userId         String       @db.Uuid
+  tipe           PondokTugas
+  asramaId       String?      @db.Uuid // scope asrama (musyrif/pengurus asrama)
+  kamarId        String?      @db.Uuid // scope kamar (opsional, lebih sempit)
+  halaqahId      String?      @db.Uuid // scope halaqah (ustadz tahfidz)
+  kelasDiniyahId String?      @db.Uuid // scope kelas diniyah (ustadz diniyah)
+  unit           String?      @db.VarChar(50) // scope unit pondok (opsional)
+  aktif          Boolean      @default(true)
+  keterangan     String?
+  createdBy      String?      @db.Uuid
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user         User         @relation("UserPondokAssignment", fields: [userId], references: [id], onDelete: Cascade)
+  asrama       Asrama?      @relation(fields: [asramaId], references: [id], onDelete: SetNull)
+  halaqah      Halaqah?     @relation(fields: [halaqahId], references: [id], onDelete: SetNull)
+  kelasDiniyah KelasDiniyah? @relation(fields: [kelasDiniyahId], references: [id], onDelete: SetNull)
+
+  @@index([userId, aktif])
+  @@index([tipe, aktif])
+  @@map("pondok_staff_assignment")
+}
+
+// Override permission granular (mis. wali santri → pondok.izin.approve, pengurus → delegasi).
+model PondokPermissionGrant {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  permission String // kode dari PONDOK_PERMISSIONS
+  scopeType  String? // ASRAMA | HALAQAH | KELAS_DINIYAH | KAMAR | UNIT
+  scopeId    String?  @db.Uuid
+  aktif      Boolean   @default(true)
+  grantedBy  String?   @db.Uuid
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation("UserPondokGrant", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permission, scopeType, scopeId])
+  @@index([userId, aktif])
+  @@map("pondok_permission_grant")
+}
+
+// Kelompok halaqah tahfidz.
+model Halaqah {
+  id          String   @id @default(uuid()) @db.Uuid
+  nama        String
+  tingkat     String? // e.g. 1, 2, 3 atau Pemula/Menengah/Lanjut
+  targetSurah String? // target bacaan periodik
+  pengampuId  String?  @db.Uuid // userId ustadz pengampu
+  asramaId    String?  @db.Uuid
+  aktif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pengampu  User?     @relation("HalaqahPengampu", fields: [pengampuId], references: [id], onDelete: SetNull)
+  asrama    Asrama?   @relation(fields: [asramaId], references: [id], onDelete: SetNull)
+  santris   Santri[]
+  setoran   SetoranTahfidz[]
+  assignments PondokStaffAssignment[]
+
+  @@map("halaqah")
+}
+
+// Kelas diniyah (pengajaran pondok non-sekolah).
+model KelasDiniyah {
+  id          String   @id @default(uuid()) @db.Uuid
+  nama        String
+  tingkat     String?
+  hari        String? // Senin..Jumat
+  jam         String? // "16:00-17:00"
+  pengampuId  String?  @db.Uuid
+  aktif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pengampu  User?     @relation("KelasDiniyahPengampu", fields: [pengampuId], references: [id], onDelete: SetNull)
+  santris   Santri[]
+  absensi   AbsensiDiniyah[]
+  assignments PondokStaffAssignment[]
+
+  @@map("kelas_diniyah")
+}
+
+// Kegiatan pondok harian/event (subuh, dzuhur berjamaah, pengajian, olahraga, dsb).
+model KegiatanPondok {
+  id              String   @id @default(uuid()) @db.Uuid
+  nama            String
+  tipe            String   @default("HARIAN") // HARIAN | EVENT | PEMBINAAN
+  tanggal         DateTime @db.Date
+  jamMulai        String? // "04:30"
+  jamSelesai      String?
+  lokasi          String?
+  deskripsi       String? @db.Text
+  wajib           Boolean  @default(false) // kegiatan wajib → izin bentrok
+  penanggungJawabId String? @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  penanggungJawab User?     @relation("KegiatanPenanggungJawab", fields: [penanggungJawabId], references: [id], onDelete: SetNull)
+  absensi         AbsensiKegiatanPondok[]
+
+  @@index([tanggal])
+  @@map("kegiatan_pondok")
+}
+
+// Absensi kegiatan pondok (per kegiatan × tanggal × santri).
+model AbsensiKegiatanPondok {
+  id          String        @id @default(uuid()) @db.Uuid
+  kegiatanId  String        @db.Uuid
+  tanggal     DateTime      @db.Date
+  santriId    String        @db.Uuid
+  status      StatusAbsensi
+  keterangan  String?
+  pencatatId  String?       @db.Uuid
+  koreksiAlasan String?     @db.Text // audit koreksi
+  koreksiBy   String?       @db.Uuid
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  kegiatan KegiatanPondok @relation(fields: [kegiatanId], references: [id], onDelete: Cascade)
+  santri   Santri         @relation(fields: [santriId], references: [id], onDelete: Cascade)
+
+  @@unique([kegiatanId, tanggal, santriId])
+  @@index([tanggal])
+  @@index([santriId])
+  @@map("absensi_kegiatan_pondok")
+}
+
+// Absensi diniyah (per kelas × tanggal × santri).
+model AbsensiDiniyah {
+  id            String        @id @default(uuid()) @db.Uuid
+  kelasDiniyahId String       @db.Uuid
+  tanggal       DateTime      @db.Date
+  santriId      String        @db.Uuid
+  status        StatusAbsensi
+  keterangan    String?
+  pencatatId    String?       @db.Uuid
+  koreksiAlasan String?       @db.Text
+  koreksiBy     String?       @db.Uuid
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  kelasDiniyah KelasDiniyah @relation(fields: [kelasDiniyahId], references: [id], onDelete: Cascade)
+  santri       Santri       @relation(fields: [santriId], references: [id], onDelete: Cascade)
+
+  @@unique([kelasDiniyahId, tanggal, santriId])
+  @@index([tanggal])
+  @@index([santriId])
+  @@map("absensi_diniyah")
+}
+
+// Setoran tahfidz / murajaah + penilaian tajwid & kelancaran.
+model SetoranTahfidz {
+  id          String              @id @default(uuid()) @db.Uuid
+  halaqahId   String              @db.Uuid
+  santriId    String              @db.Uuid
+  tanggal     DateTime            @default(now())
+  surah       String
+  ayatMulai   Int
+  ayatAkhir   Int
+  juz         Int?
+  tipe        String              @default("SETORAN") // SETORAN | MURAJAAH
+  status      StatusSetoranTahfidz @default(DITERIMA)
+  tajwid      Int? // 0–100
+  kelancaran  Int? // 0–100
+  catatan     String?             @db.Text
+  ustadzId    String?             @db.Uuid // userId ustadz penilai
+  createdAt   DateTime            @default(now())
+
+  halaqah Halaqah @relation(fields: [halaqahId], references: [id], onDelete: Cascade)
+  santri  Santri  @relation(fields: [santriId], references: [id], onDelete: Cascade)
+  ustadz  User?   @relation("SetoranUstadz", fields: [ustadzId], references: [id], onDelete: SetNull)
+
+  @@index([santriId, tanggal])
+  @@index([halaqahId, tanggal])
+  @@map("setoran_tahfidz")
+}
+
+// Pembinaan santri (prestasi / pelanggaran / catatan perkembangan + tindak lanjut).
+model PembinaanSantri {
+  id           String                @id @default(uuid()) @db.Uuid
+  santriId     String                @db.Uuid
+  tipe         String // PRESTASI | PELANGGARAN | CATATAN | TINDAK_LANJUT
+  judul        String
+  deskripsi    String?               @db.Text
+  poin         Int?
+  tindakLanjut String?               @db.Text
+  status       StatusPembinaanSantri @default(MENUNGGU)
+  tanggal      DateTime              @default(now())
+  petugasId    String?               @db.Uuid // user yang mencatat
+  resolvedAt   DateTime?
+  resolvedBy   String?               @db.Uuid // penyetuju tindak lanjut (Kepala Pondok)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  santri   Santri @relation(fields: [santriId], references: [id], onDelete: Cascade)
+  petugas  User?  @relation("PembinaanPetugas", fields: [petugasId], references: [id], onDelete: SetNull)
+
+  @@index([santriId, tipe])
+  @@index([status])
+  @@map("pembinaan_santri")
 }

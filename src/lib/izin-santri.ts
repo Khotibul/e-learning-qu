@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { kirimNotifikasi, type PenerimaNotifikasi } from "@/lib/notifikasi"
 import { createAuditLog } from "@/lib/audit"
+import { penerimaKepalaPondok, penerimaPengurus, getPondokAccess } from "@/lib/pondok-rbac"
 import { randomBytes } from "crypto"
 import type { JenisIzin, StatusIzinSantri, StatusKehadiranSantri, TahapIzin } from "@prisma/client"
 
@@ -23,7 +24,9 @@ export const STATUS_IZIN_LABEL: Record<StatusIzinSantri, string> = {
   DRAFT: "Draft",
   DIAJUKU: "Diajukan",
   MENUNGGU_WALI: "Menunggu Persetujuan Wali",
+  MENUNGGU_PENGURUS: "Menunggu Pengurus",
   MENUNGGU_MUSYRIF: "Menunggu Musyrif",
+  MENUNGGU_KEPALA: "Menunggu Kepala Pondok",
   MENUNGGU_ADMIN: "Menunggu Admin Pondok",
   DISETUJUI: "Disetujui",
   DITOLAK: "Ditolak",
@@ -44,8 +47,8 @@ export const KEBERADAAN_LABEL: Record<StatusKehadiranSantri, string> = {
   TIDAK_DIKETAHUI: "Tidak Diketahui",
 }
 
-const STATUS_AKTIF_IZIN: StatusIzinSantri[] = ["DRAFT", "DIAJUKU", "MENUNGGU_WALI", "MENUNGGU_MUSYRIF", "MENUNGGU_ADMIN", "DISETUJUI"]
-const STATUS_MENUNGGU: StatusIzinSantri[] = ["DIAJUKU", "MENUNGGU_WALI", "MENUNGGU_MUSYRIF", "MENUNGGU_ADMIN"]
+const STATUS_AKTIF_IZIN: StatusIzinSantri[] = ["DRAFT", "DIAJUKU", "MENUNGGU_WALI", "MENUNGGU_PENGURUS", "MENUNGGU_MUSYRIF", "MENUNGGU_KEPALA", "MENUNGGU_ADMIN", "DISETUJUI"]
+const STATUS_MENUNGGU: StatusIzinSantri[] = ["DIAJUKU", "MENUNGGU_WALI", "MENUNGGU_PENGURUS", "MENUNGGU_MUSYRIF", "MENUNGGU_KEPALA", "MENUNGGU_ADMIN"]
 const MAKS_DURASI_HARI = 90
 
 // ─── GUARD / RESOLVER ─────────────────────────────────────────────────
@@ -90,7 +93,7 @@ export async function requireMusyrif(): Promise<{ userId: string; guruId: string
   return { userId: session.user.id, guruId: guru.id, admin: false }
 }
 
-/** Petugas gerbang = Admin ATAU Guru jabatan GERBANG/MUSYRIF/PENGASUH. */
+/** Petugas gerbang = Admin ATAU Guru jabatan GERBANG/MUSYRIF/PENGASUH ATAU pemegang permission pondok.izin.checkout. */
 export async function requireGerbang(): Promise<string> {
   const session = await auth()
   if (!session?.user?.id) throw new Error("Unauthorized")
@@ -98,6 +101,8 @@ export async function requireGerbang(): Promise<string> {
   if (user?.role === "ADMIN") return session.user.id
   const guru = await prisma.guru.findFirst({ where: { userId: session.user.id, deletedAt: null }, select: { jabatan: true } })
   if (guru && ["GERBANG", "MUSYRIF", "PENGASUH"].includes(guru.jabatan ?? "")) return session.user.id
+  const akses = await getPondokAccess(session.user.id)
+  if (akses.permissions.includes("pondok.izin.checkout")) return session.user.id
   throw new Error("Bukan petugas gerbang")
 }
 
@@ -111,23 +116,28 @@ export async function requireAdminIzin(): Promise<string> {
 
 // ─── PENGATURAN PER JENIS ─────────────────────────────────────────────
 
-export type PengaturanIzin = { butuhWali: boolean; butuhMusyrif: boolean; butuhAdmin: boolean; aktif: boolean }
+export type PengaturanIzin = { butuhWali: boolean; butuhPengurus: boolean; butuhMusyrif: boolean; butuhKepala: boolean; butuhAdmin: boolean; aktif: boolean }
 
 export async function getPengaturan(jenis: JenisIzin): Promise<PengaturanIzin> {
   const row = await prisma.izinPengaturan.findUnique({ where: { jenis } })
-  return row ?? { butuhWali: true, butuhMusyrif: true, butuhAdmin: true, aktif: true }
+  return row ?? { butuhWali: true, butuhPengurus: false, butuhMusyrif: true, butuhKepala: false, butuhAdmin: true, aktif: true }
 }
 
 /** Tahap berikutnya setelah satu tahap disetujui; null = langsung DISETUJUI. */
-export function nextStatusSetelahTahap(sudah: { wali: boolean; musyrif: boolean }, p: PengaturanIzin): "MENUNGGU_WALI" | "MENUNGGU_MUSYRIF" | "MENUNGGU_ADMIN" | "DISETUJUI" {
+export function nextStatusSetelahTahap(
+  sudah: { wali: boolean; pengurus: boolean; musyrif: boolean; kepala: boolean },
+  p: PengaturanIzin
+): "MENUNGGU_WALI" | "MENUNGGU_PENGURUS" | "MENUNGGU_MUSYRIF" | "MENUNGGU_KEPALA" | "MENUNGGU_ADMIN" | "DISETUJUI" {
   if (p.butuhWali && !sudah.wali) return "MENUNGGU_WALI"
+  if (p.butuhPengurus && !sudah.pengurus) return "MENUNGGU_PENGURUS"
   if (p.butuhMusyrif && !sudah.musyrif) return "MENUNGGU_MUSYRIF"
+  if (p.butuhKepala && !sudah.kepala) return "MENUNGGU_KEPALA"
   if (p.butuhAdmin) return "MENUNGGU_ADMIN"
   return "DISETUJUI"
 }
 
-export function statusAwalSetelahDiajukan(p: PengaturanIzin): "MENUNGGU_WALI" | "MENUNGGU_MUSYRIF" | "MENUNGGU_ADMIN" | "DISETUJUI" {
-  return nextStatusSetelahTahap({ wali: false, musyrif: false }, p)
+export function statusAwalSetelahDiajukan(p: PengaturanIzin): "MENUNGGU_WALI" | "MENUNGGU_PENGURUS" | "MENUNGGU_MUSYRIF" | "MENUNGGU_KEPALA" | "MENUNGGU_ADMIN" | "DISETUJUI" {
+  return nextStatusSetelahTahap({ wali: false, pengurus: false, musyrif: false, kepala: false }, p)
 }
 
 // ─── VALIDASI FORMULIR ────────────────────────────────────────────────
@@ -316,25 +326,43 @@ export async function batalkanIzinSantri(userId: string, izinId: string, alasan:
   return { success: true }
 }
 
-// ─── PERSETUJUAN: WALI / MUSYRIF / ADMIN ──────────────────────────────
+// ─── PERSETUJUAN: WALI / PENGURUS / MUSYRIF / KEPALA / ADMIN ──────────
 
-export async function setujuiIzin(izinId: string, tahap: "WALI" | "MUSYRIF" | "ADMIN", actorUserId: string, catatan?: string) {
+export type TahapPersetujuan = "WALI" | "PENGURUS" | "MUSYRIF" | "KEPALA" | "ADMIN"
+
+const STATUS_PER_TAHAP: Record<TahapPersetujuan, StatusIzinSantri> = {
+  WALI: "MENUNGGU_WALI",
+  PENGURUS: "MENUNGGU_PENGURUS",
+  MUSYRIF: "MENUNGGU_MUSYRIF",
+  KEPALA: "MENUNGGU_KEPALA",
+  ADMIN: "MENUNGGU_ADMIN",
+}
+
+export async function setujuiIzin(izinId: string, tahap: TahapPersetujuan, actorUserId: string, catatan?: string) {
   const izin = await prisma.izinSantri.findUnique({ where: { id: izinId }, include: { santri: { select: { nama: true, user: { select: { id: true } } } } } })
   if (!izin) throw new Error("Izin tidak ditemukan")
   const pengaturan = await getPengaturan(izin.jenis)
 
-  const ekspektasi: StatusIzinSantri = tahap === "WALI" ? "MENUNGGU_WALI" : tahap === "MUSYRIF" ? "MENUNGGU_MUSYRIF" : "MENUNGGU_ADMIN"
+  const ekspektasi = STATUS_PER_TAHAP[tahap]
   if (izin.status !== ekspektasi) throw new Error(`Izin tidak dalam tahap ${tahap} (status: ${STATUS_IZIN_LABEL[izin.status]})`)
   if (izin.rencanaKembali.getTime() < Date.now()) throw new Error("Izin sudah melewati batas waktu — tidak dapat disetujui")
 
-  const sudah = { wali: tahap === "WALI" ? true : Boolean(izin.waliApprovedAt), musyrif: tahap === "MUSYRIF" ? true : Boolean(izin.musyrifApprovedAt) }
-  // Admin adalah keputusan akhir → selalu DISETUJUI bila tahap ADMIN disetujui
-  const berikutnya = tahap === "ADMIN" ? "DISETUJUI" : nextStatusSetelahTahap(sudah, pengaturan)
+  const sudah = {
+    wali: tahap === "WALI" ? true : Boolean(izin.waliApprovedAt),
+    pengurus: tahap === "PENGURUS" ? true : Boolean(izin.pengurusApprovedAt),
+    musyrif: tahap === "MUSYRIF" ? true : Boolean(izin.musyrifApprovedAt),
+    kepala: tahap === "KEPALA" ? true : Boolean(izin.kepalaApprovedAt),
+  }
+  // ADMIN adalah keputusan akhir; KEPALA juga bila tahap admin tidak diwajibkan
+  const berikutnya: StatusIzinSantri =
+    tahap === "ADMIN" || (tahap === "KEPALA" && !pengaturan.butuhAdmin) ? "DISETUJUI" : nextStatusSetelahTahap(sudah, pengaturan)
 
   const hasil = await prisma.$transaction(async (tx) => {
     const data: Record<string, unknown> = {}
     if (tahap === "WALI") { data.waliApprovedAt = new Date(); data.waliApprovedBy = actorUserId }
+    if (tahap === "PENGURUS") { data.pengurusApprovedAt = new Date(); data.pengurusApprovedBy = actorUserId }
     if (tahap === "MUSYRIF") { data.musyrifApprovedAt = new Date(); data.musyrifApprovedBy = actorUserId }
+    if (tahap === "KEPALA") { data.kepalaApprovedAt = new Date(); data.kepalaApprovedBy = actorUserId }
     if (tahap === "ADMIN") { data.adminApprovedAt = new Date(); data.adminApprovedBy = actorUserId }
     data.status = berikutnya
     const upd = await tx.izinSantri.updateMany({ where: { id: izinId, status: ekspektasi }, data: data as never })
@@ -349,11 +377,11 @@ export async function setujuiIzin(izinId: string, tahap: "WALI" | "MUSYRIF" | "A
   return hasil
 }
 
-export async function tolakIzin(izinId: string, tahap: "WALI" | "MUSYRIF" | "ADMIN", actorUserId: string, alasan: string) {
+export async function tolakIzin(izinId: string, tahap: TahapPersetujuan, actorUserId: string, alasan: string) {
   if (String(alasan || "").trim().length < 5) throw new Error("Alasan penolakan minimal 5 karakter")
   const izin = await prisma.izinSantri.findUnique({ where: { id: izinId } })
   if (!izin) throw new Error("Izin tidak ditemukan")
-  const ekspektasi: StatusIzinSantri = tahap === "WALI" ? "MENUNGGU_WALI" : tahap === "MUSYRIF" ? "MENUNGGU_MUSYRIF" : "MENUNGGU_ADMIN"
+  const ekspektasi = STATUS_PER_TAHAP[tahap]
   if (izin.status !== ekspektasi) throw new Error(`Izin tidak dalam tahap ${tahap}`)
 
   await prisma.$transaction(async (tx) => {
@@ -366,6 +394,25 @@ export async function tolakIzin(izinId: string, tahap: "WALI" | "MUSYRIF" | "ADM
   const ulang = (await prisma.izinSantri.findUnique({ where: { id: izinId } }))!
   void notifikasiKeputusan(ulang, tahap, "DITOLAK", alasan)
   return ulang
+}
+
+/** Rekomendasi ustadz/pembina: dicatat sebagai log REKOMENDASI, TIDAK memajukan status. */
+export async function rekomendasikanIzin(izinId: string, actorUserId: string, rekomendasi: "SETUJUI" | "TIDAK_SETUJUI", catatan: string) {
+  if (String(catatan || "").trim().length < 5) throw new Error("Catatan rekomendasi minimal 5 karakter")
+  const izin = await prisma.izinSantri.findUnique({ where: { id: izinId }, select: { id: true, status: true } })
+  if (!izin) throw new Error("Izin tidak ditemukan")
+  if (!STATUS_MENUNGGU.includes(izin.status)) throw new Error("Izin tidak dalam masa persetujuan")
+  await prisma.izinApprovalLog.create({
+    data: { izinId, tahap: "MUSYRIF", keputusan: `REKOMENDASI_${rekomendasi}`, actorUserId, catatan: String(catatan).trim() },
+  })
+  await createAuditLog({ userId: actorUserId, action: "IZIN_REKOMENDASI", entity: "IzinSantri", entityId: izinId, detail: { rekomendasi } })
+  void kirimNotifikasi(await penerimaKepalaPondok(), {
+    judul: "Rekomendasi Izin dari Ustadz",
+    pesan: `Rekomendasi ${rekomendasi === "SETUJUI" ? "SETUJUI" : "TIDAK SETUJUI"} dicatat untuk izin #${izinId.slice(0, 8)}. Catatan: ${String(catatan).trim()}`,
+    tipe: "INFO",
+    eventKey: `izin-rekomendasi:${izinId}:${rekomendasi}`,
+  })
+  return { success: true }
 }
 
 // ─── TERBITKAN SURAT + TOKEN QR ───────────────────────────────────────
@@ -452,7 +499,7 @@ export async function konfirmasiPerjalanan(izinId: string, userId: string) {
   if (!izin) throw new Error("Izin tidak ditemukan")
   if (!izin.checkoutAt) throw new Error("Belum check-out")
   if (izin.checkinAt) throw new Error("Izin sudah selesai")
-  const boleh = izin.santri.userId === userId || Boolean(izin.waliApprovedBy === userId) || Boolean(izin.musyrifApprovedBy === userId) || Boolean(izin.adminApprovedBy === userId)
+  const boleh = izin.santri.userId === userId || Boolean(izin.waliApprovedBy === userId) || Boolean(izin.pengurusApprovedBy === userId) || Boolean(izin.musyrifApprovedBy === userId) || Boolean(izin.kepalaApprovedBy === userId) || Boolean(izin.adminApprovedBy === userId)
   if (!boleh) throw new Error("Hanya santri/wali/petugas izin yang dapat konfirmasi")
 
   const hasil = await prisma.$transaction(async (tx) => {
@@ -533,6 +580,8 @@ async function notifikasiDiajukan(izinId: string, namaSantri: string, jenis: Jen
   if (santri?.asrama?.musyrif) penerima.push({ userId: santri.asrama.musyrif.userId, label: "musyrif", link: "/guru/izin-musyrif" })
   const adminUsers = await prisma.user.findMany({ where: { role: "ADMIN", isActive: true }, select: { id: true }, take: 5 })
   penerima.push(...adminUsers.map((u) => ({ userId: u.id, label: "admin", link: "/admin/izin" })))
+  penerima.push(...(await penerimaPengurus()))
+  penerima.push(...(await penerimaKepalaPondok()))
   await kirimNotifikasi(penerima, {
     judul: "Pengajuan Izin Baru",
     pesan: `${namaSantri} mengajukan ${JENIS_IZIN_LABEL[jenis]}. Status: ${STATUS_IZIN_LABEL[izin.status]}.`,
@@ -546,7 +595,7 @@ async function notifikasiKeputusan(izin: { id: string; jenis: JenisIzin; status:
   if (!santri) return
   const penerima: PenerimaNotifikasi[] = [{ userId: santri.userId, label: "santri", link: "/santri/izin" }, ...(await penerimaWali(izin.santriId))]
   if (keputusan === "DISETUJUI") {
-    const tahapLabel = tahap === "WALI" ? "Wali" : tahap === "MUSYRIF" ? "Musyrif" : "Admin Pondok"
+    const tahapLabel = tahap === "WALI" ? "Wali" : tahap === "PENGURUS" ? "Pengurus Pondok" : tahap === "MUSYRIF" ? "Musyrif" : tahap === "KEPALA" ? "Kepala Pondok" : "Admin Pondok"
     await kirimNotifikasi(penerima, {
       judul: `Izin ${keputusan === "DISETUJUI" ? "Disetujui" : "Ditolak"} — Tahap ${tahapLabel}`,
       pesan: `Izin ${JENIS_IZIN_LABEL[izin.jenis]} ${santri.nama} telah DISETUJUI oleh ${tahapLabel}.${izin.status === "DISETUJUI" ? " Surat izin digital sudah diterbitkan. Santri masih tercatat berada di pondok sampai proses keluar dikonfirmasi petugas." : ` Status: ${STATUS_IZIN_LABEL[izin.status]}.`}`,
@@ -613,9 +662,10 @@ export async function getIzinUntukWali(waliId: string) {
   return prisma.izinSantri.findMany({ where: { santriId: { in: santriIds } }, orderBy: { createdAt: "desc" }, include: { santri: { select: { nama: true, nisNo: true } } } })
 }
 
-export async function getIzinMenunggu(tahap: "MUSYRIF" | "ADMIN") {
+export async function getIzinMenunggu(tahap: "PENGURUS" | "MUSYRIF" | "KEPALA" | "ADMIN") {
   await perbaruiIzinTerlambat()
-  const status = tahap === "MUSYRIF" ? "MENUNGGU_MUSYRIF" : "MENUNGGU_ADMIN"
+  const statusMap = { PENGURUS: "MENUNGGU_PENGURUS", MUSYRIF: "MENUNGGU_MUSYRIF", KEPALA: "MENUNGGU_KEPALA", ADMIN: "MENUNGGU_ADMIN" } as const
+  const status = statusMap[tahap]
   return prisma.izinSantri.findMany({
     where: { status },
     orderBy: [{ rencanaKeluar: "asc" }],

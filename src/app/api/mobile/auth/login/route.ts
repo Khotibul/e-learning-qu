@@ -41,8 +41,8 @@ export async function POST(req: Request) {
     if (!email || !password || !role) {
       return NextResponse.json({ error: "Email, password, role wajib diisi" }, { status: 400, headers: corsHeaders })
     }
-    if (!["SISWA", "GURU"].includes(role)) {
-      return NextResponse.json({ error: "Role hanya SISWA atau GURU (Admin khusus website)" }, { status: 400, headers: corsHeaders })
+    if (!["SISWA", "GURU", "KEPALA_PONDOK", "PENGURUS_PONDOK", "USTADZ_PONDOK"].includes(role)) {
+      return NextResponse.json({ error: "Role hanya SISWA, GURU, atau Pengelola Pondok (Admin khusus website)" }, { status: 400, headers: corsHeaders })
     }
 
     // === 1 DATABASE — query SAMA dengan src/lib/auth.ts authorize() ===
@@ -80,6 +80,13 @@ export async function POST(req: Request) {
         select: { id: true, nama: true, jabatan: true },
       })
       if (guru) extra = { guruId: guru.id, guruNama: guru.nama, jabatan: guru.jabatan }
+    } else if (["KEPALA_PONDOK", "PENGURUS_PONDOK", "USTADZ_PONDOK"].includes(user.role)) {
+      const assignments = await prisma.pondokStaffAssignment.findMany({
+        where: { userId: user.id, aktif: true },
+        select: { tipe: true, asramaId: true, halaqahId: true, kelasDiniyahId: true },
+        take: 10,
+      })
+      extra = { pondokTugas: assignments.map((a) => a.tipe), pondokAssignments: assignments }
     }
 
     // Untuk mobile, kita kembalikan user langsung (tanpa cookie NextAuth)

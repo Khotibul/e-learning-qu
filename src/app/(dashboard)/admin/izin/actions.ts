@@ -50,7 +50,7 @@ export async function getPengaturanIzin() {
   const rows = await prisma.izinPengaturan.findMany({ orderBy: { jenis: "asc" } })
   const semua: JenisIzin[] = Object.keys(JENIS_IZIN_LABEL) as JenisIzin[]
   const map = new Map(rows.map((r) => [r.jenis, r]))
-  return semua.map((j) => map.get(j) ?? { jenis: j, butuhWali: true, butuhMusyrif: true, butuhAdmin: true, aktif: true })
+  return semua.map((j) => map.get(j) ?? { jenis: j, butuhWali: true, butuhPengurus: false, butuhMusyrif: true, butuhKepala: false, butuhAdmin: true, aktif: true })
 }
 
 export async function simpanPengaturanIzinAction(jenis: JenisIzin, cfg: Omit<PengaturanIzin, "aktif"> & { aktif: boolean }) {

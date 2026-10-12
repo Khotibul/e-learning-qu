@@ -2,7 +2,9 @@ import { Badge } from "@/components/ui/badge"
 
 export const STATUS_IZIN_LABEL: Record<string, string> = {
   DRAFT: "Draft", DIAJUKU: "Diajukan",
-  MENUNGGU_WALI: "Menunggu Wali", MENUNGGU_MUSYRIF: "Menunggu Musyrif", MENUNGGU_ADMIN: "Menunggu Admin",
+  MENUNGGU_WALI: "Menunggu Wali", MENUNGGU_PENGURUS: "Menunggu Pengurus",
+  MENUNGGU_MUSYRIF: "Menunggu Musyrif", MENUNGGU_KEPALA: "Menunggu Kepala Pondok",
+  MENUNGGU_ADMIN: "Menunggu Admin",
   DISETUJUI: "Disetujui", DITOLAK: "Ditolak", DIBATALKAN: "Dibatalkan",
   KEDALUWARSA: "Kedaluwarsa", SELESAI: "Selesai",
 }
@@ -11,7 +13,9 @@ export const STATUS_IZIN_CLASS: Record<string, string> = {
   DRAFT: "bg-gray-100 text-gray-700",
   DIAJUKU: "bg-sky-100 text-sky-700",
   MENUNGGU_WALI: "bg-amber-100 text-amber-700",
+  MENUNGGU_PENGURUS: "bg-teal-100 text-teal-700",
   MENUNGGU_MUSYRIF: "bg-orange-100 text-orange-700",
+  MENUNGGU_KEPALA: "bg-indigo-100 text-indigo-700",
   MENUNGGU_ADMIN: "bg-violet-100 text-violet-700",
   DISETUJUI: "bg-green-100 text-green-700",
   DITOLAK: "bg-red-100 text-red-700",
