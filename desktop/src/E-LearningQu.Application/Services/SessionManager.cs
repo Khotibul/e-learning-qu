@@ -18,7 +18,8 @@ public sealed class SessionManager : ISessionManager
     {
         Current = session;
         SessionChanged?.Invoke(this, session);
-        _ = PersistSafeAsync(session);
+        // Persist tidak di-await agar UI tidak nunggu disk; ditangani PersistSafeAsync (tidak melempar).
+        _ = PersistSafeAsync(session).ConfigureAwait(false); // fire-and-forget disengaja (tidak blocking UI)
     }
 
     public async Task<UserSession?> RestoreAsync(CancellationToken ct = default)

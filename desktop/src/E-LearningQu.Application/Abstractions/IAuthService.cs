@@ -11,6 +11,13 @@ public interface IAuthService
     Task SignOutAsync(CancellationToken ct = default);
 
     /// <summary>
+    /// Validasi sesi tersimpan saat startup: cek access token via /me.
+    /// Token expired/invalid → coba refresh sekali. Berhasil → update sesi + return true.
+    /// Gagal total → sign-out + return false (agar app kembali ke layar login, bukan shell tanpa data).
+    /// </summary>
+    Task<bool> ValidateSessionAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Set session dari respons exchange Google desktop (sudah JWT) — dipakai IOAuthService
     /// agar logika session-building tidak diduplikasi. FallbackRole dipakai bila respons
     /// tidak membawa role (jarang terjadi).

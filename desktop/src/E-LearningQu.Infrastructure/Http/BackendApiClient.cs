@@ -102,7 +102,16 @@ public sealed class BackendApiClient : IBackendApiClient
             if (response.Content.Headers.ContentLength == 0)
                 return default!;
 
-            var result = await response.Content.ReadFromJsonAsync<TResponse>(JsonOpts, ct);
+            // Parse manual agar JSON rusak/HTML (mis. halaman error Vercel/Next) tidak crash tapi jadi ApiException jelas.
+            TResponse? result;
+            try
+            {
+                result = await response.Content.ReadFromJsonAsync<TResponse>(JsonOpts, ct);
+            }
+            catch (JsonException ex)
+            {
+                throw new ApiException(response.StatusCode, "Respons server tidak valid (bukan JSON).", message: "Respons server tidak valid.", inner: ex);
+            }
             if (result is null)
                 throw new ApiException(response.StatusCode, "Respons kosong dari server.");
             return result;

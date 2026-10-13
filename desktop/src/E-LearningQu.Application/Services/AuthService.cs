@@ -163,7 +163,56 @@ public sealed class AuthService : IAuthService
         }
     }
 
-    public Task SignOutAsync(CancellationToken ct = default) => _session.SignOutAsync(ct);
+    public async Task<bool> ValidateSessionAsync(CancellationToken ct = default)
+    {
+        var current = _session.Current;
+        if (current is null || string.IsNullOrWhiteSpace(current.Token))
+        {
+            await SignOutAsync(ct);
+            return false;
+        }
+
+        // Coba /me dengan access token tersimpan. Sukses → sesi masih hidup.
+        try
+        {
+            var me = await _api.GetAsync<MeResponse>("/api/mobile/auth/desktop/me", current.Token, ct);
+            if (me?.User is not null)
+            {
+                // Sinkronkan role terbaru dari DB (admin bisa ubah role setelah login terakhir).
+                var role = RoleParser.TryParse(me.User.Role, out var parsed) ? parsed : current.Role;
+                if (role != current.Role || me.User.Name != current.Name || me.User.Image != current.ImageUrl)
+                    _session.SetSession(current with { Role = role, Name = me.User.Name ?? current.Name, ImageUrl = me.User.Image });
+                return true;
+            }
+        }
+        catch (ApiException ex) when (ex.IsUnauthorized)
+        {
+            _logger.LogInformation("Access token kedaluwarsa, mencoba refresh untuk user {UserId}", current.UserId);
+        }
+        catch (ApiException ex)
+        {
+            // Server error / jaringan — jangan logout paksa; biarkan app start dan biarkan auto-refresh nanti.
+            _logger.LogWarning(ex, "Validasi sesi gagal (server/jaringan) untuk user {UserId} — lanjut tanpa logout", current.UserId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Validasi sesi error untuk user {UserId} — lanjut tanpa logout", current.UserId);
+            return true;
+        }
+
+        // Access token mati → refresh sekali.
+        if (await RefreshAsync(ct))
+            return true;
+
+        // Refresh juga gagal (token expired 30h / akun nonaktif) → keluar bersih.
+        _logger.LogInformation("Sesi tidak dapat dipulihkan untuk user {UserId} — logout", current.UserId);
+        await SignOutAsync(ct);
+        return false;
+    }
+
+    // SignOut tidak perlu menunggu persist disk selesai — cukup fire-and-forget (aman, sudah di-wrapped try/catch).
+    public Task SignOutAsync(CancellationToken ct = default) { _ = _session.SignOutAsync(ct); return Task.CompletedTask; }
 
     private static string? ExtraString(JsonElement? extra, string prop)
     {

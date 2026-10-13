@@ -48,6 +48,10 @@ public partial class LoginViewModel : ObservableObject
             else
                 ErrorMessage = result.ErrorMessage ?? "Login gagal.";
         }
+        catch (Exception)
+        {
+            ErrorMessage = "Terjadi kesalahan tak terduga. Coba lagi.";
+        }
         finally
         {
             IsBusy = false;
@@ -66,6 +70,10 @@ public partial class LoginViewModel : ObservableObject
                 LoginSucceeded?.Invoke(this, EventArgs.Empty);
             else
                 ErrorMessage = result.ErrorMessage ?? "Login Google gagal.";
+        }
+        catch (Exception)
+        {
+            ErrorMessage = "Login Google gagal. Coba lagi.";
         }
         finally
         {

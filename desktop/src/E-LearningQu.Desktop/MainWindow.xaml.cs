@@ -30,11 +30,19 @@ public partial class MainWindow : Window
     private async void OnLoadedAsync(object sender, RoutedEventArgs e)
     {
         Loaded -= OnLoadedAsync;
-        var restored = await _session.RestoreAsync();
-        if (restored is not null)
-            ShowShell();
-        else
+        try
+        {
+            var restored = await _session.RestoreAsync();
+            if (restored is not null && await _auth.ValidateSessionAsync())
+                ShowShell();
+            else
+                ShowLogin();
+        }
+        catch (Exception)
+        {
+            // Restore/validate gagal (file DPAPI rusak / jaringan) — jangan crash, kembali ke login.
             ShowLogin();
+        }
     }
 
     private void ShowLogin()
