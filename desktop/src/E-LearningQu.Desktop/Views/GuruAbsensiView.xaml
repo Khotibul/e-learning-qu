@@ -1,0 +1,37 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.GuruAbsensiView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="1100">
+    <UserControl.Resources>
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+    </UserControl.Resources>
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Absensi" Style="{StaticResource H1}" />
+            <TextBlock Text="Absensi kehadiran Anda hari ini" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+        </StackPanel>
+        <ProgressBar Grid.Row="1" Height="4" IsIndeterminate="True" Margin="0,0,0,16" Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        <Border Grid.Row="2" Background="{StaticResource BrushErrorBg}" CornerRadius="10" Padding="14,12" BorderBrush="{StaticResource BrushError}" BorderThickness="1" Margin="0,0,0,16"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" />
+        </Border>
+        <Border Grid.Row="2" Background="{StaticResource BrushSurface}" CornerRadius="16" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" MaxWidth="500" HorizontalAlignment="Left" Padding="28,24">
+            <StackPanel>
+                <TextBlock Text="Status Kehadiran" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                <ComboBox SelectedItem="{Binding SelectedStatus}" HorizontalAlignment="Stretch" Margin="0,0,0,14" FontSize="14" Padding="10,8">
+                    <ComboBoxItem Content="HADIR" /><ComboBoxItem Content="IZIN" /><ComboBoxItem Content="SAKIT" /><ComboBoxItem Content="ALPA" />
+                </ComboBox>
+                <TextBlock Text="Keterangan (opsional)" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding Keterangan, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBox}" Margin="0,0,0,16" />
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Simpan Absensi" Style="{StaticResource ButtonPrimary}" Command="{Binding SubmitCommand}" Padding="18,10" />
+                    <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="14,0,0,0" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

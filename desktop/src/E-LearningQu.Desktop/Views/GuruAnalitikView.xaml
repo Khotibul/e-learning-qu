@@ -1,0 +1,71 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.GuruAnalitikView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="1100">
+    <UserControl.Resources>
+        <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+    </UserControl.Resources>
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <StackPanel>
+                <TextBlock Text="Analitik" Style="{StaticResource H1}" />
+                <TextBlock Text="Statistik hasil belajar siswa" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}" VerticalAlignment="Top" />
+        </Grid>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <ProgressBar Height="4" IsIndeterminate="True" Margin="0,0,0,16"
+                             Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+                <Border Background="{StaticResource BrushErrorBg}" CornerRadius="10" Padding="14,12"
+                        BorderBrush="{StaticResource BrushError}" BorderThickness="1" Margin="0,0,0,16"
+                        Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" />
+                </Border>
+                <StackPanel Visibility="{Binding Data, Converter={StaticResource NullToVisibility}}">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="150" Background="{StaticResource BrushSurface}" CornerRadius="14" Padding="18,16" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,14,0">
+                            <StackPanel><TextBlock Text="Rata-rata" Style="{StaticResource StatLabel}" /><TextBlock Text="{Binding Data.RataRata}" Style="{StaticResource StatValue}" Margin="0,4,0,0" /></StackPanel>
+                        </Border>
+                        <Border Width="150" Background="{StaticResource BrushSurface}" CornerRadius="14" Padding="18,16" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,14,0">
+                            <StackPanel><TextBlock Text="Tertinggi" Style="{StaticResource StatLabel}" /><TextBlock Text="{Binding Data.Tertinggi}" Style="{StaticResource StatValue}" Margin="0,4,0,0" /></StackPanel>
+                        </Border>
+                        <Border Width="150" Background="{StaticResource BrushSurface}" CornerRadius="14" Padding="18,16" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,14,0">
+                            <StackPanel><TextBlock Text="Terendah" Style="{StaticResource StatLabel}" /><TextBlock Text="{Binding Data.Terendah}" Style="{StaticResource StatValue}" Margin="0,4,0,0" /></StackPanel>
+                        </Border>
+                        <Border Width="150" Background="{StaticResource BrushSurface}" CornerRadius="14" Padding="18,16" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                            <StackPanel><TextBlock Text="Lulus" Style="{StaticResource StatLabel}" /><TextBlock Text="{Binding Data.Lulus}" Style="{StaticResource StatValue}" Margin="0,4,0,0" /></StackPanel>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="Grafik Kelas" Style="{StaticResource SectionTitle}" />
+                    <ItemsControl ItemsSource="{Binding GrafikKelas}" Visibility="{Binding GrafikKelas.Count, Converter={StaticResource CountToVisibility}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3"><Grid.ColumnDefinitions><ColumnDefinition Width="160" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Label}" /><ProgressBar Grid.Column="1" Height="12" Value="{Binding Nilai}" Maximum="100" Margin="8,0" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Nilai, StringFormat={}{0:0.#}}" HorizontalAlignment="Right" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="Grafik Mata Pelajaran" Style="{StaticResource SectionTitle}" />
+                    <ItemsControl ItemsSource="{Binding GrafikMapel}" Visibility="{Binding GrafikMapel.Count, Converter={StaticResource CountToVisibility}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3"><Grid.ColumnDefinitions><ColumnDefinition Width="160" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Label}" /><ProgressBar Grid.Column="1" Height="12" Value="{Binding Nilai}" Maximum="100" Margin="8,0" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Nilai, StringFormat={}{0:0.#}}" HorizontalAlignment="Right" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

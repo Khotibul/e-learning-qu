@@ -1,0 +1,46 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.GuruMateriView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="1100">
+    <UserControl.Resources>
+        <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+    </UserControl.Resources>
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <StackPanel><TextBlock Text="Materi" Style="{StaticResource H1}" /><TextBlock Text="Materi yang Anda unggah" Style="{StaticResource Muted}" Margin="0,4,0,0" /></StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}" VerticalAlignment="Top" />
+        </Grid>
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <ProgressBar Width="110" Height="4" IsIndeterminate="True" HorizontalAlignment="Right" Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        </Grid>
+        <Border Grid.Row="2" Background="{StaticResource BrushErrorBg}" CornerRadius="10" Padding="14,12" BorderBrush="{StaticResource BrushError}" BorderThickness="1" Margin="0,0,0,12"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" />
+        </Border>
+        <Border Grid.Row="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="16" Padding="32,40" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
+                Visibility="{Binding Items.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=invert}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"><TextBlock Text="📖" FontSize="36" HorizontalAlignment="Center" /><TextBlock Text="Belum ada materi" Style="{StaticResource H2}" Margin="0,12,0,4" HorizontalAlignment="Center" /></StackPanel>
+        </Border>
+        <DataGrid Grid.Row="2" ItemsSource="{Binding Items}" Style="{StaticResource Grid}" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                  Visibility="{Binding Items.Count, Converter={StaticResource CountToVisibility}}" EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Judul" Binding="{Binding Judul}" Width="2*" />
+                <DataGridTextColumn Header="Deskripsi" Binding="{Binding Deskripsi}" Width="2*" />
+                <DataGridTextColumn Header="Mapel" Binding="{Binding MataPelajaran.Nama}" Width="*" />
+                <DataGridTextColumn Header="Tipe" Binding="{Binding FileType}" Width="70" />
+                <DataGridTemplateColumn Width="90">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate><Button Content="Hapus" Style="{StaticResource ButtonGhost}" Padding="8,4" FontSize="12"
+                                              Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" /></DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

@@ -15,8 +15,9 @@ public partial class MainWindow : Window
     private readonly IDashboardService _dashboard;
     private readonly IAkademikService _akademik;
     private readonly INavigationService _nav;
+    private readonly IGuruService _guru;
 
-    public MainWindow(ISessionManager session, IAuthService auth, IOAuthService oauth, IDashboardService dashboard, IAkademikService akademik, INavigationService nav)
+    public MainWindow(ISessionManager session, IAuthService auth, IOAuthService oauth, IDashboardService dashboard, IAkademikService akademik, INavigationService nav, IGuruService guru)
     {
         InitializeComponent();
         _session = session;
@@ -25,6 +26,7 @@ public partial class MainWindow : Window
         _dashboard = dashboard;
         _akademik = akademik;
         _nav = nav;
+        _guru = guru;
         LogoutButton.Click += OnLogout;
         Loaded += OnLoadedAsync;
     }
@@ -118,6 +120,63 @@ public partial class MainWindow : Window
             {
                 var vm = new GuruDashboardViewModel(_dashboard);
                 ContentHost.Content = new GuruDashboardView { DataContext = vm };
+                _ = vm.RefreshCommand.ExecuteAsync(null);
+                return;
+            }
+            case "guru-murid":
+            {
+                var vm = new GuruMuridViewModel(_guru);
+                ContentHost.Content = new GuruMuridView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "guru-bank-soal":
+            case "guru-soal":
+            {
+                var vm = new GuruSoalViewModel(_guru);
+                ContentHost.Content = new GuruSoalView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "guru-ujian":
+            {
+                var vm = new GuruUjianViewModel(_guru);
+                ContentHost.Content = new GuruUjianView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "guru-analitik":
+            {
+                var vm = new GuruAnalitikViewModel(_guru);
+                ContentHost.Content = new GuruAnalitikView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "guru-materi":
+            {
+                var vm = new GuruMateriViewModel(_guru);
+                ContentHost.Content = new GuruMateriView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "guru-nilai":
+            {
+                var vm = new GuruNilaiViewModel(_guru);
+                ContentHost.Content = new GuruNilaiView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "guru-absensi":
+            {
+                var vm = new GuruAbsensiViewModel(_guru);
+                ContentHost.Content = new GuruAbsensiView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "guru-pengaturan":
+            {
+                var vm = new GuruProfilViewModel(_guru);
+                ContentHost.Content = new GuruProfilView { DataContext = vm };
                 _ = vm.LoadAsync();
                 return;
             }
