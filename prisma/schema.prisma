@@ -138,6 +138,11 @@ model User {
   pembinaanDicatat  PembinaanSantri[]          @relation("PembinaanPetugas")
   pengumumanDisetujui Pengumuman[]             @relation("PengumumanApprover")
 
+  // Relasi modul keuangan
+  walletAccount     WalletAccount?
+  keuanganStaff     KeuanganStaff?
+  invoiceTagihan    InvoiceTagihan[]
+
   @@map("users")
 }
 
@@ -1452,7 +1457,7 @@ model LandingFeature {
 
 model AuditLog {
   id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
+  userId    String?  @db.Uuid // nullable: event sistem (mis. webhook gagal) tanpa user pemicu
   action    String
   entity    String
   entityId  String?
@@ -1460,7 +1465,7 @@ model AuditLog {
   ipAddress String?
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")
 }
@@ -1899,6 +1904,7 @@ model WaliSantri {
 
   user  User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   anak  SantriWali[]
+  topup TopupRequest[]
 
   @@map("wali_santri")
 }
@@ -2545,4 +2551,449 @@ model PembinaanSantri {
   @@index([santriId, tipe])
   @@index([status])
   @@map("pembinaan_santri")
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// MODUL KEUANGAN TERINTEGRASI — E-WALLET, E-KANTIN, BILLING, JURNAL
+// Semua tabel BARU (non-destruktif). Kas Kelas lama (Iuran/Denda) TIDAK
+// disentuh. Saldo = Rupiah integer. Ledger immutable + idempotency.
+// ══════════════════════════════════════════════════════════════════════
+
+enum StatusDompet {
+  AKTIF
+  BEKU
+  DITUTUP
+}
+
+enum TipeLedgerDompet {
+  TOPUP // kredit
+  PEMBAYARAN_KANTIN // debit
+  REFUND_KANTIN // kredit
+  KOREKSI // boleh +/- (resmi, butuh aktor)
+  BAYAR_TAGIHAN // debit
+  PENARIKAN // debit (admin)
+}
+
+enum StatusTopup {
+  MENUNGGU // menunggu verifikasi manual wali/bendahara
+  DIPROSES // sedang diverifikasi gateway (opsional)
+  BERHASIL // sudah dikredit ke ledger
+  GAGAL
+  DIBATALKAN
+}
+
+enum MetodePembayaran {
+  EWALLET // saldo dompet internal
+  TUNAI // kasir catat manual
+  TRANSFER_BANK // verifikasi manual
+  QRIS // verifikasi manual / gateway
+  VIRTUAL_ACCOUNT
+}
+
+enum StatusTransaksiKantin {
+  SELESAI
+  DIBATALKAN
+  REFUND
+}
+
+enum StatusInvoice {
+  BELUM_DIBAYAR
+  SEBAGIAN
+  LUNAS
+  JATUH_TEMPO
+  DIBATALKAN
+}
+
+enum StatusPembayaranTagihan {
+  PENDING // menunggu verifikasi (tunai/transfer) atau webhook
+  BERHASIL // sudah dialokasikan ke invoice
+  GAGAL
+  DIBATALKAN
+}
+
+enum TipeAkunLaporan {
+  KAS
+  BANK
+  KEWAJIBAN_DOMPET // utang pengelola ke pemilik saldo
+  PIUTANG
+  PERSEDIAAN
+  PENDAPATAN
+  BEBAN_HPP
+}
+
+enum StatusJurnal {
+  DRAF
+  POSTING
+  DIBATALKAN
+}
+
+enum PeranKeuangan {
+  BENDAHARA // bendahara sekolah / unit
+  KASIR // kasir kantin outlet
+  AUDITOR // read-only monitoring
+}
+
+model WalletAccount {
+  id                String       @id @default(uuid()) @db.Uuid
+  userId            String       @unique @db.Uuid
+  nomor             String       @unique // nomor akun dompet, mis. DW-000001
+  saldo             Int          @default(0) // saldo tersedia (materialisasi; ledger adalah sumber kebenaran)
+  saldoTertahan     Int          @default(0) // dana tertahan (belum cair)
+  status            StatusDompet @default(AKTIF)
+  limitHarian       Int? // batas debit per hari (0/null = tanpa batas)
+  limitPerTransaksi Int? // batas debit per transaksi
+  freezeSampai      DateTime? // pembekuan sementara
+  createdBy         String?      @db.Uuid
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledger     WalletLedger[]
+  topups     TopupRequest[]
+  transaksi  KantinTransaksi[]
+
+  @@index([status])
+  @@map("wallet_account")
+}
+
+model WalletLedger {
+  id              String           @id @default(uuid()) @db.Uuid
+  accountId       String           @db.Uuid
+  idempotencyKey  String           @unique // cegah double proses (webhook/POST ulang)
+  tipe            TipeLedgerDompet
+  jumlah          Int // positif = kredit (masuk), negatif = debit (keluar)
+  saldoSebelum    Int // snapshot konsistensi
+  saldoSesudah    Int
+  refType         String? // TopupRequest | KantinTransaksi | InvoiceTagihan | manual
+  refId           String? @db.Uuid
+  deskripsi       String?
+  actorUserId     String? @db.Uuid // petugas/wali yang memicu
+  meta            Json?
+  createdAt       DateTime         @default(now())
+
+  account WalletAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt])
+  @@index([refType, refId])
+  @@map("wallet_ledger")
+}
+
+model TopupRequest {
+  id             String        @id @default(uuid()) @db.Uuid
+  accountId      String        @db.Uuid
+  waliId         String?       @db.Uuid // WaliSantri.id yang mengajukan (bila via portal wali)
+  jumlah         Int // nominal rupiah, > 0
+  metode         MetodePembayaran @default(TRANSFER_BANK)
+  status         StatusTopup   @default(MENUNGGU)
+  buktiUrl       String? // URL unggahan bukti transfer (opsional)
+  refGateway     String? // id referensi payment gateway bila dipakai
+  idempotencyKey String        @unique // cek topup ganda
+  verifiedBy     String?       @db.Uuid // bendahara/admin yang memverifikasi
+  verifiedAt     DateTime?
+  catatan        String? @db.Text
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  account WalletAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  wali    WaliSantri?   @relation(fields: [waliId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([accountId, createdAt])
+  @@map("topup_request")
+}
+
+model KeuanganStaff {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String        @unique @db.Uuid
+  peran     PeranKeuangan
+  outletId  String?       @db.Uuid // scope outlet utk KASIR; null = seluruh outlet
+  unit      String? // scope unit (SEKOLAH | PONDOK | null=global)
+  aktif     Boolean       @default(true)
+  createdBy String?       @db.Uuid
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outlet KantinOutlet?  @relation(fields: [outletId], references: [id], onDelete: SetNull)
+
+  @@index([peran, aktif])
+  @@map("keuangan_staff")
+}
+
+model KantinOutlet {
+  id        String   @id @default(uuid()) @db.Uuid
+  nama      String
+  kode      String   @unique // kode unik outlet, mis. KANTIN-PUSTAKA
+  lokasi    String?
+  aktif     Boolean  @default(true)
+  createdBy String?  @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kategori  KantinKategori[]
+  produk    KantinProduk[]
+  shifts    KantinShift[]
+  transaksi KantinTransaksi[]
+  kasir     KeuanganStaff[]
+
+  @@map("kantin_outlet")
+}
+
+model KantinKategori {
+  id        String   @id @default(uuid()) @db.Uuid
+  outletId  String   @db.Uuid
+  nama      String
+  createdAt DateTime @default(now())
+
+  outlet KantinOutlet  @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  produk KantinProduk[]
+
+  @@unique([outletId, nama])
+  @@map("kantin_kategori")
+}
+
+model KantinProduk {
+  id         String   @id @default(uuid()) @db.Uuid
+  outletId   String   @db.Uuid
+  kategoriId String?  @db.Uuid
+  nama       String
+  sku        String? // barcode / kode produk
+  hargaJual  Int // rupiah, > 0
+  hargaModal Int      @default(0) // HPP utk hitung margin
+  stok       Int      @default(0)
+  stokMin    Int      @default(0) // batas minimum utk peringatan
+  satuan     String   @default("porsi")
+  aktif      Boolean  @default(true)
+  deskripsi  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  outlet    KantinOutlet      @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  kategori  KantinKategori?   @relation(fields: [kategoriId], references: [id], onDelete: SetNull)
+  item      KantinTransaksiItem[]
+  penyesuaian KantinPenyesuaianStok[]
+
+  @@unique([outletId, sku])
+  @@index([outletId, aktif])
+  @@map("kantin_produk")
+}
+
+model KantinPenyesuaianStok {
+  id         String   @id @default(uuid()) @db.Uuid
+  produkId   String   @db.Uuid
+  delta      Int // + masuk/restock, - keluar/koreksi
+  alasan     String
+  refType    String? // Opname | Restock | Rusak
+  refId      String? @db.Uuid
+  actorUserId String? @db.Uuid
+  createdAt  DateTime @default(now())
+
+  produk KantinProduk @relation(fields: [produkId], references: [id], onDelete: Cascade)
+
+  @@index([produkId, createdAt])
+  @@map("kantin_penyesuaian_stok")
+}
+
+model KantinShift {
+  id           String    @id @default(uuid()) @db.Uuid
+  outletId     String    @db.Uuid
+  kasirUserId  String    @db.Uuid
+  nomorShift   Int // nomor urut shift hari itu per outlet
+  saldoAwal    Int      @default(0) // kas awal (tunai)
+  status       String    @default("AKTIF") // AKTIF | TUTUP
+  dibukaPada   DateTime @default(now())
+  ditutupPada  DateTime?
+  kasAkhir     Int? // kas fisik saat closing
+  kasHarusnya  Int? // perhitungan sistem
+  selisih      Int? // kasAkhir - kasHarusnya
+  catatanTutup String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  outlet    KantinOutlet       @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  transaksi KantinTransaksi[]
+
+  @@unique([outletId, kasirUserId, nomorShift])
+  @@index([outletId, status])
+  @@map("kantin_shift")
+}
+
+model KantinTransaksi {
+  id           String               @id @default(uuid()) @db.Uuid
+  nomorStruk   String               @unique // STR-YYYYMMDD-XXXX
+  outletId     String               @db.Uuid
+  shiftId      String?              @db.Uuid
+  kasirUserId  String               @db.Uuid
+  accountId    String?              @db.Uuid // dompet siswa (null bila tunai)
+  metode       MetodePembayaran     @default(EWALLET)
+  subtotal     Int
+  diskon       Int                  @default(0)
+  total        Int // subtotal - diskon
+  hppTotal     Int                  @default(0) // total harga modal snapshot
+  status       StatusTransaksiKantin @default(SELESAI)
+  alasanBatal  String? @db.Text
+  batalBy      String?              @db.Uuid
+  batalPada    DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  outlet   KantinOutlet          @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  shift    KantinShift?          @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  account  WalletAccount?        @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  item     KantinTransaksiItem[]
+  refund   KantinRefund[]
+
+  @@index([outletId, createdAt])
+  @@index([accountId, createdAt])
+  @@map("kantin_transaksi")
+}
+
+model KantinTransaksiItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  transaksiId String   @db.Uuid
+  produkId    String   @db.Uuid
+  namaSnapshot String // nama saat pembelian (invarian thd perubahan master)
+  hargaSnapshot Int // harga jual saat pembelian
+  modalSnapshot Int // harga modal saat pembelian (utk HPP)
+  qty         Int
+  subtotal    Int // hargaSnapshot * qty
+
+  transaksi KantinTransaksi @relation(fields: [transaksiId], references: [id], onDelete: Cascade)
+  produk    KantinProduk    @relation(fields: [produkId], references: [id], onDelete: Cascade)
+
+  @@index([transaksiId])
+  @@map("kantin_transaksi_item")
+}
+
+model KantinRefund {
+  id          String   @id @default(uuid()) @db.Uuid
+  transaksiId String   @db.Uuid
+  jumlah      Int // nominal refund, > 0
+  alasan      String   @default("RETUR") // RETUR | BATAL | KOREKSI
+  keDompet    Boolean  @default(true) // true = kredit balik ke dompet
+  ledgerId    String?  @db.Uuid // referensi ledger kredit balik
+  actorUserId String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  transaksi KantinTransaksi @relation(fields: [transaksiId], references: [id], onDelete: Cascade)
+
+  @@index([transaksiId])
+  @@map("kantin_refund")
+}
+
+model JenisTagihan {
+  id          String   @id @default(uuid()) @db.Uuid
+  kode        String   @unique // SPP, ASRAMA, MAKAN, KEGIATAN, DAFTAR_ULANG, PONDOK, LAIN
+  nama        String
+  deskripsi   String?
+  unit        String? // SEKOLAH | PONDOK | null=keduanya
+  nominalDefault Int? // nominal bawaan (bisa dioverride per invoice)
+  aktif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoice InvoiceTagihan[]
+
+  @@map("jenis_tagihan")
+}
+
+model InvoiceTagihan {
+  id           String         @id @default(uuid()) @db.Uuid
+  kode         String         @unique // INV-YYYYMM-XXXX
+  userId       String         @db.Uuid // pemilik tagihan (siswa/santri user)
+  jenisId      String         @db.Uuid
+  periode      String // bulan/tahun, mis. "2026-10"
+  nominal      Int
+  diskon       Int            @default(0)
+  denda        Int            @default(0) // akumulasi keterlambatan
+  total        Int // nominal - diskon + denda
+  terbayar     Int            @default(0)
+  sisa         Int // total - terbayar
+  jatuhTempo   DateTime?
+  status       StatusInvoice  @default(BELUM_DIBAYAR)
+  keterangan   String? @db.Text
+  createdBy    String?        @db.Uuid
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jenis JenisTagihan   @relation(fields: [jenisId], references: [id], onDelete: Restrict)
+  bayar PembayaranTagihan[]
+
+  @@index([userId, status])
+  @@index([jenisId, periode])
+  @@map("invoice_tagihan")
+}
+
+model PembayaranTagihan {
+  id             String                 @id @default(uuid()) @db.Uuid
+  invoiceId      String                 @db.Uuid
+  jumlah         Int // > 0
+  metode         MetodePembayaran       @default(EWALLET)
+  status         StatusPembayaranTagihan @default(PENDING)
+  accountId      String?                @db.Uuid // dompet yg didebit (bila EWALLET)
+  ledgerId       String?                @db.Uuid
+  buktiUrl       String?
+  idempotencyKey String                 @unique
+  actorUserId    String?                @db.Uuid
+  verifiedBy     String?                @db.Uuid
+  verifiedAt     DateTime?
+  catatan        String? @db.Text
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  invoice InvoiceTagihan @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("pembayaran_tagihan")
+}
+
+model AkunLaporan {
+  id     String         @id @default(uuid()) @db.Uuid
+  kode   String         @unique // KAS, BANK, KEWAJIBAN_DOMPET, PIUTANG, PERSEDIAAN, PENDAPATAN, HPP
+  nama   String
+  tipe   TipeAkunLaporan
+  saldo  Int            @default(0) // materialisasi saldo akun (mutasi via jurnal)
+  aktif  Boolean        @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  item JurnalItem[]
+
+  @@map("akun_laporan")
+}
+
+model JurnalUmum {
+  id        String        @id @default(uuid()) @db.Uuid
+  nomor     String        @unique // JRN-YYYYMM-XXXX
+  tanggal   DateTime      @default(now())
+  keterangan String
+  refType   String // TopupRequest | KantinTransaksi | PembayaranTagihan | manual
+  refId     String?       @db.Uuid
+  status    StatusJurnal  @default(POSTING)
+  createdBy String?       @db.Uuid
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  item JurnalItem[]
+
+  @@index([tanggal])
+  @@index([refType, refId])
+  @@map("jurnal_umum")
+}
+
+model JurnalItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  jurnalId  String   @db.Uuid
+  akunId    String   @db.Uuid
+  debit     Int      @default(0) // >= 0
+  kredit    Int      @default(0) // >= 0
+  keterangan String?
+
+  jurnal JurnalUmum   @relation(fields: [jurnalId], references: [id], onDelete: Cascade)
+  akun   AkunLaporan  @relation(fields: [akunId], references: [id], onDelete: Restrict)
+
+  @@index([jurnalId])
+  @@index([akunId])
+  @@map("jurnal_item")
 }
