@@ -30,7 +30,11 @@ public partial class LoginViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(LoginWithGoogleCommand))]
     private bool isBusy;
 
-    public IReadOnlyList<Role> Roles { get; } = new[] { Role.SISWA, Role.GURU };
+    public IReadOnlyList<Role> Roles { get; } = new[]
+    {
+        Role.SISWA, Role.GURU, Role.KEPALA_PONDOK, Role.PENGURUS_PONDOK, Role.USTADZ_PONDOK,
+        Role.ADMIN, Role.RESEARCHER
+    };
 
     public LoginViewModel(IAuthService auth, IOAuthService oauth)
     {

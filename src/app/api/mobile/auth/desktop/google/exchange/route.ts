@@ -12,6 +12,8 @@ import { signMobileToken, ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } 
  * Yang berbeda: token hasil = JWT desktop (access+refresh) persis /api/mobile/auth/desktop/login.
  */
 
+const DESKTOP_ROLES = ["SISWA", "GURU", "ADMIN", "RESEARCHER", "KEPALA_PONDOK", "PENGURUS_PONDOK", "USTADZ_PONDOK"]
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -30,7 +32,7 @@ export async function POST(req: Request) {
     const codeVerifier = String(body.codeVerifier ?? "").trim()
     const redirectUri = String(body.redirectUri ?? "").trim()
     const role = String(body.role ?? "SISWA").toUpperCase()
-    const requestedRole = ["SISWA", "GURU"].includes(role) ? role : "SISWA"
+    const requestedRole = DESKTOP_ROLES.includes(role) ? role : "SISWA"
 
     if (!code || !codeVerifier || !redirectUri) {
       return NextResponse.json({ error: "code, codeVerifier, redirectUri wajib diisi" }, { status: 400, headers: cors })
@@ -174,9 +176,9 @@ export async function POST(req: Request) {
       }
       guruId = guru?.id ?? null
       if (!guruId) needRoleSelection = true
-    } else if (user.role === "ADMIN" || user.role === "RESEARCHER") {
-      return NextResponse.json({ error: "Role Admin hanya via website" }, { status: 403, headers: cors })
     }
+    // ADMIN / RESEARCHER / KEPALA_PONDOK / PENGURUS_PONDOK / USTADZ_PONDOK —
+    // tidak perlu profil siswa/guru; penugasan pondok dibaca dari pondokStaffAssignment di login route.
 
     const accessToken = await signMobileToken(user.id, user.role, "access")
     const refreshToken = await signMobileToken(user.id, user.role, "refresh")
@@ -194,6 +196,16 @@ export async function POST(req: Request) {
         select: { id: true, nama: true, jabatan: true },
       })
       if (g) extra = { ...extra, guruId: g.id, guruNama: g.nama, jabatan: g.jabatan }
+    } else if (["KEPALA_PONDOK", "PENGURUS_PONDOK", "USTADZ_PONDOK"].includes(user.role)) {
+      const assignments = await prisma.pondokStaffAssignment.findMany({
+        where: { userId: user.id, aktif: true },
+        select: { tipe: true, asramaId: true, kamarId: true, halaqahId: true, kelasDiniyahId: true, unit: true },
+      })
+      const grants = await prisma.pondokPermissionGrant.findMany({
+        where: { userId: user.id, aktif: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        select: { permission: true, scopeType: true, scopeId: true },
+      })
+      extra = { ...extra, pondokAssignments: assignments, pondokGrants: grants }
     }
 
     return NextResponse.json(

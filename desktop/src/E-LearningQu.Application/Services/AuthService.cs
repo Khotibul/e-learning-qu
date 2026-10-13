@@ -84,9 +84,53 @@ public sealed class AuthService : IAuthService
             GuruId = ExtraString(extra, "guruId"),
             Jabatan = ExtraString(extra, "jabatan"),
             KelasId = ExtraString(extra, "kelasId") ?? ExtraNestedString(extra, "kelas", "id"),
-            KelasNama = ExtraString(extra, "kelasNama") ?? ExtraNestedString(extra, "kelas", "nama")
+            KelasNama = ExtraString(extra, "kelasNama") ?? ExtraNestedString(extra, "kelas", "nama"),
+            PondokAssignments = ParsePondokAssignments(extra),
+            PondokGrants = ParsePondokGrants(extra),
         };
+
+        // Effective permission = role default + pondok grant override.
+        var perms = new HashSet<string>(RolePermissionMap.For(session.Role), StringComparer.Ordinal);
+        foreach (var g in session.PondokGrants)
+            perms.Add(g.Permission);
+        session = session with { Permissions = perms };
+
         _session.SetSession(session);
+    }
+
+    private static List<PondokAssignment> ParsePondokAssignments(JsonElement? extra)
+    {
+        var list = new List<PondokAssignment>();
+        if (extra is not { ValueKind: JsonValueKind.Object } el) return list;
+        if (!el.TryGetProperty("pondokAssignments", out var arr) || arr.ValueKind != JsonValueKind.Array) return list;
+        foreach (var item in arr.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object) continue;
+            list.Add(new PondokAssignment(
+                item.TryGetProperty("tipe", out var t) ? t.GetString() ?? "" : "",
+                item.TryGetProperty("asramaId", out var a) ? a.GetString() : null,
+                item.TryGetProperty("kamarId", out var k) ? k.GetString() : null,
+                item.TryGetProperty("halaqahId", out var h) ? h.GetString() : null,
+                item.TryGetProperty("kelasDiniyahId", out var kd) ? kd.GetString() : null,
+                item.TryGetProperty("unit", out var u) ? u.GetString() : null));
+        }
+        return list;
+    }
+
+    private static List<PondokGrant> ParsePondokGrants(JsonElement? extra)
+    {
+        var list = new List<PondokGrant>();
+        if (extra is not { ValueKind: JsonValueKind.Object } el) return list;
+        if (!el.TryGetProperty("pondokGrants", out var arr) || arr.ValueKind != JsonValueKind.Array) return list;
+        foreach (var item in arr.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object) continue;
+            list.Add(new PondokGrant(
+                item.TryGetProperty("permission", out var p) ? p.GetString() ?? "" : "",
+                item.TryGetProperty("scopeType", out var st) ? st.GetString() : null,
+                item.TryGetProperty("scopeId", out var si) ? si.GetString() : null));
+        }
+        return list;
     }
 
     public async Task<bool> RefreshAsync(CancellationToken ct = default)
