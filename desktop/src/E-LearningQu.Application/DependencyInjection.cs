@@ -1,0 +1,17 @@
+using E_LearningQu.Application.Abstractions;
+using E_LearningQu.Application.Services;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace E_LearningQu.Application;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        services.AddSingleton<ISessionManager, SessionManager>();
+        services.AddSingleton<IAuthService, AuthService>();
+        services.AddSingleton<IDashboardService, DashboardService>();
+        services.AddSingleton<IAkademikService, AkademikService>();
+        return services;
+    }
+}

@@ -1,0 +1,76 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.KehadiranView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters">
+    <UserControl.Resources>
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+        <conv:InverseBoolConverter x:Key="InverseBool" />
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24">
+        <StackPanel>
+            <DockPanel Margin="0,0,0,12">
+                <Button DockPanel.Dock="Right" Content="Muat ulang" Padding="12,6"
+                        Command="{Binding LoadCommand}" IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}" />
+                <TextBlock Text="Absensi / Kehadiran" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
+            </DockPanel>
+
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="#C0392B" Margin="0,0,0,8"
+                       Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}" />
+
+            <Border Background="#EAF3FB" Padding="14" CornerRadius="8" Margin="0,0,0,8">
+                <StackPanel>
+                    <TextBlock Text="{Binding RekapText}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding HariIniText}" Margin="0,4,0,0" Foreground="#444" />
+                </StackPanel>
+            </Border>
+
+            <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="8" Padding="14" Background="White" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Ajukan absensi manual (verifikasi admin)" FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <UniformGrid Columns="3">
+                        <StackPanel Margin="0,0,8,0">
+                            <TextBlock Text="Tanggal (YYYY-MM-DD)" FontSize="11" Foreground="#666" />
+                            <TextBox Text="{Binding TanggalAjukan, UpdateSourceTrigger=PropertyChanged}" Padding="6" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,8,0">
+                            <TextBlock Text="Tipe" FontSize="11" Foreground="#666" />
+                            <ComboBox ItemsSource="{Binding TipeOptions}" SelectedItem="{Binding TipeAjukan}" Padding="6" />
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Alasan" FontSize="11" Foreground="#666" />
+                            <TextBox Text="{Binding AlasanAjukan, UpdateSourceTrigger=PropertyChanged}" Padding="6" />
+                        </StackPanel>
+                    </UniformGrid>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Content="Kirim pengajuan" Padding="14,6" Command="{Binding AjukanCommand}" />
+                        <TextBlock Text="{Binding InfoAjukan}" Margin="12,0,0,0" VerticalAlignment="Center" Foreground="#2E7D32" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Riwayat bulan berjalan" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <DataGrid ItemsSource="{Binding Rows}" AutoGenerateColumns="False" IsReadOnly="True"
+                      HeadersVisibility="Column" BorderThickness="0" Margin="0,0,0,16">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Tanggal" Binding="{Binding Tanggal, StringFormat={}{0:dd/MM/yyyy}}" Width="110" />
+                    <DataGridTextColumn Header="Masuk" Binding="{Binding JamMasuk}" Width="80" />
+                    <DataGridTextColumn Header="Status Masuk" Binding="{Binding StatusMasuk}" Width="110" />
+                    <DataGridTextColumn Header="Pulang" Binding="{Binding JamPulang}" Width="80" />
+                    <DataGridTextColumn Header="Terlambat (mnt)" Binding="{Binding TerlambatMenit}" Width="110" />
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <TextBlock Text="Pengajuan manual" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <DataGrid ItemsSource="{Binding Permintaan}" AutoGenerateColumns="False" IsReadOnly="True"
+                      HeadersVisibility="Column" BorderThickness="0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Tanggal" Binding="{Binding Tanggal}" Width="110" />
+                    <DataGridTextColumn Header="Tipe" Binding="{Binding Tipe}" Width="80" />
+                    <DataGridTextColumn Header="Alasan" Binding="{Binding Alasan}" Width="2*" />
+                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
+                    <DataGridTextColumn Header="Catatan Admin" Binding="{Binding CatatanAdmin}" Width="2*" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
