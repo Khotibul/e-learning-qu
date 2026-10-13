@@ -1,0 +1,104 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.SiswaKehadiranView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="1100">
+
+    <UserControl.Resources>
+        <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <TextBlock Text="Kehadiran" Style="{StaticResource H1}" />
+                <TextBlock Text="Rekap kehadiran bulanan Anda" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}"
+                    VerticalAlignment="Top" HorizontalAlignment="Right" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <ProgressBar Width="110" Height="4" IsIndeterminate="True" HorizontalAlignment="Right" VerticalAlignment="Center"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        </Grid>
+
+        <Border Grid.Row="2" Background="{StaticResource BrushErrorBg}" CornerRadius="10" Padding="14,12"
+                BorderBrush="{StaticResource BrushError}" BorderThickness="1" Margin="0,0,0,12"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" />
+        </Border>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      Visibility="{Binding Data, Converter={StaticResource NullToVisibility}}">
+            <StackPanel>
+                <!-- Ringkasan -->
+                <Border Background="{StaticResource BrushSurface}" CornerRadius="16" Padding="20"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,12">
+                    <TextBlock Text="{Binding Data.Bulan, StringFormat=Rekap Bulan {0}}" Style="{StaticResource H2}" />
+                </Border>
+
+                <Border Background="{StaticResource BrushSurface}" CornerRadius="16" Padding="20"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Hadir" Style="{StaticResource Muted}" />
+                            <TextBlock Text="{Binding Data.Hadir}" Style="{StaticResource H1}" Foreground="{StaticResource BrushPrimary}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Izin" Style="{StaticResource Muted}" />
+                            <TextBlock Text="{Binding Data.Izin}" Style="{StaticResource H1}" Foreground="{StaticResource BrushWarning}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Sakit" Style="{StaticResource Muted}" />
+                            <TextBlock Text="{Binding Data.Sakit}" Style="{StaticResource H1}" Foreground="{StaticResource BrushInfo}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="3">
+                            <TextBlock Text="Alpa" Style="{StaticResource Muted}" />
+                            <TextBlock Text="{Binding Data.Alpa}" Style="{StaticResource H1}" Foreground="{StaticResource BrushError}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Detail harian -->
+                <Border Background="{StaticResource BrushSurface}" CornerRadius="16" Padding="20"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="Detail Harian" Style="{StaticResource H3}" Margin="0,0,0,12" />
+                        <ItemsControl ItemsSource="{Binding Data.Days}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="2*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Date}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Status}" FontWeight="SemiBold" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

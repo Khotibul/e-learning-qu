@@ -13,6 +13,7 @@ public static class DependencyInjection
         services.AddSingleton<IDashboardService, DashboardService>();
         services.AddSingleton<IAkademikService, AkademikService>();
         services.AddSingleton<IGuruService, GuruService>();
+        services.AddSingleton<ISiswaService, SiswaService>();
         services.AddSingleton<INavigationService, NavigationService>();
         return services;
     }

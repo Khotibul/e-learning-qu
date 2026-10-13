@@ -1,0 +1,76 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.SiswaPengaturanView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="1100">
+
+    <UserControl.Resources>
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <TextBlock Text="Pengaturan" Style="{StaticResource H1}" />
+                <TextBlock Text="Perbarui profil dan kata sandi Anda" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}"
+                    VerticalAlignment="Top" HorizontalAlignment="Right" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <ProgressBar Width="110" Height="4" IsIndeterminate="True" HorizontalAlignment="Right" VerticalAlignment="Center"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        </Grid>
+
+        <Border Grid.Row="2" Background="{StaticResource BrushErrorBg}" CornerRadius="10" Padding="14,12"
+                BorderBrush="{StaticResource BrushError}" BorderThickness="1" Margin="0,0,0,12"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" />
+        </Border>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="640" HorizontalAlignment="Left">
+                <!-- Profil -->
+                <Border Background="{StaticResource BrushSurface}" CornerRadius="16" Padding="24"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Profil" Style="{StaticResource H2}" Margin="0,0,0,16" />
+
+                        <TextBlock Text="Nama" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+                        <TextBox Style="{StaticResource InputBox}" Text="{Binding Nama, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
+
+                        <TextBlock Text="NIS" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+                        <TextBox Style="{StaticResource InputBox}" Text="{Binding Nis, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
+
+                        <TextBlock Text="NISN" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+                        <TextBox Style="{StaticResource InputBox}" Text="{Binding Nisn, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
+
+                        <TextBlock Text="Alamat" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+                        <TextBox Style="{StaticResource InputBox}" Text="{Binding Alamat, UpdateSourceTrigger=PropertyChanged}"
+                                 AcceptsReturn="True" TextWrapping="Wrap" Height="70" Margin="0,0,0,12" />
+
+                        <TextBlock Text="No. Telepon" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+                        <TextBox Style="{StaticResource InputBox}" Text="{Binding NoTelp, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16" />
+
+                        <TextBlock Text="Email" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+                        <TextBox Style="{StaticResource InputBox}" Text="{Binding Email}" IsReadOnly="True"
+                                 IsEnabled="False" Margin="0,0,0,16" />
+
+                        <Button Content="Simpan Perubahan" Style="{StaticResource ButtonPrimary}" Command="{Binding SaveCommand}"
+                                HorizontalAlignment="Left" MinWidth="160" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

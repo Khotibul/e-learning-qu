@@ -1,0 +1,88 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.SiswaProfilBelajarView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="1100">
+
+    <UserControl.Resources>
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <TextBlock Text="Profil Belajar" Style="{StaticResource H1}" />
+                <TextBlock Text="Analisis model belajar dan rekomendasi AI" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}"
+                    VerticalAlignment="Top" HorizontalAlignment="Right" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <ProgressBar Width="110" Height="4" IsIndeterminate="True" HorizontalAlignment="Right" VerticalAlignment="Center"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        </Grid>
+
+        <Border Grid.Row="2" Background="{StaticResource BrushErrorBg}" CornerRadius="10" Padding="14,12"
+                BorderBrush="{StaticResource BrushError}" BorderThickness="1" Margin="0,0,0,12"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" />
+        </Border>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      Visibility="{Binding Data, Converter={StaticResource NullToVisibility}}">
+            <StackPanel>
+                <!-- Gaya belajar -->
+                <Border Background="{StaticResource BrushSurface}" CornerRadius="16" Padding="20"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Gaya Belajar" Style="{StaticResource H3}" Margin="0,0,0,8" />
+                        <TextBlock Text="{Binding Data.Model.Profile.GayaBelajar}" Style="{StaticResource H2}"
+                                   Foreground="{StaticResource BrushPrimary}" />
+                        <TextBlock Text="{Binding Data.Model.Profile.Rekomendasi}" Style="{StaticResource Muted}"
+                                   TextWrapping="Wrap" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Ringkasan model -->
+                <Border Background="{StaticResource BrushSurface}" CornerRadius="16" Padding="20"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Ringkasan Model" Style="{StaticResource H3}" Margin="0,0,0,8" />
+                        <TextBlock Text="{Binding Data.Model.Snapshot.Rekap, StringFormat={}{0:0.0%} pemahaman rata-rata}"
+                                   Foreground="{StaticResource BrushText}" />
+                        <TextBlock Text="{Binding Data.Model.Snapshot.Tren, StringFormat=Tren: {0}}" Style="{StaticResource Muted}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Prediksi risiko -->
+                <Border Background="{StaticResource BrushSurface}" CornerRadius="16" Padding="20"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,12"
+                        Visibility="{Binding Data.Warnings, Converter={StaticResource NullToVisibility}}">
+                    <StackPanel>
+                        <TextBlock Text="Prediksi Risiko" Style="{StaticResource H3}" Margin="0,0,0,8" />
+                        <ItemsControl ItemsSource="{Binding Data.Warnings.List}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource BrushWarningBg}" CornerRadius="10" Padding="12,10" Margin="0,0,0,8">
+                                        <TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="{StaticResource BrushWarning}" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

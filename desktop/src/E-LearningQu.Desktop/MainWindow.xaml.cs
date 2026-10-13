@@ -16,8 +16,9 @@ public partial class MainWindow : Window
     private readonly IAkademikService _akademik;
     private readonly INavigationService _nav;
     private readonly IGuruService _guru;
+    private readonly ISiswaService _siswa;
 
-    public MainWindow(ISessionManager session, IAuthService auth, IOAuthService oauth, IDashboardService dashboard, IAkademikService akademik, INavigationService nav, IGuruService guru)
+    public MainWindow(ISessionManager session, IAuthService auth, IOAuthService oauth, IDashboardService dashboard, IAkademikService akademik, INavigationService nav, IGuruService guru, ISiswaService siswa)
     {
         InitializeComponent();
         _session = session;
@@ -27,6 +28,7 @@ public partial class MainWindow : Window
         _akademik = akademik;
         _nav = nav;
         _guru = guru;
+        _siswa = siswa;
         LogoutButton.Click += OnLogout;
         Loaded += OnLoadedAsync;
     }
@@ -214,6 +216,62 @@ public partial class MainWindow : Window
             {
                 var vm = new KehadiranViewModel(_akademik);
                 ContentHost.Content = new KehadiranView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "siswa-latihan":
+            {
+                var vm = new SiswaLatihanViewModel(_siswa);
+                ContentHost.Content = new SiswaLatihanView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "siswa-absensi":
+            {
+                var vm = new SiswaAbsensiViewModel(_siswa);
+                ContentHost.Content = new SiswaAbsensiView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "siswa-struktur-kelas":
+            {
+                var vm = new SiswaStrukturKelasViewModel(_siswa);
+                ContentHost.Content = new SiswaStrukturKelasView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "siswa-jadwal-piket":
+            {
+                var vm = new SiswaJadwalPiketViewModel(_siswa);
+                ContentHost.Content = new SiswaJadwalPiketView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "siswa-iuran":
+            {
+                var vm = new SiswaIuranViewModel(_siswa);
+                ContentHost.Content = new SiswaIuranView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "siswa-ranking":
+            {
+                var vm = new SiswaRankingViewModel(_siswa);
+                ContentHost.Content = new SiswaRankingView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "siswa-pengaturan":
+            {
+                var vm = new SiswaPengaturanViewModel(_siswa);
+                ContentHost.Content = new SiswaPengaturanView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "siswa-ai-analitik":
+            {
+                var vm = new SiswaAiAnalitikViewModel(_siswa);
+                ContentHost.Content = new SiswaAiAnalitikView { DataContext = vm };
                 _ = vm.LoadAsync();
                 return;
             }
