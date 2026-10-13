@@ -9,6 +9,7 @@
 
     <UserControl.Resources>
         <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+        <conv:NotBoolToBoolConverter x:Key="NotBoolToBool" />
     </UserControl.Resources>
 
     <Grid>
@@ -113,18 +114,19 @@
                 </Border>
 
                 <!-- Tombol utama -->
-                <Button Command="{Binding LoginCommand}" HorizontalAlignment="Stretch" Margin="0,0,0,12">
+                <Button Command="{Binding LoginCommand}" HorizontalAlignment="Stretch" Margin="0,0,0,12"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource NotBoolToBool}}">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
-                            <Setter Property="Content" Value="Masuk" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsBusy}" Value="True">
                                     <Setter Property="Content" Value="Memproses…" />
-                                    <Setter Property="IsEnabled" Value="False" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Button.Style>
+                    <TextBlock Text="Masuk" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="White" FontWeight="SemiBold" FontSize="14" />
                 </Button>
 
                 <!-- Pemisah -->
@@ -136,26 +138,22 @@
                 </Grid>
 
                 <!-- Tombol Google -->
-                <Button Command="{Binding LoginWithGoogleCommand}" HorizontalAlignment="Stretch">
+                <Button Command="{Binding LoginWithGoogleCommand}" HorizontalAlignment="Stretch"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource NotBoolToBool}}">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource ButtonGoogle}">
-                            <Setter Property="Content">
-                                <Setter.Value>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="G" FontSize="15" FontWeight="Bold" Margin="0,0,8,0"
-                                                   Foreground="{StaticResource BrushError}" />
-                                        <TextBlock Text="Masuk dengan Google" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Setter.Value>
-                            </Setter>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsBusy}" Value="True">
                                     <Setter Property="Content" Value="Memproses…" />
-                                    <Setter Property="IsEnabled" Value="False" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Button.Style>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="G" FontSize="15" FontWeight="Bold" Margin="0,0,8,0"
+                                   Foreground="{StaticResource BrushError}" />
+                        <TextBlock Text="Masuk dengan Google" VerticalAlignment="Center" />
+                    </StackPanel>
                 </Button>
 
                 <!-- Footer kecil -->
