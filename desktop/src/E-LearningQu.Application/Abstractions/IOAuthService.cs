@@ -12,7 +12,8 @@ public interface IOAuthService
 {
     /// <summary>
     /// Jalankan full flow: generate PKCE → buka browser → tunggu code → exchange ke backend.
+    /// Role opsional: null → backend auto-detect dari akun (multi-login).
     /// Mengembalikan AuthResult sukses (session sudah ter-set) atau gagal dengan pesan.
     /// </summary>
-    Task<AuthResult> LoginWithGoogleAsync(string role, CancellationToken ct = default);
+    Task<AuthResult> LoginWithGoogleAsync(string? role = null, CancellationToken ct = default);
 }

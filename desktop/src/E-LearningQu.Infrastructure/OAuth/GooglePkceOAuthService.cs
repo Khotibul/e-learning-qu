@@ -41,12 +41,13 @@ public sealed class GooglePkceOAuthService : IOAuthService
         _clientId = options.Value.GoogleClientId;
     }
 
-    public async Task<AuthResult> LoginWithGoogleAsync(string role, CancellationToken ct = default)
+    public async Task<AuthResult> LoginWithGoogleAsync(string? role = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(_clientId))
             return AuthResult.Failure("Google Client ID belum dikonfigurasi.");
 
-        var requestedRole = ParseRole(role);
+        // Role opsional (multi-login): dikirim null → backend auto-detect dari akun.
+        Role? requestedRole = RoleParser.TryParse(role, out var r) ? r : null;
         var port = GetFreeLoopbackPort();
         var redirectUri = $"http://127.0.0.1:{port}/callback";
 
@@ -118,8 +119,8 @@ public sealed class GooglePkceOAuthService : IOAuthService
         if (string.IsNullOrEmpty(code))
             return AuthResult.Failure("Login Google gagal (code tidak diterima).");
 
-        // Tukar code + PKCE ke backend desktop
-        var exchangeRequest = new DesktopGoogleExchangeRequest(code, codeVerifier, redirectUri, requestedRole.ToString());
+        // Tukar code + PKCE ke backend desktop (role null → auto-detect akun)
+        var exchangeRequest = new DesktopGoogleExchangeRequest(code, codeVerifier, redirectUri, requestedRole?.ToString());
         DesktopGoogleExchangeResponse exchangeResponse;
         try
         {
@@ -178,9 +179,6 @@ public sealed class GooglePkceOAuthService : IOAuthService
     private static string CloseHtml(string message) =>
         $"<html><body style=\"font-family:sans-serif;text-align:center;padding-top:80px\">" +
         $"<h2>E-Learning-Qu Desktop</h2><p>{message}</p></body></html>";
-
-    private static Role ParseRole(string role) =>
-        RoleParser.TryParse(role, out var r) ? r : Role.SISWA;
 
     private static int GetFreeLoopbackPort()
     {

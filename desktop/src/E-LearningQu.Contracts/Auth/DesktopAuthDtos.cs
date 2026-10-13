@@ -3,7 +3,11 @@ using System.Text.Json.Serialization;
 
 namespace E_LearningQu.Contracts.Auth;
 
-public sealed record DesktopLoginRequest(string Email, string Password, string Role);
+/// <summary>Login desktop. Role opsional — dikirim null agar backend auto-detect dari akun (multi-login).</summary>
+public sealed record DesktopLoginRequest(
+    string Email,
+    string Password,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Role = null);
 
 public sealed record DesktopLoginResponse
 {

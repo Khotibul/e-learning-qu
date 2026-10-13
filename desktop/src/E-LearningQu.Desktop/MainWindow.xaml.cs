@@ -73,6 +73,13 @@ public partial class MainWindow : Window
         Domain.Enums.Role.SISWA when !string.IsNullOrEmpty(session.KelasNama)
             => $"Siswa • {session.KelasNama}" + (string.IsNullOrEmpty(session.Jabatan) ? "" : $" • {session.Jabatan}"),
         Domain.Enums.Role.GURU when !string.IsNullOrEmpty(session.Jabatan) => $"Guru • {session.Jabatan}",
+        Domain.Enums.Role.SISWA => "Siswa",
+        Domain.Enums.Role.GURU => "Guru",
+        Domain.Enums.Role.ADMIN => "Administrator",
+        Domain.Enums.Role.RESEARCHER => "Peneliti",
+        Domain.Enums.Role.KEPALA_PONDOK => "Kepala Pondok",
+        Domain.Enums.Role.PENGURUS_PONDOK => "Pengurus Pondok",
+        Domain.Enums.Role.USTADZ_PONDOK => "Ustadz Pondok",
         _ => session.Role.ToString()
     };
 
@@ -88,56 +95,56 @@ public partial class MainWindow : Window
             perms.Contains(Domain.Identity.Permissions.KepalaPondokDashboard) ||
             perms.Contains(Domain.Identity.Permissions.PengurusPondokDashboard) ||
             perms.Contains(Domain.Identity.Permissions.UstadzPondokDashboard))
-            menu.Add(new MenuItemEntry("dashboard", "Dashboard"));
+            menu.Add(new MenuItemEntry("dashboard", "Beranda", "🏠"));
 
-        void Add(string perm, string key, string label)
+        void Add(string perm, string key, string label, string icon)
         {
-            if (perms.Contains(perm)) menu.Add(new MenuItemEntry(key, label));
+            if (perms.Contains(perm)) menu.Add(new MenuItemEntry(key, label, icon));
         }
 
         // Siswa
-        Add(Domain.Identity.Permissions.SiswaUjian, "ujian", "Ujian");
-        Add(Domain.Identity.Permissions.SiswaLatihan, "latihan", "Latihan");
-        Add(Domain.Identity.Permissions.SiswaAbsensi, "absensi", "Absensi");
-        Add(Domain.Identity.Permissions.SiswaKehadiran, "kehadiran", "Monitoring Kehadiran");
-        Add(Domain.Identity.Permissions.SiswaMateri, "materi", "Materi");
-        Add(Domain.Identity.Permissions.SiswaNilai, "nilai", "Nilai");
-        Add(Domain.Identity.Permissions.SiswaRanking, "ranking", "Ranking");
-        Add(Domain.Identity.Permissions.SiswaJadwalPelajaran, "jadwal", "Jadwal Pelajaran");
-        Add(Domain.Identity.Permissions.SiswaAiTutor, "ai-tutor", "AI Tutor");
-        Add(Domain.Identity.Permissions.SiswaAiAnalitik, "ai-analitik", "AI Analitik");
-        Add(Domain.Identity.Permissions.SiswaDompet, "dompet", "Dompet");
-        Add(Domain.Identity.Permissions.SiswaIuran, "iuran", "Iuran");
+        Add(Domain.Identity.Permissions.SiswaUjian, "ujian", "Ujian", "📝");
+        Add(Domain.Identity.Permissions.SiswaLatihan, "latihan", "Latihan", "✏️");
+        Add(Domain.Identity.Permissions.SiswaAbsensi, "absensi", "Absensi", "🗓️");
+        Add(Domain.Identity.Permissions.SiswaKehadiran, "kehadiran", "Kehadiran", "📍");
+        Add(Domain.Identity.Permissions.SiswaMateri, "materi", "Materi", "📖");
+        Add(Domain.Identity.Permissions.SiswaNilai, "nilai", "Nilai", "📊");
+        Add(Domain.Identity.Permissions.SiswaRanking, "ranking", "Ranking", "🏆");
+        Add(Domain.Identity.Permissions.SiswaJadwalPelajaran, "jadwal", "Jadwal", "🗓️");
+        Add(Domain.Identity.Permissions.SiswaAiTutor, "ai-tutor", "AI Tutor", "🤖");
+        Add(Domain.Identity.Permissions.SiswaAiAnalitik, "ai-analitik", "AI Analitik", "🧠");
+        Add(Domain.Identity.Permissions.SiswaDompet, "dompet", "Dompet", "👛");
+        Add(Domain.Identity.Permissions.SiswaIuran, "iuran", "Iuran", "🧾");
 
         // Guru
-        Add(Domain.Identity.Permissions.GuruMurid, "murid", "Murid");
-        Add(Domain.Identity.Permissions.GuruBankSoal, "soal", "Bank Soal");
-        Add(Domain.Identity.Permissions.GuruUjian, "ujian", "Kelola Ujian");
-        Add(Domain.Identity.Permissions.GuruAbsensi, "absensi", "Absensi");
-        Add(Domain.Identity.Permissions.GuruNilai, "nilai", "Nilai");
-        Add(Domain.Identity.Permissions.GuruMateri, "materi", "Materi");
-        Add(Domain.Identity.Permissions.GuruAnalitik, "analitik", "Analitik");
-        Add(Domain.Identity.Permissions.GuruIntervensi, "intervensi", "Intervensi");
-        Add(Domain.Identity.Permissions.GuruAntiCheat, "anti-cheat", "Anti-Cheat");
+        Add(Domain.Identity.Permissions.GuruMurid, "murid", "Murid", "👨‍🎓");
+        Add(Domain.Identity.Permissions.GuruBankSoal, "soal", "Bank Soal", "🗂️");
+        Add(Domain.Identity.Permissions.GuruUjian, "ujian", "Kelola Ujian", "📝");
+        Add(Domain.Identity.Permissions.GuruAbsensi, "absensi", "Absensi", "🗓️");
+        Add(Domain.Identity.Permissions.GuruNilai, "nilai", "Nilai", "📊");
+        Add(Domain.Identity.Permissions.GuruMateri, "materi", "Materi", "📖");
+        Add(Domain.Identity.Permissions.GuruAnalitik, "analitik", "Analitik", "📈");
+        Add(Domain.Identity.Permissions.GuruIntervensi, "intervensi", "Intervensi", "🩺");
+        Add(Domain.Identity.Permissions.GuruAntiCheat, "anti-cheat", "Anti-Cheat", "🛡️");
 
         // Admin
-        Add(Domain.Identity.Permissions.AdminGuru, "admin-guru", "Guru");
-        Add(Domain.Identity.Permissions.AdminMurid, "admin-murid", "Murid");
-        Add(Domain.Identity.Permissions.AdminSantri, "admin-santri", "Santri");
-        Add(Domain.Identity.Permissions.AdminPpdb, "admin-ppdb", "PPDB");
-        Add(Domain.Identity.Permissions.AdminKelas, "admin-kelas", "Kelas");
-        Add(Domain.Identity.Permissions.AdminNilai, "admin-nilai", "Nilai");
-        Add(Domain.Identity.Permissions.AdminPengumuman, "admin-pengumuman", "Pengumuman");
-        Add(Domain.Identity.Permissions.AdminResearcher, "admin-researcher", "Researcher");
-        Add(Domain.Identity.Permissions.AdminStatistik, "admin-statistik", "Statistik");
+        Add(Domain.Identity.Permissions.AdminGuru, "admin-guru", "Guru", "👩‍🏫");
+        Add(Domain.Identity.Permissions.AdminMurid, "admin-murid", "Murid", "👨‍🎓");
+        Add(Domain.Identity.Permissions.AdminSantri, "admin-santri", "Santri", "🕌");
+        Add(Domain.Identity.Permissions.AdminPpdb, "admin-ppdb", "PPDB", "📮");
+        Add(Domain.Identity.Permissions.AdminKelas, "admin-kelas", "Kelas", "🏫");
+        Add(Domain.Identity.Permissions.AdminNilai, "admin-nilai", "Nilai", "📊");
+        Add(Domain.Identity.Permissions.AdminPengumuman, "admin-pengumuman", "Pengumuman", "📢");
+        Add(Domain.Identity.Permissions.AdminResearcher, "admin-researcher", "Peneliti", "🔬");
+        Add(Domain.Identity.Permissions.AdminStatistik, "admin-statistik", "Statistik", "📉");
 
         // Pondok
-        Add(Domain.Identity.Permissions.KepalaPondokKeuangan, "keuangan", "Keuangan Pondok");
-        Add(Domain.Identity.Permissions.KepalaPondokGerbang, "gerbang", "Gerbang Pondok");
-        Add(Domain.Identity.Permissions.KepalaPondokUstadz, "ustadz", "Ustadz Pondok");
-        Add(Domain.Identity.Permissions.KepalaPondokPengurus, "pengurus", "Pengurus Pondok");
+        Add(Domain.Identity.Permissions.KepalaPondokKeuangan, "keuangan", "Keuangan Pondok", "💰");
+        Add(Domain.Identity.Permissions.KepalaPondokGerbang, "gerbang", "Gerbang Pondok", "🚪");
+        Add(Domain.Identity.Permissions.KepalaPondokUstadz, "ustadz", "Ustadz Pondok", "👨‍🏫");
+        Add(Domain.Identity.Permissions.KepalaPondokPengurus, "pengurus", "Pengurus Pondok", "👥");
 
-        return menu.Count == 0 ? new MenuItemEntry[] { new("dashboard", "Dashboard") } : menu;
+        return menu.Count == 0 ? new MenuItemEntry[] { new("dashboard", "Beranda", "🏠") } : menu;
     }
 
     private void OnMenuSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -224,13 +231,33 @@ public partial class MainWindow : Window
         var title = key switch
         {
             "ujian" => "Kelola Ujian",
-            "murid" => "Murid",
+            "murid" or "admin-murid" => "Murid",
             "soal" => "Bank Soal",
             "absensi" => "Absensi",
             "materi" => "Materi",
-            "nilai" => "Nilai",
-            "jadwal" => "Jadwal",
+            "nilai" or "admin-nilai" => "Nilai",
+            "jadwal" => "Jadwal Pelajaran",
+            "kehadiran" => "Kehadiran",
+            "latihan" => "Latihan",
+            "ranking" => "Ranking",
             "ai-tutor" => "AI Tutor",
+            "ai-analitik" => "AI Analitik",
+            "dompet" => "Dompet",
+            "iuran" => "Iuran",
+            "analitik" => "Analitik",
+            "intervensi" => "Intervensi",
+            "anti-cheat" => "Anti-Cheat",
+            "admin-guru" => "Data Guru",
+            "admin-santri" => "Data Santri",
+            "admin-ppdb" => "PPDB",
+            "admin-kelas" => "Kelas",
+            "admin-pengumuman" => "Pengumuman",
+            "admin-researcher" => "Peneliti",
+            "admin-statistik" => "Statistik",
+            "keuangan" => "Keuangan Pondok",
+            "gerbang" => "Gerbang Pondok",
+            "ustadz" => "Ustadz Pondok",
+            "pengurus" => "Pengurus Pondok",
             _ => key
         };
         ContentHost.Content = new PlaceholderView(title);
@@ -251,5 +278,5 @@ public partial class MainWindow : Window
         ShowLogin();
     }
 
-    private sealed record MenuItemEntry(string Key, string Label);
+    private sealed record MenuItemEntry(string Key, string Label, string Icon);
 }

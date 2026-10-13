@@ -1,7 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using E_LearningQu.Application.Abstractions;
-using E_LearningQu.Domain.Enums;
 
 namespace E_LearningQu.Desktop.ViewModels;
 
@@ -20,21 +19,12 @@ public partial class LoginViewModel : ObservableObject
     private string password = "";
 
     [ObservableProperty]
-    private Role selectedRole = Role.SISWA;
-
-    [ObservableProperty]
     private string? errorMessage;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
     [NotifyCanExecuteChangedFor(nameof(LoginWithGoogleCommand))]
     private bool isBusy;
-
-    public IReadOnlyList<Role> Roles { get; } = new[]
-    {
-        Role.SISWA, Role.GURU, Role.KEPALA_PONDOK, Role.PENGURUS_PONDOK, Role.USTADZ_PONDOK,
-        Role.ADMIN, Role.RESEARCHER
-    };
 
     public LoginViewModel(IAuthService auth, IOAuthService oauth)
     {
@@ -52,7 +42,7 @@ public partial class LoginViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var result = await _auth.LoginAsync(Email, Password, SelectedRole);
+            var result = await _auth.LoginAsync(Email, Password);
             if (result.IsSuccess)
                 LoginSucceeded?.Invoke(this, EventArgs.Empty);
             else
@@ -71,7 +61,7 @@ public partial class LoginViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var result = await _oauth.LoginWithGoogleAsync(SelectedRole.ToString());
+            var result = await _oauth.LoginWithGoogleAsync();
             if (result.IsSuccess)
                 LoginSucceeded?.Invoke(this, EventArgs.Empty);
             else

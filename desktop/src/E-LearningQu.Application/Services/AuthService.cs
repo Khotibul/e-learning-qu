@@ -22,9 +22,9 @@ public sealed class AuthService : IAuthService
         _logger = logger;
     }
 
-    public async Task<AuthResult> LoginAsync(string email, string password, Role role, CancellationToken ct = default)
+    public async Task<AuthResult> LoginAsync(string email, string password, Role? role = null, CancellationToken ct = default)
     {
-        var request = new DesktopLoginRequest(email.Trim(), password, role.ToString());
+        var request = new DesktopLoginRequest(email.Trim(), password, role?.ToString());
         DesktopLoginResponse response;
         try
         {
@@ -45,17 +45,22 @@ public sealed class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(response.AccessToken) || response.User is null)
             return AuthResult.Failure(response is { Success: false } ? "Login gagal." : "Respons login tidak valid.");
 
-        var roleResolved = RoleParser.TryParse(response.User.Role, out var parsed) ? parsed : role;
+        // Prioritaskan role dari respons (auto-detect akun); fallback ke role yang diminta (opsional); terakhir SISWA.
+        var roleResolved = RoleParser.TryParse(response.User.Role, out var parsed)
+            ? parsed
+            : role ?? Role.SISWA;
         ApplySession(response.User, response.Extra, response.AccessToken, response.RefreshToken, roleResolved);
         return AuthResult.Success(response);
     }
 
-    public AuthResult ApplyGoogleExchange(DesktopGoogleExchangeResponse response, Role fallbackRole)
+    public AuthResult ApplyGoogleExchange(DesktopGoogleExchangeResponse response, Role? fallbackRole = null)
     {
         if (string.IsNullOrWhiteSpace(response.AccessToken) || response.User is null)
             return AuthResult.Failure(response is { Success: false } ? "Login Google gagal." : "Respons Google tidak valid.");
 
-        var roleResolved = RoleParser.TryParse(response.User.Role, out var parsed) ? parsed : fallbackRole;
+        var roleResolved = RoleParser.TryParse(response.User.Role, out var parsed)
+            ? parsed
+            : fallbackRole ?? Role.SISWA;
         ApplySession(response.User, response.Extra, response.AccessToken, response.RefreshToken, roleResolved);
         return AuthResult.Success(new DesktopLoginResponse
         {

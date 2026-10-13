@@ -6,64 +6,133 @@
         <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
         <conv:InverseBoolConverter x:Key="InverseBool" />
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+        <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
     </UserControl.Resources>
-    <DockPanel Margin="24">
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-            <Button DockPanel.Dock="Right" Content="Muat ulang" Padding="12,6"
-                    Command="{Binding LoadCommand}" IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}" />
-            <TextBlock Text="Ujian &amp; Latihan" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
-        </DockPanel>
-        <TextBlock DockPanel.Dock="Top" Text="{Binding ErrorMessage}" Foreground="#C0392B" Margin="0,0,0,8"
-                   Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}" />
-        <ListBox ItemsSource="{Binding Ujians}" BorderThickness="0" Background="Transparent"
-                 ScrollViewer.VerticalScrollBarVisibility="Auto">
-            <ListBox.ItemContainerStyle>
-                <Style TargetType="ListBoxItem">
-                    <Setter Property="Padding" Value="0" />
-                    <Setter Property="Margin" Value="0,0,0,8" />
-                </Style>
-            </ListBox.ItemContainerStyle>
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Border Padding="14" CornerRadius="8" BorderBrush="#E2E2E2" BorderThickness="1" Background="White">
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Content="Kerjakan" Padding="12,6" VerticalAlignment="Center"
-                                    Command="{Binding DataContext.BukaCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
-                                    CommandParameter="{Binding}" />
-                            <StackPanel>
-                                <TextBlock Text="{Binding Nama}" FontWeight="SemiBold" FontSize="14" />
-                                <TextBlock Foreground="#666" FontSize="12" Margin="0,2,0,0">
-                                    <Run Text="{Binding Mapel, Mode=OneWay}" /><Run Text=" • " />
-                                    <Run Text="{Binding Durasi, Mode=OneWay}" /><Run Text=" menit • " />
-                                    <Run Text="{Binding JumlahSoal, Mode=OneWay}" /><Run Text=" soal" />
-                                </TextBlock>
-                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                    <Border Background="#EEF2F6" Padding="8,2" CornerRadius="10" Margin="0,0,6,0">
-                                        <TextBlock Text="{Binding Status}" FontSize="11" />
-                                    </Border>
-                                    <Border Background="#E8F5E9" Padding="8,2" CornerRadius="10" Margin="0,0,6,0">
-                                        <TextBlock FontSize="11">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding SudahDikerjakan}" Value="True">
-                                                            <Setter Property="Text" Value="Sudah dikerjakan" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                    <Setter Property="Text" Value="Belum dikerjakan" />
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                    </Border>
-                                    <Border Background="#FFF3E0" Padding="8,2" CornerRadius="10" Visibility="{Binding BisaRetake, Converter={StaticResource BoolToVisibility}}">
-                                        <TextBlock Text="Boleh diulang" FontSize="11" />
-                                    </Border>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="28,24">
+        <StackPanel MaxWidth="1080" HorizontalAlignment="Left">
+
+            <!-- Header -->
+            <DockPanel Margin="0,0,0,16">
+                <Button DockPanel.Dock="Right" Command="{Binding LoadCommand}"
+                        IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}"
+                        VerticalAlignment="Center">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource ButtonGhost}">
+                            <Setter Property="Content" Value="⟳  Muat ulang" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                    <Setter Property="Content" Value="Memuat…" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <StackPanel>
+                    <TextBlock Text="Ujian &amp; Latihan" Style="{StaticResource H1}" />
+                    <TextBlock Text="Kerjakan ujian dan latihan yang tersedia untuk kelas Anda."
+                               Style="{StaticResource Muted}" Margin="0,6,0,0" />
+                </StackPanel>
+            </DockPanel>
+
+            <!-- Pesan error -->
+            <Border Background="{StaticResource BrushErrorBg}" CornerRadius="12" Padding="14,11"
+                    Margin="0,0,0,12" BorderBrush="{StaticResource BrushError}" BorderThickness="1"
+                    Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}"
+                           FontSize="13" TextWrapping="Wrap" />
+            </Border>
+
+            <!-- Daftar ujian -->
+            <ListBox ItemsSource="{Binding Ujians}" BorderThickness="0" Background="Transparent"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="Margin" Value="0,0,0,10" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <ContentPresenter />
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Card}" Padding="18">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" VerticalAlignment="Center" Margin="16,0,0,0"
+                                        Command="{Binding DataContext.BukaCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                        CommandParameter="{Binding}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
+                                            <Setter Property="Content" Value="Kerjakan  →" />
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Nama}" FontWeight="SemiBold" FontSize="15.5"
+                                               Foreground="{StaticResource BrushTextPrimary}" />
+                                    <TextBlock FontSize="12.5" Foreground="{StaticResource BrushTextSecondary}"
+                                               Margin="0,4,0,0">
+                                        <Run Text="{Binding Mapel, Mode=OneWay}" /><Run Text="   •   " /><Run Text="{Binding Durasi, Mode=OneWay}" /><Run Text=" menit   •   " /><Run Text="{Binding JumlahSoal, Mode=OneWay}" /><Run Text=" soal" />
+                                    </TextBlock>
+
+                                    <!-- Badge status -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Border Background="{StaticResource BrushSurfaceAlt}" Padding="9,4"
+                                                CornerRadius="11" Margin="0,0,7,0"
+                                                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                                            <TextBlock Text="{Binding Status}" FontSize="11"
+                                                       Foreground="{StaticResource BrushTextPrimary}" />
+                                        </Border>
+
+                                        <Border Background="{StaticResource BrushInfoBg}" Padding="9,4"
+                                                CornerRadius="11" Margin="0,0,7,0"
+                                                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                                            <TextBlock FontSize="11" Foreground="{StaticResource BrushPrimary}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="Belum dikerjakan" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SudahDikerjakan}" Value="True">
+                                                                <Setter Property="Text" Value="✔  Sudah dikerjakan" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+
+                                        <Border Background="{StaticResource BrushAccent}" Padding="9,4"
+                                                CornerRadius="11"
+                                                Visibility="{Binding BisaRetake, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="⟳ Boleh diulang" FontSize="11"
+                                                       Foreground="{StaticResource BrushPrimaryDark}" />
+                                        </Border>
+                                    </StackPanel>
                                 </StackPanel>
-                            </StackPanel>
-                        </DockPanel>
-                    </Border>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-    </DockPanel>
+                            </DockPanel>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- Empty state -->
+            <Border Style="{StaticResource CardAlt}"
+                    Visibility="{Binding Ujians.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=invert}">
+                <StackPanel HorizontalAlignment="Center" Margin="0,16">
+                    <TextBlock Text="📝" FontSize="30" HorizontalAlignment="Center" />
+                    <TextBlock Text="Belum ada ujian tersedia." FontSize="14"
+                               Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Center"
+                               Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>

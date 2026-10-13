@@ -6,24 +6,56 @@
         <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
         <conv:InverseBoolConverter x:Key="InverseBool" />
     </UserControl.Resources>
-    <DockPanel Margin="24">
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-            <Button DockPanel.Dock="Right" Content="Muat ulang" Padding="12,6"
-                    Command="{Binding LoadCommand}" IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}" />
-            <TextBlock Text="Nilai" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
-        </DockPanel>
-        <TextBlock DockPanel.Dock="Top" Text="{Binding ErrorMessage}" Foreground="#C0392B" Margin="0,0,0,8"
-                   Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}" />
-        <DataGrid ItemsSource="{Binding Nilais}" AutoGenerateColumns="False" IsReadOnly="True"
-                  HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Mapel" Binding="{Binding Mapel}" Width="*" />
-                <DataGridTextColumn Header="Jenis" Binding="{Binding Jenis}" Width="100" />
-                <DataGridTextColumn Header="Nilai" Binding="{Binding Nilai}" Width="70" />
-                <DataGridTextColumn Header="Semester" Binding="{Binding Semester}" Width="140" />
-                <DataGridTextColumn Header="Keterangan" Binding="{Binding Keterangan}" Width="2*" />
-                <DataGridTextColumn Header="Tanggal" Binding="{Binding Tanggal, StringFormat={}{0:dd/MM/yyyy}}" Width="100" />
-            </DataGrid.Columns>
-        </DataGrid>
-    </DockPanel>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="28,24">
+        <StackPanel MaxWidth="1080" HorizontalAlignment="Left">
+
+            <!-- Header -->
+            <DockPanel Margin="0,0,0,16">
+                <Button DockPanel.Dock="Right" Command="{Binding LoadCommand}"
+                        IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}"
+                        VerticalAlignment="Center">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource ButtonGhost}">
+                            <Setter Property="Content" Value="⟳  Muat ulang" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                    <Setter Property="Content" Value="Memuat…" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <StackPanel>
+                    <TextBlock Text="Nilai Pelajaran" Style="{StaticResource H1}" />
+                    <TextBlock Text="Rekap nilai seluruh mata pelajaran semester berjalan."
+                               Style="{StaticResource Muted}" Margin="0,6,0,0" />
+                </StackPanel>
+            </DockPanel>
+
+            <!-- Pesan error -->
+            <Border Background="{StaticResource BrushErrorBg}" CornerRadius="12" Padding="14,11"
+                    Margin="0,0,0,12" BorderBrush="{StaticResource BrushError}" BorderThickness="1"
+                    Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}"
+                           FontSize="13" TextWrapping="Wrap" />
+            </Border>
+
+            <!-- Tabel nilai -->
+            <Border Style="{StaticResource Card}" Padding="0">
+                <DataGrid ItemsSource="{Binding Nilais}" Style="{StaticResource Grid}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Mata Pelajaran" Binding="{Binding Mapel}" Width="*" />
+                        <DataGridTextColumn Header="Jenis" Binding="{Binding Jenis}" Width="120" />
+                        <DataGridTextColumn Header="Nilai" Binding="{Binding Nilai}" Width="80" />
+                        <DataGridTextColumn Header="Semester" Binding="{Binding Semester}" Width="150" />
+                        <DataGridTextColumn Header="Keterangan" Binding="{Binding Keterangan}" Width="2*" />
+                        <DataGridTextColumn Header="Tanggal" Binding="{Binding Tanggal, StringFormat={}{0:dd/MM/yyyy}}" Width="110" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>

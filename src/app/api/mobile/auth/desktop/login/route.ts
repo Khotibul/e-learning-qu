@@ -6,11 +6,12 @@ import { signMobileToken, ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } 
 /**
  * Login desktop (C#/.NET WPF) — JWT signed + refresh.
  * POST /api/mobile/auth/desktop/login
- * Body: { email, password, role: "SISWA" | "GURU" }
+ * Body: { email, password, role? }
  *
- * Query & aturan SAMA dengan /api/mobile/auth/login (route Flutter) — akun, DB, validasi identik.
- * Yang berbeda HANYA bentuk token: JWT signed (HS256/AUTH_SECRET) + refresh token.
- * Route login Flutter lama TIDAK diubah.
+ * Multi-login: role BUKAN dipilih user. Jika `role` dikirim, hanya divalidasi cocok
+ * dengan akun (legacy / opsi). Jika tidak dikirim (default desktop), role otomatis
+ * diambil dari akun sehingga sistem menyesuaikan akun yang login.
+ * Query & aturan SAMA dengan /api/mobile/auth/login — akun, DB, validasi identik.
  */
 
 const DESKTOP_ROLES = ["SISWA", "GURU", "ADMIN", "RESEARCHER", "KEPALA_PONDOK", "PENGURUS_PONDOK", "USTADZ_PONDOK"]
@@ -37,12 +38,13 @@ export async function POST(req: Request) {
     const body = await req.json()
     const email = String(body.email ?? "").trim()
     const password = String(body.password ?? "")
+    // Role opsional. Jika kosong → multi-login otomatis (role akun dipakai).
     const role = String(body.role ?? "").trim().toUpperCase()
 
-    if (!email || !password || !role) {
-      return NextResponse.json({ error: "Email, password, role wajib diisi" }, { status: 400, headers: corsHeaders })
+    if (!email || !password) {
+      return NextResponse.json({ error: "Email dan password wajib diisi" }, { status: 400, headers: corsHeaders })
     }
-    if (!DESKTOP_ROLES.includes(role)) {
+    if (role && !DESKTOP_ROLES.includes(role)) {
       return NextResponse.json({ error: "Role desktop tidak didukung" }, { status: 400, headers: corsHeaders })
     }
 
@@ -57,7 +59,8 @@ export async function POST(req: Request) {
     if (!user.isActive) {
       return NextResponse.json({ error: "Akun dinonaktifkan" }, { status: 403, headers: corsHeaders })
     }
-    if (user.role !== role) {
+    // Hanya validasi kecocokan role bila client mengirim role (opsional).
+    if (role && user.role !== role) {
       return NextResponse.json({ error: `Akun ini terdaftar sebagai ${user.role}, bukan ${role}` }, { status: 401, headers: corsHeaders })
     }
 

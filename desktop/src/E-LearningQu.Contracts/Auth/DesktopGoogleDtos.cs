@@ -2,12 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace E_LearningQu.Contracts.Auth;
 
-/// <summary>Request tukar authorization code Google (PKCE) ke backend desktop.</summary>
+/// <summary>Request tukar authorization code Google (PKCE) ke backend desktop.
+/// Role opsional — dikirim null agar backend auto-detect dari akun (multi-login).</summary>
 public sealed record DesktopGoogleExchangeRequest(
     [property: JsonPropertyName("code")] string Code,
     [property: JsonPropertyName("codeVerifier")] string CodeVerifier,
     [property: JsonPropertyName("redirectUri")] string RedirectUri,
-    [property: JsonPropertyName("role")] string Role);
+    [property: JsonPropertyName("role")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Role = null);
 
 /// <summary>Respons exchange Google = sama bentuknya dengan DesktopLoginResponse (JWT desktop).</summary>
 public sealed record DesktopGoogleExchangeResponse
