@@ -1,0 +1,69 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.UjianListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters">
+    <UserControl.Resources>
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+        <conv:InverseBoolConverter x:Key="InverseBool" />
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    </UserControl.Resources>
+    <DockPanel Margin="24">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <Button DockPanel.Dock="Right" Content="Muat ulang" Padding="12,6"
+                    Command="{Binding LoadCommand}" IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}" />
+            <TextBlock Text="Ujian &amp; Latihan" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
+        </DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="{Binding ErrorMessage}" Foreground="#C0392B" Margin="0,0,0,8"
+                   Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}" />
+        <ListBox ItemsSource="{Binding Ujians}" BorderThickness="0" Background="Transparent"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0,0,0,8" />
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border Padding="14" CornerRadius="8" BorderBrush="#E2E2E2" BorderThickness="1" Background="White">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Kerjakan" Padding="12,6" VerticalAlignment="Center"
+                                    Command="{Binding DataContext.BukaCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                    CommandParameter="{Binding}" />
+                            <StackPanel>
+                                <TextBlock Text="{Binding Nama}" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock Foreground="#666" FontSize="12" Margin="0,2,0,0">
+                                    <Run Text="{Binding Mapel, Mode=OneWay}" /><Run Text=" • " />
+                                    <Run Text="{Binding Durasi, Mode=OneWay}" /><Run Text=" menit • " />
+                                    <Run Text="{Binding JumlahSoal, Mode=OneWay}" /><Run Text=" soal" />
+                                </TextBlock>
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Border Background="#EEF2F6" Padding="8,2" CornerRadius="10" Margin="0,0,6,0">
+                                        <TextBlock Text="{Binding Status}" FontSize="11" />
+                                    </Border>
+                                    <Border Background="#E8F5E9" Padding="8,2" CornerRadius="10" Margin="0,0,6,0">
+                                        <TextBlock FontSize="11">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SudahDikerjakan}" Value="True">
+                                                            <Setter Property="Text" Value="Sudah dikerjakan" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                    <Setter Property="Text" Value="Belum dikerjakan" />
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                    <Border Background="#FFF3E0" Padding="8,2" CornerRadius="10" Visibility="{Binding BisaRetake, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="Boleh diulang" FontSize="11" />
+                                    </Border>
+                                </StackPanel>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </DockPanel>
+</UserControl>
