@@ -55,6 +55,16 @@ public sealed class BackendApiClient : IBackendApiClient
         return await SendAsync<TResponse>(request, ct);
     }
 
+    public async Task<TResponse> PatchAsync<TBody, TResponse>(string path, TBody body, string? token = null, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Patch, Normalize(path))
+        {
+            Content = JsonContent.Create(body, options: JsonOpts)
+        };
+        AttachAuth(request, token);
+        return await SendAsync<TResponse>(request, ct);
+    }
+
     public async Task DeleteAsync(string path, string? token = null, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Delete, Normalize(path));

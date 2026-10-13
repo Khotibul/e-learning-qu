@@ -33,6 +33,9 @@ public class DashboardTests
         public Task<TResponse> PostAsync<TResponse>(string path, string? token, CancellationToken ct = default)
             => throw new NotSupportedException();
 
+        public Task<TResponse> PatchAsync<TBody, TResponse>(string path, TBody body, string? token = null, CancellationToken ct = default)
+            => throw new NotSupportedException();
+
         public Task DeleteAsync(string path, string? token = null, CancellationToken ct = default)
             => throw new NotSupportedException();
     }

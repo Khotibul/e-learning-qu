@@ -17,8 +17,9 @@ public partial class MainWindow : Window
     private readonly INavigationService _nav;
     private readonly IGuruService _guru;
     private readonly ISiswaService _siswa;
+    private readonly IAdminService _admin;
 
-    public MainWindow(ISessionManager session, IAuthService auth, IOAuthService oauth, IDashboardService dashboard, IAkademikService akademik, INavigationService nav, IGuruService guru, ISiswaService siswa)
+    public MainWindow(ISessionManager session, IAuthService auth, IOAuthService oauth, IDashboardService dashboard, IAkademikService akademik, INavigationService nav, IGuruService guru, ISiswaService siswa, IAdminService admin)
     {
         InitializeComponent();
         _session = session;
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
         _nav = nav;
         _guru = guru;
         _siswa = siswa;
+        _admin = admin;
         LogoutButton.Click += OnLogout;
         Loaded += OnLoadedAsync;
     }
@@ -272,6 +274,62 @@ public partial class MainWindow : Window
             {
                 var vm = new SiswaAiAnalitikViewModel(_siswa);
                 ContentHost.Content = new SiswaAiAnalitikView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-guru":
+            {
+                var vm = new AdminGuruViewModel(_admin);
+                ContentHost.Content = new AdminGuruView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-murid":
+            {
+                var vm = new AdminMuridViewModel(_admin);
+                ContentHost.Content = new AdminMuridView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-kelas":
+            {
+                var vm = new AdminKelasViewModel(_admin);
+                ContentHost.Content = new AdminKelasView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-mapel":
+            {
+                var vm = new AdminMapelViewModel(_admin);
+                ContentHost.Content = new AdminMapelView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-tahun-ajaran":
+            {
+                var vm = new AdminTahunAjaranViewModel(_admin);
+                ContentHost.Content = new AdminTahunAjaranView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-semester":
+            {
+                var vm = new AdminSemesterViewModel(_admin);
+                ContentHost.Content = new AdminSemesterView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-jurusan":
+            {
+                var vm = new AdminJurusanViewModel(_admin);
+                ContentHost.Content = new AdminJurusanView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-kompetensi":
+            {
+                var vm = new AdminKompetensiViewModel(_admin);
+                ContentHost.Content = new AdminKompetensiView { DataContext = vm };
                 _ = vm.LoadAsync();
                 return;
             }
