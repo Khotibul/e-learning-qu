@@ -103,7 +103,7 @@
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="{Binding Icon}" FontSize="15" Width="26"
                                                VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding Label}" FontSize="13.5"
+                                     <TextBlock Text="{Binding DisplayName}" FontSize="13.5"
                                                VerticalAlignment="Center"
                                                Foreground="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=Foreground}" />
                                 </StackPanel>

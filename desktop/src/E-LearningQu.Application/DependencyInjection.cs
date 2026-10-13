@@ -12,6 +12,7 @@ public static class DependencyInjection
         services.AddSingleton<IAuthService, AuthService>();
         services.AddSingleton<IDashboardService, DashboardService>();
         services.AddSingleton<IAkademikService, AkademikService>();
+        services.AddSingleton<INavigationService, NavigationService>();
         return services;
     }
 }
