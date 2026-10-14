@@ -1,0 +1,129 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.AdminStatistikView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="1100">
+
+    <UserControl.Resources>
+        <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <TextBlock Text="Statistik" Style="{StaticResource H1}" />
+                <TextBlock Text="Statistik akademik sekolah" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}"
+                    VerticalAlignment="Top" HorizontalAlignment="Right" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <ProgressBar Width="110" Height="4" IsIndeterminate="True" HorizontalAlignment="Right" VerticalAlignment="Center"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        </Grid>
+
+        <Border Grid.Row="2" Background="{StaticResource BrushErrorBg}" CornerRadius="10" Padding="14,12"
+                BorderBrush="{StaticResource BrushError}" BorderThickness="1" Margin="0,0,0,12"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" />
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="16" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Column="0" Grid.Row="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="24,20"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                        <TextBlock Text="👨‍🏫" FontSize="22" VerticalAlignment="Center" />
+                        <TextBlock Text="Guru &amp; Murid" Style="{StaticResource H2}" Margin="10,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <UniformGrid Columns="2">
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="{Binding GuruMurid.Guru}" Style="{StaticResource H2}" />
+                            <TextBlock Text="Guru" Style="{StaticResource Muted}" />
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="{Binding GuruMurid.Murid}" Style="{StaticResource H2}" />
+                            <TextBlock Text="Murid" Style="{StaticResource Muted}" />
+                        </StackPanel>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="2" Grid.Row="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="24,20"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                        <TextBlock Text="🏫" FontSize="22" VerticalAlignment="Center" />
+                        <TextBlock Text="Per Kelas" Style="{StaticResource H2}" Margin="10,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <DataGrid ItemsSource="{Binding PerKelas}" Style="{StaticResource Grid}"
+                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                              MaxHeight="160"
+                              Visibility="{Binding PerKelas.Count, Converter={StaticResource CountToVisibility}}"
+                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Kelas" Binding="{Binding Label}" Width="2*" />
+                            <DataGridTextColumn Header="Jumlah" Binding="{Binding Nilai}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Text="Belum ada data per kelas" Style="{StaticResource Muted}" Margin="0,8,0,0"
+                               Visibility="{Binding PerKelas.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=invert}" />
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="0" Grid.Row="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="24,20"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                        <TextBlock Text="📚" FontSize="22" VerticalAlignment="Center" />
+                        <TextBlock Text="Per Mata Pelajaran" Style="{StaticResource H2}" Margin="10,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <DataGrid ItemsSource="{Binding PerMapel}" Style="{StaticResource Grid}"
+                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                              MaxHeight="260"
+                              Visibility="{Binding PerMapel.Count, Converter={StaticResource CountToVisibility}}"
+                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Mapel" Binding="{Binding Label}" Width="2*" />
+                            <DataGridTextColumn Header="Soal" Binding="{Binding SoalCount}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Text="Belum ada data per mapel" Style="{StaticResource Muted}" Margin="0,8,0,0"
+                               Visibility="{Binding PerMapel.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=invert}" />
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="2" Grid.Row="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="24,20"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="📊" FontSize="40" HorizontalAlignment="Center" />
+                    <TextBlock Text="Statistik akademik" Style="{StaticResource H2}" Margin="0,12,0,4" HorizontalAlignment="Center" />
+                    <TextBlock Text="Data diperbarui setiap kali dimuat ulang" Style="{StaticResource Muted}" HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

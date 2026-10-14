@@ -184,6 +184,48 @@ public partial class MainWindow : Window
                 _ = vm.LoadAsync();
                 return;
             }
+            case "guru-anti-cheat":
+            {
+                var vm = new GuruAntiCheatViewModel(_guru);
+                ContentHost.Content = new GuruAntiCheatView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "guru-intervensi":
+            {
+                var vm = new GuruIntervensiViewModel(_guru);
+                ContentHost.Content = new GuruIntervensiView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "guru-pelanggaran":
+            {
+                var vm = new GuruPelanggaranViewModel(_guru);
+                ContentHost.Content = new GuruPelanggaranView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "guru-ai-knowledge":
+            {
+                var vm = new GuruAiKnowledgeViewModel(_guru);
+                ContentHost.Content = new GuruAiKnowledgeView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "siswa-bendahara":
+            {
+                var vm = new SiswaBendaharaViewModel(_siswa);
+                ContentHost.Content = new SiswaBendaharaView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "siswa-sekretaris":
+            {
+                var vm = new SiswaSekretarisViewModel(_siswa);
+                ContentHost.Content = new SiswaSekretarisView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
             case "siswa-ujian":
             {
                 var vm = new UjianListViewModel(_akademik, _session);
@@ -277,6 +319,13 @@ public partial class MainWindow : Window
                 _ = vm.LoadAsync();
                 return;
             }
+            case "admin-dashboard":
+            {
+                var vm = new AdminDashboardViewModel(_admin);
+                ContentHost.Content = new AdminDashboardView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
             case "admin-guru":
             {
                 var vm = new AdminGuruViewModel(_admin);
@@ -330,6 +379,27 @@ public partial class MainWindow : Window
             {
                 var vm = new AdminKompetensiViewModel(_admin);
                 ContentHost.Content = new AdminKompetensiView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-pengumuman":
+            {
+                var vm = new AdminPengumumanViewModel(_admin);
+                ContentHost.Content = new AdminPengumumanView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-nilai":
+            {
+                var vm = new AdminNilaiViewModel(_admin);
+                ContentHost.Content = new AdminNilaiView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-statistik":
+            {
+                var vm = new AdminStatistikViewModel(_admin);
+                ContentHost.Content = new AdminStatistikView { DataContext = vm };
                 _ = vm.LoadAsync();
                 return;
             }
