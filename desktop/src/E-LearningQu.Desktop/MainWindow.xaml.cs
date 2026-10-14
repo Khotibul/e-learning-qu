@@ -43,14 +43,16 @@ public partial class MainWindow : Window
         try
         {
             var restored = await _session.RestoreAsync();
+            DesktopLog.Log($"App start: restored={(restored is not null)} tokenLen={restored?.Token?.Length ?? 0} role={restored?.Role.ToString() ?? "-"}");
             if (restored is not null && await _auth.ValidateSessionAsync())
                 ShowShell();
             else
                 ShowLogin();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Restore/validate gagal (file DPAPI rusak / jaringan) — jangan crash, kembali ke login.
+            DesktopLog.Log($"App start FAIL: {ex}");
             ShowLogin();
         }
     }
@@ -112,6 +114,7 @@ public partial class MainWindow : Window
     {
         var session = _session.Current;
         if (session is null) return;
+        DesktopLog.Log($"Navigate {item.ViewKey} (role={session.Role}, tokenLen={session.Token?.Length ?? 0})");
 
         switch (item.ViewKey)
         {

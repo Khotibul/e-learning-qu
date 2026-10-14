@@ -6,6 +6,7 @@ using E_LearningQu.Application.Common;
 using E_LearningQu.Contracts.Common;
 using E_LearningQu.Infrastructure.Http;
 using E_LearningQu.Infrastructure.Options;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace E_LearningQu.UnitTests;
@@ -23,7 +24,7 @@ public class BackendApiClientTests
     private static BackendApiClient CreateClient(StubHandler handler, string baseUrl = "http://unit.test")
     {
         var http = new HttpClient(handler);
-        return new BackendApiClient(http, Options.Create(new BackendOptions { BaseUrl = baseUrl, TimeoutSeconds = 10 }));
+        return new BackendApiClient(http, Options.Create(new BackendOptions { BaseUrl = baseUrl, TimeoutSeconds = 10 }), NullLogger<BackendApiClient>.Instance);
     }
 
     [Fact]

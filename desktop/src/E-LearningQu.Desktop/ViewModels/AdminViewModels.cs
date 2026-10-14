@@ -36,8 +36,13 @@ public abstract partial class AdminPagedViewModel<TDto> : ObservableObject
             foreach (var item in result.Data) Items.Add(item);
             Total = result.Total; TotalPages = Math.Max(1, result.TotalPages);
             StatusMessage = $"{result.Total} data";
+            DesktopLog.Log($"Load {GetType().Name}: total={result.Total} data={result.Data.Count} items={Items.Count} page={Page}");
         }
-        catch (Exception ex) { ErrorMessage = ex.Message; }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            DesktopLog.Log($"Load FAIL {GetType().Name}: {ex}");
+        }
         finally { IsLoading = false; }
     }
 

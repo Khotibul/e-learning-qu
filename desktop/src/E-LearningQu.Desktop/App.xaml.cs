@@ -4,6 +4,7 @@ using E_LearningQu.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace E_LearningQu.Desktop;
 
@@ -25,6 +26,7 @@ public partial class App : System.Windows.Application
             {
                 services.AddApplication();
                 services.AddInfrastructure();
+                services.AddLogging(b => b.AddProvider(new DesktopFileLoggerProvider()));
                 services.AddTransient<MainWindow>();
             })
             .Build();

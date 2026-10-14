@@ -4,6 +4,7 @@ using E_LearningQu.Application.Abstractions;
 using E_LearningQu.Application.Common;
 using E_LearningQu.Contracts.Common;
 using E_LearningQu.Infrastructure.Options;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace E_LearningQu.Infrastructure.Http;
@@ -17,10 +18,12 @@ public sealed class BackendApiClient : IBackendApiClient
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
     private readonly HttpClient _http;
+    private readonly ILogger<BackendApiClient> _logger;
 
-    public BackendApiClient(HttpClient http, IOptions<BackendOptions> options)
+    public BackendApiClient(HttpClient http, IOptions<BackendOptions> options, ILogger<BackendApiClient> logger)
     {
         _http = http;
+        _logger = logger;
         _http.BaseAddress = new Uri(options.Value.BaseUrl.TrimEnd('/') + "/");
         _http.Timeout = TimeSpan.FromSeconds(options.Value.TimeoutSeconds);
     }
@@ -98,11 +101,14 @@ public sealed class BackendApiClient : IBackendApiClient
         }
         catch (HttpRequestException ex)
         {
+            _logger.LogWarning(ex, "HTTP gagal: {Method} {Uri}", request.Method, request.RequestUri);
             throw new ApiException(System.Net.HttpStatusCode.ServiceUnavailable, "Tidak dapat terhubung ke server.", inner: ex);
         }
 
         using (response)
         {
+            _logger.LogInformation("HTTP {Status}: {Method} {Uri}", (int)response.StatusCode, request.Method, request.RequestUri);
+
             if (!response.IsSuccessStatusCode)
             {
                 var serverMessage = await TryReadErrorAsync(response, ct);
@@ -120,6 +126,7 @@ public sealed class BackendApiClient : IBackendApiClient
             }
             catch (JsonException ex)
             {
+                _logger.LogWarning(ex, "JSON rusak dari {Uri}", request.RequestUri);
                 throw new ApiException(response.StatusCode, "Respons server tidak valid (bukan JSON).", message: "Respons server tidak valid.", inner: ex);
             }
             if (result is null)
