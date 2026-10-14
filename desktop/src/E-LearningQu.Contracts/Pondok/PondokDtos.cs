@@ -91,6 +91,8 @@ public sealed class PondokTabDto<T>
     [JsonPropertyName("scopeSemua")] public bool ScopeSemua { get; set; }
     [JsonPropertyName("rows")] public List<T> Rows { get; set; } = new();
     [JsonPropertyName("data")] public List<T>? Data { get; set; }
+    [JsonPropertyName("kelas")] public List<T>? KelasOpt { get; set; }
+    [JsonPropertyName("halaqah")] public List<T>? HalaqahOpt { get; set; }
     [JsonPropertyName("total")] public int Total { get; set; }
     [JsonPropertyName("page")] public int Page { get; set; } = 1;
     [JsonPropertyName("totalPages")] public int TotalPages { get; set; } = 1;

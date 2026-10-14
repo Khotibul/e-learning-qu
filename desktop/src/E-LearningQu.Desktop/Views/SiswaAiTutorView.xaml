@@ -8,7 +8,8 @@
 
     <UserControl.Resources>
         <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
-        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:BoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
         <conv:InverseBoolConverter x:Key="InverseBool" />
         <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
@@ -102,7 +103,7 @@
                         </ScrollViewer>
 
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
-                                    Visibility="{Binding HasMessages, Converter={StaticResource BusyToVisibility}}">
+                                    Visibility="{Binding HasMessages, Converter={StaticResource InverseBoolToVisibility}}">
                             <TextBlock Text="🤖" FontSize="36" HorizontalAlignment="Center" />
                             <TextBlock Text="Mulai percakapan" Style="{StaticResource H2}" Margin="0,12,0,4" HorizontalAlignment="Center" />
                             <TextBlock Text="Ajukan pertanyaan tentang materi pelajaranmu" Style="{StaticResource Muted}" HorizontalAlignment="Center" />

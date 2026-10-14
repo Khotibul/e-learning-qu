@@ -6,7 +6,7 @@
              xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
              mc:Ignorable="d" d:DesignHeight="700" d:DesignWidth="1100">
     <UserControl.Resources>
-        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:BoolToVisibilityConverter x:Key="BusyToVisibility" />
     </UserControl.Resources>
     <Grid Margin="32,28,32,32">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>

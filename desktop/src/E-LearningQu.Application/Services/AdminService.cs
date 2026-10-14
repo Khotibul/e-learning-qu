@@ -730,9 +730,12 @@ public sealed class AdminService : IAdminService
     private async Task<PagedResult<T>> GetPagedAsync<T>(string path, CancellationToken ct)
     {
         var element = await GetRawAsync(path, ct);
-        return element.ValueKind == JsonValueKind.Object && !element.TryGetProperty("error", out _)
-            ? element.Deserialize<PagedResult<T>>(Opts) ?? new PagedResult<T>()
-            : new PagedResult<T>();
+        if (element.ValueKind != JsonValueKind.Object || element.TryGetProperty("error", out _))
+            return new PagedResult<T>();
+        var result = element.Deserialize<PagedResult<T>>(Opts) ?? new PagedResult<T>();
+        if (result.Data.Count == 0 && element.TryGetProperty("rows", out var rows) && rows.ValueKind == JsonValueKind.Array)
+            result = result with { Data = rows.Deserialize<List<T>>(Opts) ?? new List<T>() };
+        return result;
     }
 
     private async Task<List<T>> GetListAsync<T>(string path, CancellationToken ct)

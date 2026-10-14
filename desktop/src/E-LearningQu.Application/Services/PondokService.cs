@@ -104,13 +104,13 @@ public sealed class PondokService : IPondokService
         (await GetObjectAsync<UstadzJadwalDto>($"{Base}/ustadz?tab=jadwal", ct))?.Kelas ?? new List<KelasDiniyahDto>();
 
     public async Task<List<KelasDiniyahDto>> GetKelasDiniyahOptsAsync(CancellationToken ct = default) =>
-        (await GetObjectAsync<PondokTabDto<KelasDiniyahDto>>($"{Base}/ustadz?tab=diniyah", ct))?.Rows ?? new();
+        (await GetObjectAsync<PondokTabDto<KelasDiniyahDto>>($"{Base}/ustadz?tab=diniyah", ct))?.KelasOpt ?? new();
 
     public async Task<PondokTabDto<AbsensiDiniyahRowDto>> GetAbsensiDiniyahAsync(string kelasId, string tanggal, CancellationToken ct = default) =>
         await GetObjectAsync<PondokTabDto<AbsensiDiniyahRowDto>>($"{Base}/ustadz?tab=diniyah&kelasId={Uri.EscapeDataString(kelasId)}&tanggal={Uri.EscapeDataString(tanggal)}", ct) ?? new();
 
     public async Task<List<HalaqahDto>> GetHalaqahOptsAsync(CancellationToken ct = default) =>
-        (await GetObjectAsync<PondokTabDto<HalaqahDto>>($"{Base}/ustadz?tab=halaqah", ct))?.Rows ?? new();
+        (await GetObjectAsync<PondokTabDto<HalaqahDto>>($"{Base}/ustadz?tab=halaqah", ct))?.HalaqahOpt ?? new();
 
     public async Task<PagedResult<SetoranDto>> GetSetoranHalaqahAsync(string halaqahId, int page = 1, CancellationToken ct = default) =>
         await GetPagedAsync<SetoranDto>($"{Base}/ustadz?tab=halaqah&halaqahId={Uri.EscapeDataString(halaqahId)}&page={page}", ct);
@@ -203,9 +203,12 @@ public sealed class PondokService : IPondokService
     private async Task<PagedResult<T>> GetPagedAsync<T>(string path, CancellationToken ct)
     {
         var element = await GetRawAsync(path, ct);
-        return element.ValueKind == JsonValueKind.Object && !element.TryGetProperty("error", out _)
-            ? element.Deserialize<PagedResult<T>>(Opts) ?? new PagedResult<T>()
-            : new PagedResult<T>();
+        if (element.ValueKind != JsonValueKind.Object || element.TryGetProperty("error", out _))
+            return new PagedResult<T>();
+        var result = element.Deserialize<PagedResult<T>>(Opts) ?? new PagedResult<T>();
+        if (result.Data.Count == 0 && element.TryGetProperty("rows", out var rows) && rows.ValueKind == JsonValueKind.Array)
+            result = result with { Data = rows.Deserialize<List<T>>(Opts) ?? new List<T>() };
+        return result;
     }
 
     private async Task<T?> GetObjectAsync<T>(string path, CancellationToken ct)

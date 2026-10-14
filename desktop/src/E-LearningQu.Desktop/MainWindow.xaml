@@ -72,6 +72,7 @@
                     <!-- Tombol keluar -->
                     <Border DockPanel.Dock="Bottom" Margin="16,8,16,16">
                         <Button x:Name="LogoutButton" Click="OnLogout" HorizontalAlignment="Stretch"
+                                Content="⏻  Keluar"
                                 Background="Transparent" Foreground="{StaticResource BrushTextOnDarkMuted}"
                                 BorderBrush="#2A8A5C33" BorderThickness="1" Padding="12,10" Cursor="Hand">
                             <Button.Template>
