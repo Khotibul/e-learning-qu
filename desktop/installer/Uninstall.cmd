@@ -16,7 +16,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ws=New-Object -ComObject WScript.Shell;" ^
   "foreach($p in @([Environment]::GetFolderPath('Desktop')+'\E-LearningQu Desktop.lnk',[Environment]::GetFolderPath('Programs')+'\E-LearningQu Desktop.lnk')){ if(Test-Path $p){ Remove-Item $p -Force } }"
 
+rem  Tutup aplikasi dulu; folder tidak bisa dihapus jika exe terkunci
+taskkill /IM E-LearningQu.Desktop.exe /F >nul 2>&1
 if exist "%DEST%" rmdir /S /Q "%DEST%"
+if exist "%DEST%" (
+    echo  [ERROR] Gagal menghapus %DEST% - file mungkin masih dikunci.
+    echo  Tutup aplikasi E-LearningQu lalu coba lagi.
+    echo.
+    pause
+    exit /b 1
+)
 
 echo.
 echo  Uninstall selesai.
