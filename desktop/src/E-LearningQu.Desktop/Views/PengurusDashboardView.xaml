@@ -1,0 +1,268 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.PengurusDashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             mc:Ignorable="d" d:DesignHeight="760" d:DesignWidth="1160">
+
+    <UserControl.Resources>
+        <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <TextBlock Text="Pengurus Pondok" Style="{StaticResource H1}" />
+                <TextBlock Text="Santri binaan, antrean izin, kegiatan, dan asrama" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}"
+                    VerticalAlignment="Top" HorizontalAlignment="Right" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <ProgressBar Width="110" Height="4" IsIndeterminate="True" HorizontalAlignment="Right" VerticalAlignment="Center"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        </Grid>
+
+        <Border Grid.Row="2" Background="{StaticResource BrushErrorBg}" CornerRadius="10" Padding="14,12"
+                BorderBrush="{StaticResource BrushError}" BorderThickness="1" Margin="0,0,0,12"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" />
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="16" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Ringkasan -->
+            <Border Grid.Row="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="24,20"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Ringkasan Binaan" Style="{StaticResource SectionTitle}" Margin="0,0,0,14" />
+                    <UniformGrid Columns="6">
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="{Binding Stats.TanggungJawab}" Style="{StaticResource StatValue}" />
+                            <TextBlock Text="Santri Binaan" Style="{StaticResource StatLabel}" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="{Binding Stats.DiPondok}" Style="{StaticResource StatValue}" Foreground="{StaticResource BrushSuccess}" />
+                            <TextBlock Text="Di Pondok" Style="{StaticResource StatLabel}" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="{Binding Stats.SedangPulang}" Style="{StaticResource StatValue}" Foreground="{StaticResource BrushInfo}" />
+                            <TextBlock Text="Sedang Pulang" Style="{StaticResource StatLabel}" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="{Binding Stats.Terlambat}" Style="{StaticResource StatValue}" Foreground="{StaticResource BrushWarning}" />
+                            <TextBlock Text="Terlambat" Style="{StaticResource StatLabel}" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="{Binding Stats.IzinMenunggu}" Style="{StaticResource StatValue}" />
+                            <TextBlock Text="Izin Menunggu" Style="{StaticResource StatLabel}" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock Text="{Binding Stats.AbsensiBelumLengkap}" Style="{StaticResource StatValue}" />
+                            <TextBlock Text="Absensi Belum Lengkap" Style="{StaticResource StatLabel}" />
+                        </StackPanel>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+
+            <!-- Tabs -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,4">
+                <Button Content="Santri" Style="{StaticResource ButtonGhost}" Command="{Binding BukaSantriCommand}" Margin="0,0,8,0" />
+                <Button Content="Izin" Style="{StaticResource ButtonGhost}" Command="{Binding BukaIzinCommand}" Margin="0,0,8,0" />
+                <Button Content="Kegiatan" Style="{StaticResource ButtonGhost}" Command="{Binding BukaKegiatanCommand}" Margin="0,0,8,0" />
+                <Button Content="Asrama" Style="{StaticResource ButtonGhost}" Command="{Binding BukaAsramaCommand}" Margin="0,0,8,0" />
+                <Button Content="Pengumuman" Style="{StaticResource ButtonGhost}" Command="{Binding BukaPengumumanCommand}" />
+            </StackPanel>
+
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="3*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="2*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Panel kiri: tab aktif -->
+                <Border Grid.Column="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                 <Grid>
+
+                    <!-- Santri -->
+                    <Grid Visibility="{Binding SantriAktif, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <DockPanel Grid.Row="0" Margin="0,0,0,10">
+                            <TextBlock Text="Santri Binaan" Style="{StaticResource SectionTitle}" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                            <Button Content="Cari" Style="{StaticResource ButtonGhost}" DockPanel.Dock="Right" Padding="10,4"
+                                    Command="{Binding BukaSantriCommand}" />
+                            <TextBox x:Name="CariSantriBox" Style="{StaticResource InputBox}" Margin="10,0"
+                                     Text="{Binding CariSantri, UpdateSourceTrigger=PropertyChanged}"
+                                     VerticalContentAlignment="Center" />
+                        </DockPanel>
+                        <DataGrid Grid.Row="2" ItemsSource="{Binding Santri}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding Santri.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Nama" Binding="{Binding Nama}" Width="2*" />
+                                <DataGridTextColumn Header="NIS" Binding="{Binding NisNo}" Width="*" />
+                                <DataGridTextColumn Header="Keberadaan" Binding="{Binding Keberadaan}" Width="*" />
+                                <DataGridTextColumn Header="Asrama" Binding="{Binding Asrama.Nama}" Width="*" />
+                                <DataGridTextColumn Header="Kamar" Binding="{Binding Kamar.Nama}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+
+                    <!-- Izin -->
+                    <Grid Visibility="{Binding IzinAktif, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Antrean Izin (Menunggu Pengurus)" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding AntreanIzin}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" MaxHeight="220"
+                                  Visibility="{Binding AntreanIzin.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Santri" Binding="{Binding Santri.Nama}" Width="2*" />
+                                <DataGridTextColumn Header="Jenis" Binding="{Binding JenisLabel}" Width="*" />
+                                <DataGridTextColumn Header="Alasan" Binding="{Binding Alasan}" Width="2*" />
+                                <DataGridTemplateColumn Header="Aksi" Width="140">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="Setujui" Style="{StaticResource ButtonPrimary}" Padding="8,3" FontSize="11"
+                                                        Command="{Binding DataContext.SetujuiIzinCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}" Margin="0,0,6,0" />
+                                                <Button Content="Tolak" Style="{StaticResource ButtonGhost}" Padding="8,3" FontSize="11"
+                                                        Command="{Binding DataContext.TolakIzinCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock Grid.Row="2" Text="Sedang Check-Out (Belum Kembali)" Style="{StaticResource SectionTitle}" Margin="0,14,0,10" />
+                        <DataGrid Grid.Row="3" ItemsSource="{Binding IzinPulang}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding IzinPulang.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Santri" Binding="{Binding Santri.Nama}" Width="2*" />
+                                <DataGridTextColumn Header="Asrama" Binding="{Binding Santri.Asrama.Nama}" Width="*" />
+                                <DataGridTextColumn Header="Penjemput" Binding="{Binding NamaPenjemput}" Width="*" />
+                                <DataGridTextColumn Header="Kembali" Binding="{Binding RencanaKembali, StringFormat={}{0:dd/MM HH:mm}}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+
+                    <!-- Kegiatan -->
+                    <Grid Visibility="{Binding KegiatanAktif, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Kegiatan Pondok" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding Kegiatan}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding Kegiatan.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Kegiatan" Binding="{Binding Nama}" Width="2*" />
+                                <DataGridTextColumn Header="Tipe" Binding="{Binding Tipe}" Width="*" />
+                                <DataGridTextColumn Header="Tgl" Binding="{Binding Tanggal, StringFormat={}{0:dd/MM}}" Width="*" />
+                                <DataGridTextColumn Header="Jam" Binding="{Binding JamMulai}" Width="*" />
+                                <DataGridTextColumn Header="Lokasi" Binding="{Binding Lokasi}" Width="*" />
+                                <DataGridTextColumn Header="Absensi" Binding="{Binding JumlahAbsensi}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+
+                    <!-- Asrama -->
+                    <Grid Visibility="{Binding AsramaAktif, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Asrama &amp; Kamar" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding Asrama}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding Asrama.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Asrama" Binding="{Binding Nama}" Width="2*" />
+                                <DataGridTextColumn Header="Musyrif" Binding="{Binding Musyrif}" Width="*" />
+                                <DataGridTextColumn Header="Penghuni" Binding="{Binding TotalPenghuni}" Width="*" />
+                                <DataGridTemplateColumn Header="Kamar" Width="2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ItemsControl ItemsSource="{Binding Kamars}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock>
+                                                            <Run Text="{Binding Nama, Mode=OneWay}" />
+                                                            <Run Text=" — " />
+                                                            <Run Text="{Binding Terisi, Mode=OneWay}" />
+                                                            <Run Text="/" />
+                                                            <Run Text="{Binding Kapasitas, Mode=OneWay}" />
+                                                        </TextBlock>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                 </Grid>
+                </Border>
+
+                <!-- Panel kanan: pengumuman -->
+                <Border Grid.Column="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Pengumuman" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding Pengumuman}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding Pengumuman.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Judul" Binding="{Binding Judul}" Width="2*" />
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

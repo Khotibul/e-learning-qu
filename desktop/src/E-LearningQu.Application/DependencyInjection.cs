@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddSingleton<IGuruService, GuruService>();
         services.AddSingleton<ISiswaService, SiswaService>();
         services.AddSingleton<IAdminService, AdminService>();
+        services.AddSingleton<IPondokService, PondokService>();
         services.AddSingleton<INavigationService, NavigationService>();
         return services;
     }

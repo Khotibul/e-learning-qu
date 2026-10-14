@@ -18,8 +18,9 @@ public partial class MainWindow : Window
     private readonly IGuruService _guru;
     private readonly ISiswaService _siswa;
     private readonly IAdminService _admin;
+    private readonly IPondokService _pondok;
 
-    public MainWindow(ISessionManager session, IAuthService auth, IOAuthService oauth, IDashboardService dashboard, IAkademikService akademik, INavigationService nav, IGuruService guru, ISiswaService siswa, IAdminService admin)
+    public MainWindow(ISessionManager session, IAuthService auth, IOAuthService oauth, IDashboardService dashboard, IAkademikService akademik, INavigationService nav, IGuruService guru, ISiswaService siswa, IAdminService admin, IPondokService pondok)
     {
         InitializeComponent();
         _session = session;
@@ -31,6 +32,7 @@ public partial class MainWindow : Window
         _guru = guru;
         _siswa = siswa;
         _admin = admin;
+        _pondok = pondok;
         LogoutButton.Click += OnLogout;
         Loaded += OnLoadedAsync;
     }
@@ -414,6 +416,43 @@ public partial class MainWindow : Window
             {
                 var vm = new AdminStatistikViewModel(_admin);
                 ContentHost.Content = new AdminStatistikView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "kepala-pondok-dashboard":
+            {
+                var vm = new KepalaPondokDashboardViewModel(_pondok);
+                ContentHost.Content = new KepalaPondokDashboardView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "kepala-pondok-keuangan":
+            {
+                var vm = new KepalaPondokKeuanganViewModel(_pondok);
+                ContentHost.Content = new KepalaPondokKeuanganView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "pengurus-dashboard":
+            case "pengurus":
+            {
+                var vm = new PengurusDashboardViewModel(_pondok);
+                ContentHost.Content = new PengurusDashboardView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "ustadz-dashboard":
+            case "ustadz":
+            {
+                var vm = new UstadzDashboardViewModel(_pondok);
+                ContentHost.Content = new UstadzDashboardView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "gerbang":
+            {
+                var vm = new GerbangViewModel(_pondok);
+                ContentHost.Content = new GerbangView { DataContext = vm };
                 _ = vm.LoadAsync();
                 return;
             }

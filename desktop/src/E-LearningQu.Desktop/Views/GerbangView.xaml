@@ -1,0 +1,174 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.GerbangView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             mc:Ignorable="d" d:DesignHeight="720" d:DesignWidth="1120">
+
+    <UserControl.Resources>
+        <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <TextBlock Text="Gerbang" Style="{StaticResource H1}" />
+                <TextBlock Text="Check-out / check-in izin santri — cari nama, NIS, atau scan token QR" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}"
+                    VerticalAlignment="Top" HorizontalAlignment="Right" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <ProgressBar Width="110" Height="4" IsIndeterminate="True" HorizontalAlignment="Right" VerticalAlignment="Center"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        </Grid>
+
+        <Border Grid.Row="2" Background="{StaticResource BrushErrorBg}" CornerRadius="10" Padding="14,12"
+                BorderBrush="{StaticResource BrushError}" BorderThickness="1" Margin="0,0,0,12"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" />
+        </Border>
+
+        <!-- Pencarian -->
+        <Border Grid.Row="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,12">
+            <DockPanel>
+                <TextBlock Text="Cari / Token QR" Style="{StaticResource SectionTitle}" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                <Button Content="Riwayat" Style="{StaticResource ButtonGhost}" DockPanel.Dock="Right" Padding="12,5"
+                        Command="{Binding LoadRiwayatCommand}" />
+                <Button Content="Cari" Style="{StaticResource ButtonPrimary}" DockPanel.Dock="Right" Padding="14,5" Margin="0,0,8,0"
+                        Command="{Binding CariCommand}" />
+                <Button Content="Check-out Token" Style="{StaticResource ButtonGhost}" DockPanel.Dock="Right" Padding="12,5" Margin="0,0,8,0"
+                        Command="{Binding CheckoutTokenCommand}" />
+                <TextBox Style="{StaticResource InputBox}" Margin="10,0"
+                         Text="{Binding Pencarian, UpdateSourceTrigger=PropertyChanged}"
+                         VerticalContentAlignment="Center" />
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Antrean check-out -->
+            <Border Grid.Column="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Menunggu Check-Out" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding Antrean}" Style="{StaticResource Grid}"
+                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                              Visibility="{Binding Antrean.Count, Converter={StaticResource CountToVisibility}}"
+                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Santri" Binding="{Binding Santri.Nama}" Width="2*" />
+                            <DataGridTextColumn Header="Asrama" Binding="{Binding Santri.Asrama.Nama}" Width="*" />
+                            <DataGridTextColumn Header="Jenis" Binding="{Binding JenisLabel}" Width="*" />
+                            <DataGridTextColumn Header="Penjemput" Binding="{Binding PenjemputNama}" Width="*" />
+                            <DataGridTemplateColumn Header="Aksi" Width="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="Check-out" Style="{StaticResource ButtonPrimary}" Padding="8,3" FontSize="11"
+                                                Command="{Binding DataContext.CheckoutCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+
+            <!-- Hasil pencarian / riwayat -->
+            <Border Grid.Column="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Hasil Pencarian" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                    <Grid Grid.Row="1">
+                        <!-- Token valid -->
+                        <Border Background="{StaticResource BrushSurface}" CornerRadius="10" Padding="16"
+                                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
+                                Visibility="{Binding HasilToken, Converter={StaticResource NullToVisibility}}">
+                            <StackPanel>
+                                <TextBlock Text="Token QR Terdeteksi" Style="{StaticResource SectionTitle}" Margin="0,0,0,8" />
+                                <TextBlock Text="{Binding HasilToken.NamaSantri}" Style="{StaticResource H2}" />
+                                <TextBlock Style="{StaticResource TextBase}" Margin="0,4,0,0">
+                                    <Run Text="NIS: " /><Run Text="{Binding HasilToken.NisNo, Mode=OneWay}" />
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource TextBase}">
+                                    <Run Text="Jenis: " /><Run Text="{Binding HasilToken.Jenis, Mode=OneWay}" />
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource TextBase}">
+                                    <Run Text="Status: " /><Run Text="{Binding HasilToken.Status, Mode=OneWay}" />
+                                </TextBlock>
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                    <Button Content="Check-out" Style="{StaticResource ButtonPrimary}" Padding="12,5" Margin="0,0,8,0"
+                                            Command="{Binding CheckoutTokenCommand}" />
+                                    <Button Content="Check-in" Style="{StaticResource ButtonGhost}" Padding="12,5"
+                                            Command="{Binding LoadCommand}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Hasil cari santri -->
+                        <DataGrid ItemsSource="{Binding HasilCari}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding HasilCari.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Nama" Binding="{Binding Nama}" Width="2*" />
+                                <DataGridTextColumn Header="NIS" Binding="{Binding NisNo}" Width="*" />
+                                <DataGridTextColumn Header="Keberadaan" Binding="{Binding KeberadaanLabel}" Width="*" />
+                                <DataGridTextColumn Header="Izin" Binding="{Binding Izin.JenisLabel}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Riwayat -->
+                        <DataGrid ItemsSource="{Binding Riwayat}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding Riwayat.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Santri" Binding="{Binding Santri.Nama}" Width="2*" />
+                                <DataGridTextColumn Header="Jenis" Binding="{Binding JenisLabel}" Width="*" />
+                                <DataGridTextColumn Header="Keluar" Binding="{Binding RencanaKeluar, StringFormat={}{0:dd/MM HH:mm}}" Width="*" />
+                                <DataGridTemplateColumn Header="Aksi" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="Check-in" Style="{StaticResource ButtonPrimary}" Padding="8,3" FontSize="11"
+                                                    Command="{Binding DataContext.CheckinCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
