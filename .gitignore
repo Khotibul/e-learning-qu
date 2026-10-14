@@ -38,6 +38,10 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# desktop installer artifacts
+/desktop/installer/staging/
+/desktop/installer/dist/
 next-env.d.ts
 
 # artefak supervisor server (scripts/)
