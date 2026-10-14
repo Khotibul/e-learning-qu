@@ -404,6 +404,31 @@ public sealed record InsightDto
     [JsonPropertyName("riskLevel")] public string? RiskLevel { get; init; }
 }
 
+// ══════════════════ WALI KELAS ══════════════════
+
+public sealed record WaliKelasDto
+{
+    [JsonPropertyName("id")] public string Id { get; init; } = "";
+    [JsonPropertyName("nama")] public string Nama { get; init; } = "";
+    [JsonPropertyName("tingkat")] public string? Tingkat { get; init; }
+    [JsonPropertyName("guruId")] public string? GuruId { get; init; }
+    [JsonPropertyName("siswas")] public List<WaliKelasSiswaDto> Siswas { get; init; } = new();
+    [JsonPropertyName("_count")] public WaliKelasCountDto? Count { get; init; }
+}
+
+public sealed record WaliKelasCountDto
+{
+    [JsonPropertyName("siswas")] public int Siswas { get; init; }
+}
+
+public sealed record WaliKelasSiswaDto
+{
+    [JsonPropertyName("id")] public string Id { get; init; } = "";
+    [JsonPropertyName("nama")] public string Nama { get; init; } = "";
+    [JsonPropertyName("nis")] public string? Nis { get; init; }
+    [JsonPropertyName("jabatan")] public string? Jabatan { get; init; }
+}
+
 // ══════════════════ AI KNOWLEDGE ══════════════════
 
 public sealed record AiKnowledgeResponseDto

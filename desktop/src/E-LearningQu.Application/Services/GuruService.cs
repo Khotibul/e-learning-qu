@@ -238,6 +238,11 @@ public sealed class GuruService : IGuruService
     public async Task<AiKnowledgeResponseDto> GetAiKnowledgeAsync(CancellationToken ct = default) =>
         await GetObjectAsync<AiKnowledgeResponseDto>($"{Base}/ai-knowledge", ct) ?? new AiKnowledgeResponseDto();
 
+    // ══════════════════ WALI KELAS ══════════════════
+
+    public async Task<List<WaliKelasDto>> GetWaliKelasAsync(CancellationToken ct = default) =>
+        await GetListAsync<WaliKelasDto>($"{Base}/wali-kelas", ct);
+
     // ══════════════════ HELPERS ══════════════════
 
     private string Token() => _session.Current?.Token

@@ -48,4 +48,7 @@ public interface IGuruService
     Task<List<PelanggaranDto>> GetPelanggaranAsync(CancellationToken ct = default);
     Task<TeacherAnalyticsResponseDto> GetTeacherAnalyticsAsync(CancellationToken ct = default);
     Task<AiKnowledgeResponseDto> GetAiKnowledgeAsync(CancellationToken ct = default);
+
+    /// <summary>Struktur kelas wali (GET /guru/wali-kelas tanpa tab).</summary>
+    Task<List<WaliKelasDto>> GetWaliKelasAsync(CancellationToken ct = default);
 }

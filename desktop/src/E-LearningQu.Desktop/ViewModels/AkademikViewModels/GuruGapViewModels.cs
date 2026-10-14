@@ -101,6 +101,49 @@ public partial class GuruPelanggaranViewModel : ObservableObject
     }
 }
 
+// ─── WALI KELAS ──────────────────────────────────────────────────────────────
+public partial class GuruWaliKelasViewModel : ObservableObject
+{
+    private readonly IGuruService _guru;
+
+    public ObservableCollection<WaliKelasDto> Items { get; } = new();
+
+    [ObservableProperty] private bool isLoading;
+    [ObservableProperty] private string? errorMessage;
+    [ObservableProperty] private string statusMessage = "";
+    [ObservableProperty] private WaliKelasDto? selectedKelas;
+
+    public ObservableCollection<WaliKelasSiswaDto> Siswa { get; } = new();
+
+    public GuruWaliKelasViewModel(IGuruService guru) => _guru = guru;
+
+    [RelayCommand]
+    public async Task LoadAsync(CancellationToken ct = default)
+    {
+        IsLoading = true; ErrorMessage = null;
+        try
+        {
+            var list = await _guru.GetWaliKelasAsync(ct);
+            Items.Clear();
+            foreach (var k in list) Items.Add(k);
+            StatusMessage = $"{Items.Count} kelas binaan";
+            SelectKelas(Items.FirstOrDefault());
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsLoading = false; }
+    }
+
+    [RelayCommand]
+    private void SelectKelas(WaliKelasDto? kelas)
+    {
+        SelectedKelas = kelas;
+        Siswa.Clear();
+        if (kelas is null) return;
+        foreach (var s in kelas.Siswas) Siswa.Add(s);
+        StatusMessage = $"{kelas.Nama} · {Siswa.Count} siswa";
+    }
+}
+
 // ─── AI KNOWLEDGE BASE ───────────────────────────────────────────────────────
 public partial class GuruAiKnowledgeViewModel : ObservableObject
 {

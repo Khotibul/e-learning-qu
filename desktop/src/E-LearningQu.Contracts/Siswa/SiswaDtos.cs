@@ -489,6 +489,62 @@ public sealed record SiswaUserDto
     [JsonPropertyName("image")] public string? Image { get; init; }
 }
 
+// ══════════════════ AI TUTOR ══════════════════
+
+public sealed record TutorSessionDto
+{
+    [JsonPropertyName("id")] public string Id { get; init; } = "";
+    [JsonPropertyName("judul")] public string Judul { get; init; } = "";
+    [JsonPropertyName("mapelId")] public string? MapelId { get; init; }
+    [JsonPropertyName("updatedAt")] public DateTimeOffset UpdatedAt { get; init; }
+    [JsonPropertyName("_count")] public TutorSessionCountDto? Count { get; init; }
+}
+
+public sealed record TutorSessionCountDto
+{
+    [JsonPropertyName("messages")] public int Messages { get; init; }
+}
+
+public sealed record TutorMessageDto
+{
+    [JsonPropertyName("id")] public string Id { get; init; } = "";
+    [JsonPropertyName("role")] public string Role { get; init; } = "";
+    [JsonPropertyName("agent")] public string? Agent { get; init; }
+    [JsonPropertyName("konten")] public string Konten { get; init; } = "";
+    [JsonPropertyName("createdAt")] public DateTimeOffset CreatedAt { get; init; }
+}
+
+public sealed record TutorMapelDto
+{
+    [JsonPropertyName("id")] public string Id { get; init; } = "";
+    [JsonPropertyName("nama")] public string Nama { get; init; } = "";
+}
+
+public sealed record TutorChatRequest
+{
+    [JsonPropertyName("message")] public string Message { get; init; } = "";
+    [JsonPropertyName("sessionId")] public string? SessionId { get; init; }
+    [JsonPropertyName("mapelId")] public string? MapelId { get; init; }
+}
+
+public sealed record TutorChatResponseDto
+{
+    [JsonPropertyName("sessionId")] public string SessionId { get; init; } = "";
+    [JsonPropertyName("jawaban")] public string Jawaban { get; init; } = "";
+    [JsonPropertyName("sumber")] public List<TutorSumberDto> Sumber { get; init; } = new();
+    [JsonPropertyName("fallback")] public bool Fallback { get; init; }
+    [JsonPropertyName("confidence")] public double Confidence { get; init; }
+}
+
+public sealed record TutorSumberDto
+{
+    [JsonPropertyName("materiId")] public string MateriId { get; init; } = "";
+    [JsonPropertyName("judul")] public string Judul { get; init; } = "";
+    [JsonPropertyName("mapel")] public string Mapel { get; init; } = "";
+    [JsonPropertyName("excerpt")] public string Excerpt { get; init; } = "";
+    [JsonPropertyName("skor")] public double Skor { get; init; }
+}
+
 // ══════════════════ UTIL ══════════════════
 
 public static class SiswaJson

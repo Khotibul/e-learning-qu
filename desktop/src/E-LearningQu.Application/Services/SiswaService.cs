@@ -178,6 +178,26 @@ public sealed class SiswaService : ISiswaService
     public Task<AiAnalitikDto?> GetAiAnalitikAsync(CancellationToken ct = default) =>
         GetObjectAsync<AiAnalitikDto>($"{Base}/ai-analitik", ct);
 
+    // ══════════════════ AI TUTOR ══════════════════
+
+    private const string TutorBase = "/api/mobile/ai/tutor";
+
+    public async Task<List<TutorSessionDto>> GetTutorSessionsAsync(CancellationToken ct = default) =>
+        SiswaJson.UnwrapList<TutorSessionDto>(await _api.GetAsync<JsonElement>($"{TutorBase}?tab=sessions", Token(), ct));
+
+    public async Task<List<TutorMessageDto>> GetTutorMessagesAsync(string sessionId, CancellationToken ct = default) =>
+        SiswaJson.UnwrapList<TutorMessageDto>(await _api.GetAsync<JsonElement>($"{TutorBase}?tab=messages&sessionId={Uri.EscapeDataString(sessionId)}", Token(), ct));
+
+    public async Task<List<TutorMapelDto>> GetTutorMapelAsync(CancellationToken ct = default) =>
+        SiswaJson.UnwrapList<TutorMapelDto>(await _api.GetAsync<JsonElement>($"{TutorBase}?tab=mapel", Token(), ct));
+
+    public async Task<TutorChatResponseDto?> SendTutorMessageAsync(TutorChatRequest request, CancellationToken ct = default)
+    {
+        var element = await PostRawAsync(TutorBase, request, ct);
+        if (element.ValueKind == JsonValueKind.Object && element.TryGetProperty("error", out _)) return null;
+        return element.ValueKind == JsonValueKind.Object ? element.Deserialize<TutorChatResponseDto>(Opts) : null;
+    }
+
     // ══════════════════ PENGATURAN / PROFIL ══════════════════
 
     public Task<SiswaProfilDto?> GetProfilAsync(CancellationToken ct = default) =>

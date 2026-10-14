@@ -43,6 +43,11 @@ public interface ISiswaService
 
     Task<AiAnalitikDto?> GetAiAnalitikAsync(CancellationToken ct = default);
 
+    Task<List<TutorSessionDto>> GetTutorSessionsAsync(CancellationToken ct = default);
+    Task<List<TutorMessageDto>> GetTutorMessagesAsync(string sessionId, CancellationToken ct = default);
+    Task<List<TutorMapelDto>> GetTutorMapelAsync(CancellationToken ct = default);
+    Task<TutorChatResponseDto?> SendTutorMessageAsync(TutorChatRequest request, CancellationToken ct = default);
+
     Task<SiswaProfilDto?> GetProfilAsync(CancellationToken ct = default);
     Task<SiswaProfilDto?> UpdateProfilAsync(object payload, CancellationToken ct = default);
     Task<bool> UpdatePasswordAsync(string passwordLama, string passwordBaru, CancellationToken ct = default);

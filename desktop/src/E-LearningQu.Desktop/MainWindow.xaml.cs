@@ -184,6 +184,13 @@ public partial class MainWindow : Window
                 _ = vm.LoadAsync();
                 return;
             }
+            case "guru-wali-kelas":
+            {
+                var vm = new GuruWaliKelasViewModel(_guru);
+                ContentHost.Content = new GuruWaliKelasView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
             case "guru-anti-cheat":
             {
                 var vm = new GuruAntiCheatViewModel(_guru);
@@ -209,6 +216,13 @@ public partial class MainWindow : Window
             {
                 var vm = new GuruAiKnowledgeViewModel(_guru);
                 ContentHost.Content = new GuruAiKnowledgeView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "siswa-ai-tutor":
+            {
+                var vm = new SiswaAiTutorViewModel(_siswa);
+                ContentHost.Content = new SiswaAiTutorView { DataContext = vm };
                 _ = vm.LoadAsync();
                 return;
             }

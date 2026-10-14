@@ -33,6 +33,10 @@
         <Color x:Key="ColorErrorBg">#FDECEA</Color>
         <Color x:Key="ColorInfoBg">#E7F3EC</Color>
         <Color x:Key="ColorGold">#C9A227</Color>
+        <Color x:Key="ColorSuccess">#1E7A50</Color>
+        <Color x:Key="ColorInfo">#2C6E63</Color>
+        <Color x:Key="ColorWarning">#B7791F</Color>
+        <Color x:Key="ColorWarningBg">#FCF3E0</Color>
 
         <SolidColorBrush x:Key="BrushPrimary" Color="{StaticResource ColorPrimary}" />
         <SolidColorBrush x:Key="BrushPrimaryDark" Color="{StaticResource ColorPrimaryDark}" />
@@ -55,6 +59,11 @@
         <SolidColorBrush x:Key="BrushErrorBg" Color="{StaticResource ColorErrorBg}" />
         <SolidColorBrush x:Key="BrushInfoBg" Color="{StaticResource ColorInfoBg}" />
         <SolidColorBrush x:Key="BrushGold" Color="{StaticResource ColorGold}" />
+        <SolidColorBrush x:Key="BrushSuccess" Color="{StaticResource ColorSuccess}" />
+        <SolidColorBrush x:Key="BrushInfo" Color="{StaticResource ColorInfo}" />
+        <SolidColorBrush x:Key="BrushWarning" Color="{StaticResource ColorWarning}" />
+        <SolidColorBrush x:Key="BrushWarningBg" Color="{StaticResource ColorWarningBg}" />
+        <SolidColorBrush x:Key="BrushText" Color="{StaticResource ColorTextPrimary}" />
 
         <!-- Tipografi -->
         <FontFamily x:Key="FontBody">Segoe UI, Noto Naskh Arabic, Tahoma</FontFamily>
@@ -77,6 +86,12 @@
         <Style TargetType="TextBlock" x:Key="H2">
             <Setter Property="FontFamily" Value="{StaticResource FontDisplay}" />
             <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+        </Style>
+        <Style TargetType="TextBlock" x:Key="H3">
+            <Setter Property="FontFamily" Value="{StaticResource FontDisplay}" />
+            <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
         </Style>
