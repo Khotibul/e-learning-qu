@@ -55,17 +55,17 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="Hari" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
-                        <ComboBox ItemsSource="{Binding HariOptions}" SelectedItem="{Binding SelectedHari}" Style="{StaticResource InputBox}" />
+                        <ComboBox ItemsSource="{Binding HariOptions}" SelectedItem="{Binding SelectedHari}" Style="{StaticResource InputCombo}" />
                     </StackPanel>
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="Kelas" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
                         <ComboBox ItemsSource="{Binding KelasOptions}" SelectedValuePath="Id" DisplayMemberPath="Nama"
-                                  SelectedValue="{Binding SelectedKelasId}" Style="{StaticResource InputBox}" />
+                                  SelectedValue="{Binding SelectedKelasId}" Style="{StaticResource InputCombo}" />
                     </StackPanel>
                     <StackPanel Grid.Column="4">
                         <TextBlock Text="Mata Pelajaran" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
                         <ComboBox ItemsSource="{Binding MapelOptions}" SelectedValuePath="Id" DisplayMemberPath="Nama"
-                                  SelectedValue="{Binding SelectedMapelId}" Style="{StaticResource InputBox}" />
+                                  SelectedValue="{Binding SelectedMapelId}" Style="{StaticResource InputCombo}" />
                     </StackPanel>
                     <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Bottom">
                         <TextBox Width="80" Style="{StaticResource InputBox}" Margin="0,0,8,0" Text="{Binding JamMulai}" />

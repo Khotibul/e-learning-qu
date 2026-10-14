@@ -63,7 +63,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Jenis" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
-                            <ComboBox SelectedItem="{Binding Jenis}" Style="{StaticResource InputBox}">
+                            <ComboBox SelectedItem="{Binding Jenis}" Style="{StaticResource InputCombo}">
                                 <ComboBoxItem Content="PULANG_RUMAH" />
                                 <ComboBoxItem Content="KELUAR_SEMENTARA" />
                                 <ComboBoxItem Content="BEROBAT" />

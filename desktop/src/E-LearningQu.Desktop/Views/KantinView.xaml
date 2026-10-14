@@ -56,7 +56,7 @@
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="Outlet" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
                         <ComboBox ItemsSource="{Binding Outlets}" DisplayMemberPath="Nama" SelectedValuePath="Id"
-                                  SelectedValue="{Binding SelectedOutletId}" Style="{StaticResource InputBox}" />
+                                  SelectedValue="{Binding SelectedOutletId}" Style="{StaticResource InputCombo}" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" VerticalAlignment="Bottom">
                         <Button Content="Pilih" Style="{StaticResource ButtonGhost}" Command="{Binding PilihOutletCommand}" />

@@ -62,7 +62,7 @@
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="Tahun Ajaran" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
                         <ComboBox ItemsSource="{Binding TahunAjaranOptions}" SelectedValuePath="Id" DisplayMemberPath="Nama"
-                                  SelectedValue="{Binding SelectedTahunAjaranId}" Style="{StaticResource InputBox}" />
+                                  SelectedValue="{Binding SelectedTahunAjaranId}" Style="{StaticResource InputCombo}" />
                     </StackPanel>
                     <StackPanel Grid.Column="4">
                         <TextBlock Text="Tgl Buka" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
