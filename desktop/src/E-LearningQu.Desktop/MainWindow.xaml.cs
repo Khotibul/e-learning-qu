@@ -440,6 +440,41 @@ public partial class MainWindow : Window
                 _ = vm.LoadAsync();
                 return;
             }
+            case "admin-courses":
+            {
+                var vm = new AdminCoursesViewModel(_admin);
+                ContentHost.Content = new AdminCoursesView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-jadwal":
+            {
+                var vm = new AdminJadwalViewModel(_admin);
+                ContentHost.Content = new AdminJadwalView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-santri":
+            {
+                var vm = new AdminSantriViewModel(_admin);
+                ContentHost.Content = new AdminSantriView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-ppdb":
+            {
+                var vm = new AdminPpdbViewModel(_admin);
+                ContentHost.Content = new AdminPpdbView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-izin":
+            {
+                var vm = new AdminIzinViewModel(_admin);
+                ContentHost.Content = new AdminIzinView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
             case "kepala-pondok-dashboard":
             {
                 var vm = new KepalaPondokDashboardViewModel(_pondok);

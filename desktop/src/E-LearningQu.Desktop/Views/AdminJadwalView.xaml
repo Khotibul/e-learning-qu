@@ -1,0 +1,104 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.AdminJadwalView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignHeight="760" d:DesignWidth="1140">
+
+    <UserControl.Resources>
+        <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <TextBlock Text="Jadwal Pelajaran" Style="{StaticResource H1}" />
+                <TextBlock Text="Kelola jadwal per kelas dengan deteksi bentrok otomatis" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}"
+                    VerticalAlignment="Top" HorizontalAlignment="Right" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <ProgressBar Width="110" Height="4" IsIndeterminate="True" HorizontalAlignment="Right" VerticalAlignment="Center"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        </Grid>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="12" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Hari" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                        <ComboBox ItemsSource="{Binding HariOptions}" SelectedItem="{Binding SelectedHari}" Style="{StaticResource InputBox}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Kelas" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                        <ComboBox ItemsSource="{Binding KelasOptions}" SelectedValuePath="Id" DisplayMemberPath="Nama"
+                                  SelectedValue="{Binding SelectedKelasId}" Style="{StaticResource InputBox}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="4">
+                        <TextBlock Text="Mata Pelajaran" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                        <ComboBox ItemsSource="{Binding MapelOptions}" SelectedValuePath="Id" DisplayMemberPath="Nama"
+                                  SelectedValue="{Binding SelectedMapelId}" Style="{StaticResource InputBox}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Bottom">
+                        <TextBox Width="80" Style="{StaticResource InputBox}" Margin="0,0,8,0" Text="{Binding JamMulai}" />
+                        <TextBox Width="80" Style="{StaticResource InputBox}" Margin="0,0,12,0" Text="{Binding JamSelesai}" />
+                        <Button Content="Tambah" Style="{StaticResource ButtonPrimary}" Command="{Binding SimpanCommand}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <DataGrid ItemsSource="{Binding Rows}" Style="{StaticResource Grid}"
+                          AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                          Visibility="{Binding Rows.Count, Converter={StaticResource CountToVisibility}}"
+                          EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Hari" Binding="{Binding Hari}" Width="*" />
+                        <DataGridTextColumn Header="Jam" Binding="{Binding JamMulai, StringFormat={}{0}-{1}}" Width="*" />
+                        <DataGridTextColumn Header="Kelas" Binding="{Binding Kelas}" Width="*" />
+                        <DataGridTextColumn Header="Mapel" Binding="{Binding Mapel}" Width="2*" />
+                        <DataGridTextColumn Header="Wali Kelas" Binding="{Binding WaliKelas}" Width="*" />
+                        <DataGridTemplateColumn Header="" Width="70">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Hapus" Style="{StaticResource ButtonGhost}" Padding="6,2"
+                                            Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

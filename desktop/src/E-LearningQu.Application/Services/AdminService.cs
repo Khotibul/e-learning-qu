@@ -303,6 +303,278 @@ public sealed class AdminService : IAdminService
     public async Task<ResearcherOverviewDto> GetResearcherOverviewAsync(CancellationToken ct = default) =>
         await GetObjectAsync<ResearcherOverviewDto>($"{Base}/researcher", ct) ?? new ResearcherOverviewDto();
 
+    // ══════════════════ COURSES ══════════════════
+
+    public async Task<PagedResult<CourseAdminDto>> GetCoursesAsync(string? search = null, int page = 1, int limit = 20, CancellationToken ct = default)
+    {
+        var qs = new List<string> { $"page={page}", $"limit={limit}" };
+        if (!string.IsNullOrWhiteSpace(search)) qs.Add($"q={Uri.EscapeDataString(search)}");
+        return await GetPagedAsync<CourseAdminDto>($"{Base}/courses?{string.Join("&", qs)}", ct);
+    }
+
+    public async Task<CourseDetailDto?> GetCourseDetailAsync(string id, CancellationToken ct = default) =>
+        await GetObjectAsync<CourseDetailDto>($"{Base}/courses/{Uri.EscapeDataString(id)}", ct);
+
+    public async Task<CourseAdminDto?> CreateCourseAsync(string title, string? description, string mapelId, string guruId, CancellationToken ct = default) =>
+        await PostObjectAsync<CourseAdminDto>($"{Base}/courses", new JsonObject { ["title"] = title, ["description"] = description, ["mapelId"] = mapelId, ["guruId"] = guruId }, ct);
+
+    public async Task<bool> UpdateCourseAsync(string id, string? title, string? description, bool? isPublished, CancellationToken ct = default)
+    {
+        var payload = new JsonObject { ["op"] = "updateCourse" };
+        if (title != null) payload["title"] = title;
+        if (description != null) payload["description"] = description;
+        if (isPublished != null) payload["isPublished"] = isPublished.Value;
+        return await PatchSuccessAsync($"{Base}/courses/{Uri.EscapeDataString(id)}", payload, ct);
+    }
+
+    public async Task<bool> DeleteCourseAsync(string id, CancellationToken ct = default) =>
+        await PostSuccessAsync($"{Base}/courses", new JsonObject { ["op"] = "delete", ["id"] = id }, ct);
+
+    public Task<bool> CourseOpAsync(string id, string op, object payload, CancellationToken ct = default) =>
+        PatchSuccessAsync($"{Base}/courses/{Uri.EscapeDataString(id)}", payload, ct);
+
+    // ══════════════════ JADWAL PELAJARAN ══════════════════
+
+    public async Task<JadwalResponseDto> GetJadwalAsync(string? kelasId = null, string? hari = null, CancellationToken ct = default)
+    {
+        var qs = new List<string>();
+        if (!string.IsNullOrWhiteSpace(kelasId)) qs.Add($"kelasId={Uri.EscapeDataString(kelasId)}");
+        if (!string.IsNullOrWhiteSpace(hari)) qs.Add($"hari={Uri.EscapeDataString(hari)}");
+        var path = qs.Count > 0 ? $"{Base}/jadwal?{string.Join("&", qs)}" : $"{Base}/jadwal";
+        return await GetObjectAsync<JadwalResponseDto>(path, ct) ?? new JadwalResponseDto();
+    }
+
+    public async Task<JadwalPelajaranDto?> CreateJadwalAsync(string kelasId, string mapelId, string hari, string jamMulai, string jamSelesai, CancellationToken ct = default) =>
+        await PostObjectAsync<JadwalPelajaranDto>($"{Base}/jadwal", new JsonObject { ["kelasId"] = kelasId, ["mataPelajaranId"] = mapelId, ["hari"] = hari, ["jamMulai"] = jamMulai, ["jamSelesai"] = jamSelesai }, ct);
+
+    public async Task<JadwalPelajaranDto?> UpdateJadwalAsync(string id, string kelasId, string mapelId, string hari, string jamMulai, string jamSelesai, CancellationToken ct = default) =>
+        await PatchObjectAsync<JadwalPelajaranDto>($"{Base}/jadwal/{Uri.EscapeDataString(id)}", new JsonObject { ["kelasId"] = kelasId, ["mataPelajaranId"] = mapelId, ["hari"] = hari, ["jamMulai"] = jamMulai, ["jamSelesai"] = jamSelesai }, ct);
+
+    public async Task<bool> DeleteJadwalAsync(string id, CancellationToken ct = default)
+    {
+        var element = await PatchRawAsync($"{Base}/jadwal/{Uri.EscapeDataString(id)}", new JsonObject { ["op"] = "delete" }, ct);
+        return IsSuccess(element);
+    }
+
+    public async Task<List<string>> CekBentrokJadwalAsync(string kelasId, string hari, string jamMulai, string jamSelesai, string? mapelId = null, string? excludeId = null, CancellationToken ct = default)
+    {
+        var payload = new JsonObject { ["op"] = "cekBentrok", ["kelasId"] = kelasId, ["hari"] = hari, ["jamMulai"] = jamMulai, ["jamSelesai"] = jamSelesai };
+        if (mapelId != null) payload["mataPelajaranId"] = mapelId;
+        if (excludeId != null) payload["excludeId"] = excludeId;
+        var element = await PostRawAsync($"{Base}/jadwal", payload, ct);
+        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty("masalah", out var m) || m.ValueKind != JsonValueKind.Array)
+            return new List<string>();
+        return m.Deserialize<List<string>>(Opts) ?? new List<string>();
+    }
+
+    // ══════════════════ SANTRI ══════════════════
+
+    public async Task<SantriListResponseDto> GetSantrisAsync(string? search = null, int page = 1, int limit = 20, string? keberadaan = null, string? status = null, CancellationToken ct = default)
+    {
+        var qs = new List<string> { $"page={page}", $"limit={limit}" };
+        if (!string.IsNullOrWhiteSpace(search)) qs.Add($"q={Uri.EscapeDataString(search)}");
+        if (!string.IsNullOrWhiteSpace(keberadaan)) qs.Add($"keberadaan={Uri.EscapeDataString(keberadaan)}");
+        if (!string.IsNullOrWhiteSpace(status)) qs.Add($"status={Uri.EscapeDataString(status)}");
+        return await GetObjectAsync<SantriListResponseDto>($"{Base}/santri?{string.Join("&", qs)}", ct) ?? new SantriListResponseDto();
+    }
+
+    public async Task<SantriDetailDto?> GetSantriDetailAsync(string id, CancellationToken ct = default) =>
+        await GetObjectAsync<SantriDetailDto>($"{Base}/santri/{Uri.EscapeDataString(id)}", ct);
+
+    public Task<bool> CreateSantriDariSiswaAsync(string siswaId, string? nisNo, string? tanggalMasuk, string? catatan, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/santri", new JsonObject { ["op"] = "createDariSiswa", ["siswaId"] = siswaId, ["nisNo"] = nisNo, ["tanggalMasuk"] = tanggalMasuk, ["catatan"] = catatan }, ct);
+
+    public Task<bool> CreateSantriNonformalAsync(string nama, string email, string password, string? nisNo, string? tanggalMasuk, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/santri", new JsonObject { ["op"] = "createNonformal", ["nama"] = nama, ["email"] = email, ["password"] = password, ["nisNo"] = nisNo, ["tanggalMasuk"] = tanggalMasuk }, ct);
+
+    public Task<bool> UpdateSantriAsync(string id, string? nisNo, string? tanggalMasuk, string? catatan, string? status, string? alasan, CancellationToken ct = default)
+    {
+        var payload = new JsonObject { ["op"] = "update" };
+        if (nisNo != null) payload["nisNo"] = nisNo;
+        if (tanggalMasuk != null) payload["tanggalMasuk"] = tanggalMasuk;
+        if (catatan != null) payload["catatan"] = catatan;
+        if (status != null) payload["status"] = status;
+        if (alasan != null) payload["alasan"] = alasan;
+        return PatchSuccessAsync($"{Base}/santri/{Uri.EscapeDataString(id)}", payload, ct);
+    }
+
+    public Task<bool> UpdateKeberadaanSantriAsync(string id, string keberadaan, string? alasan, CancellationToken ct = default)
+    {
+        var payload = new JsonObject { ["op"] = "updateKeberadaan", ["keberadaan"] = keberadaan };
+        if (alasan != null) payload["alasan"] = alasan;
+        return PatchSuccessAsync($"{Base}/santri/{Uri.EscapeDataString(id)}", payload, ct);
+    }
+
+    public Task<bool> DeleteSantriAsync(string id, CancellationToken ct = default) =>
+        PatchSuccessAsync($"{Base}/santri/{Uri.EscapeDataString(id)}", new JsonObject { ["op"] = "delete" }, ct);
+
+    public async Task<List<SantriStatusLogDto>> GetSantriStatusLogAsync(string santriId, string? jenis = null, CancellationToken ct = default)
+    {
+        var path = $"{Base}/santri/{Uri.EscapeDataString(santriId)}/status-log" + (string.IsNullOrWhiteSpace(jenis) ? "" : $"?jenis={Uri.EscapeDataString(jenis)}");
+        var element = await GetRawAsync(path, ct);
+        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty("rows", out var r) || r.ValueKind != JsonValueKind.Array)
+            return new List<SantriStatusLogDto>();
+        return r.Deserialize<List<SantriStatusLogDto>>(Opts) ?? new List<SantriStatusLogDto>();
+    }
+
+    // ══════════════════ WALI ══════════════════
+
+    public async Task<List<WaliAdminDto>> GetWalisAsync(string? search = null, CancellationToken ct = default)
+    {
+        var path = string.IsNullOrWhiteSpace(search) ? $"{Base}/wali" : $"{Base}/wali?q={Uri.EscapeDataString(search)}";
+        var element = await GetRawAsync(path, ct);
+        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty("rows", out var r) || r.ValueKind != JsonValueKind.Array)
+            return new List<WaliAdminDto>();
+        return r.Deserialize<List<WaliAdminDto>>(Opts) ?? new List<WaliAdminDto>();
+    }
+
+    public async Task<WaliAdminDto?> CreateWaliAsync(string nama, string hubungan, string? noTelp, string? alamat, CancellationToken ct = default) =>
+        await PostObjectAsync<WaliAdminDto>($"{Base}/wali", new JsonObject { ["op"] = "create", ["nama"] = nama, ["hubungan"] = hubungan, ["noTelp"] = noTelp, ["alamat"] = alamat }, ct);
+
+    public async Task<WaliAdminDto?> UpdateWaliAsync(string id, string? nama, string? hubungan, string? noTelp, string? alamat, CancellationToken ct = default)
+    {
+        var payload = new JsonObject();
+        if (nama != null) payload["nama"] = nama;
+        if (hubungan != null) payload["hubungan"] = hubungan;
+        if (noTelp != null) payload["noTelp"] = noTelp;
+        if (alamat != null) payload["alamat"] = alamat;
+        return await PatchObjectAsync<WaliAdminDto>($"{Base}/wali/{Uri.EscapeDataString(id)}", payload, ct);
+    }
+
+    public Task<bool> DeleteWaliAsync(string id, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/wali", new JsonObject { ["op"] = "delete", ["id"] = id }, ct);
+
+    public Task<bool> AssignWaliToSantriAsync(string santriId, string waliId, bool isPrimary, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/wali", new JsonObject { ["op"] = "assignToSantri", ["santriId"] = santriId, ["waliId"] = waliId, ["isPrimary"] = isPrimary }, ct);
+
+    public Task<bool> UnassignWaliFromSantriAsync(string santriId, string waliId, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/wali", new JsonObject { ["op"] = "unassignFromSantri", ["santriId"] = santriId, ["waliId"] = waliId }, ct);
+
+    // ══════════════════ PPDB ══════════════════
+
+    public async Task<PpdbListResponseDto> GetGelombangsAsync(string? search = null, int page = 1, int limit = 10, string? status = null, string? tahunAjaranId = null, CancellationToken ct = default)
+    {
+        var qs = new List<string> { $"page={page}", $"limit={limit}" };
+        if (!string.IsNullOrWhiteSpace(search)) qs.Add($"q={Uri.EscapeDataString(search)}");
+        if (!string.IsNullOrWhiteSpace(status)) qs.Add($"status={Uri.EscapeDataString(status)}");
+        if (!string.IsNullOrWhiteSpace(tahunAjaranId)) qs.Add($"tahunAjaranId={Uri.EscapeDataString(tahunAjaranId)}");
+        return await GetObjectAsync<PpdbListResponseDto>($"{Base}/ppdb?{string.Join("&", qs)}", ct) ?? new PpdbListResponseDto();
+    }
+
+    public async Task<GelombangPpdbDto?> CreateGelombangAsync(GelombangPpdbCreateRequest request, CancellationToken ct = default)
+    {
+        var payload = new JsonObject
+        {
+            ["op"] = "createGelombang",
+            ["tahunAjaranId"] = request.TahunAjaranId,
+            ["nama"] = request.Nama,
+            ["unit"] = request.Unit,
+            ["jenjang"] = request.Jenjang,
+            ["program"] = request.Program,
+            ["tanggalBuka"] = request.TanggalBuka,
+            ["tanggalTutup"] = request.TanggalTutup,
+            ["deskripsi"] = request.Deskripsi,
+        };
+        if (request.Kuota != null) payload["kuota"] = request.Kuota.Value;
+        if (request.BiayaDaftar != null) payload["biayaDaftar"] = request.BiayaDaftar.Value;
+        return await PostObjectAsync<GelombangPpdbDto>($"{Base}/ppdb", payload, ct);
+    }
+
+    public async Task<GelombangPpdbDto?> UpdateGelombangAsync(string id, GelombangPpdbUpdateRequest request, CancellationToken ct = default) =>
+        await PatchObjectAsync<GelombangPpdbDto>($"{Base}/ppdb/{Uri.EscapeDataString(id)}", request, ct);
+
+    public Task<bool> UpdateStatusGelombangAsync(string id, string status, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/ppdb", new JsonObject { ["op"] = "updateStatus", ["id"] = id, ["status"] = status }, ct);
+
+    public Task<bool> DeleteGelombangAsync(string id, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/ppdb", new JsonObject { ["op"] = "deleteGelombang", ["id"] = id }, ct);
+
+    public async Task<JalurPpdbDto?> CreateJalurAsync(string gelombangId, string nama, string? deskripsi, int? kuota, CancellationToken ct = default)
+    {
+        var payload = new JsonObject { ["op"] = "createJalur", ["gelombangId"] = gelombangId, ["nama"] = nama };
+        if (deskripsi != null) payload["deskripsi"] = deskripsi;
+        if (kuota != null) payload["kuota"] = kuota.Value;
+        return await PostObjectAsync<JalurPpdbDto>($"{Base}/ppdb", payload, ct);
+    }
+
+    public Task<bool> UpdateJalurAsync(string id, string? nama, string? deskripsi, int? kuota, bool? isActive, CancellationToken ct = default)
+    {
+        var payload = new JsonObject { ["op"] = "updateJalur", ["jalurId"] = id };
+        if (nama != null) payload["nama"] = nama;
+        if (deskripsi != null) payload["deskripsi"] = deskripsi;
+        if (kuota != null) payload["kuota"] = kuota.Value;
+        if (isActive != null) payload["isActive"] = isActive.Value;
+        return PatchSuccessAsync($"{Base}/ppdb/{Uri.EscapeDataString(id)}", payload, ct);
+    }
+
+    public Task<bool> DeleteJalurAsync(string id, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/ppdb", new JsonObject { ["op"] = "deleteJalur", ["id"] = id }, ct);
+
+    // ══════════════════ IZIN (ADMIN) ══════════════════
+
+    public async Task<IzinAntreanResponseDto> GetIzinAntreanAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<IzinAntreanResponseDto>($"{Base}/izin?view=antrean", ct) ?? new IzinAntreanResponseDto();
+
+    public async Task<IzinStatistikDto> GetIzinStatistikAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<IzinStatistikDto>($"{Base}/izin?view=statistik", ct) ?? new IzinStatistikDto();
+
+    public async Task<IzinRiwayatResponseDto> GetIzinRiwayatAsync(string? santriId = null, string? asramaId = null, string? status = null, int page = 1, CancellationToken ct = default)
+    {
+        var qs = new List<string> { $"view=riwayat", $"page={page}" };
+        if (!string.IsNullOrWhiteSpace(santriId)) qs.Add($"santriId={Uri.EscapeDataString(santriId)}");
+        if (!string.IsNullOrWhiteSpace(asramaId)) qs.Add($"asramaId={Uri.EscapeDataString(asramaId)}");
+        if (!string.IsNullOrWhiteSpace(status)) qs.Add($"status={Uri.EscapeDataString(status)}");
+        return await GetObjectAsync<IzinRiwayatResponseDto>($"{Base}/izin?{string.Join("&", qs)}", ct) ?? new IzinRiwayatResponseDto();
+    }
+
+    public async Task<PengaturanIzinResponseDto> GetPengaturanIzinAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<PengaturanIzinResponseDto>($"{Base}/izin?view=pengaturan", ct) ?? new PengaturanIzinResponseDto();
+
+    public Task<bool> SetujuiIzinAsync(string izinId, string? catatan, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/izin", new JsonObject { ["op"] = "setujui", ["izinId"] = izinId, ["catatan"] = catatan }, ct);
+
+    public Task<bool> TolakIzinAsync(string izinId, string alasan, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/izin", new JsonObject { ["op"] = "tolak", ["izinId"] = izinId, ["alasan"] = alasan }, ct);
+
+    public async Task<bool> SimpanPengaturanIzinAsync(PengaturanIzinDto cfg, CancellationToken ct = default) =>
+        await PostSuccessAsync($"{Base}/izin", new JsonObject
+        {
+            ["op"] = "simpanPengaturan",
+            ["jenis"] = cfg.Jenis,
+            ["butuhWali"] = cfg.ButuhWali,
+            ["butuhPengurus"] = cfg.ButuhPengurus,
+            ["butuhMusyrif"] = cfg.ButuhMusyrif,
+            ["butuhKepala"] = cfg.ButuhKepala,
+            ["butuhAdmin"] = cfg.ButuhAdmin,
+            ["aktif"] = cfg.Aktif,
+        }, ct);
+
+    public async Task<AsramaResponseDto> GetAsramaAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<AsramaResponseDto>($"{Base}/izin?view=asrama", ct) ?? new AsramaResponseDto();
+
+    public async Task<AsramaDto?> CreateAsramaAsync(string nama, string? deskripsi, string? musyrifId, CancellationToken ct = default)
+    {
+        var payload = new JsonObject { ["op"] = "createAsrama", ["nama"] = nama };
+        if (deskripsi != null) payload["deskripsi"] = deskripsi;
+        if (musyrifId != null) payload["musyrifId"] = musyrifId;
+        return await PostObjectAsync<AsramaDto>($"{Base}/izin", payload, ct);
+    }
+
+    public async Task<KamarDto?> CreateKamarAsync(string asramaId, string nama, int? kapasitas, CancellationToken ct = default)
+    {
+        var payload = new JsonObject { ["op"] = "createKamar", ["asramaId"] = asramaId, ["nama"] = nama };
+        if (kapasitas != null) payload["kapasitas"] = kapasitas.Value;
+        return await PostObjectAsync<KamarDto>($"{Base}/izin", payload, ct);
+    }
+
+    public Task<bool> AssignTempatSantriAsync(string santriId, string? asramaId, string? kamarId, CancellationToken ct = default)
+    {
+        var payload = new JsonObject { ["op"] = "assignTempat", ["santriId"] = santriId };
+        if (asramaId != null) payload["asramaId"] = asramaId;
+        if (kamarId != null) payload["kamarId"] = kamarId;
+        return PostSuccessAsync($"{Base}/izin", payload, ct);
+    }
+
     // ══════════════════ HELPERS ══════════════════
 
     private string Token() => _session.Current?.Token

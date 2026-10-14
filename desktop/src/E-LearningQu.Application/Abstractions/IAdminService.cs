@@ -98,4 +98,60 @@ public interface IAdminService
 
     // ── Researcher analytics (read-only) ──
     Task<ResearcherOverviewDto> GetResearcherOverviewAsync(CancellationToken ct = default);
+
+    // ── Courses ──
+    Task<PagedResult<CourseAdminDto>> GetCoursesAsync(string? search = null, int page = 1, int limit = 20, CancellationToken ct = default);
+    Task<CourseDetailDto?> GetCourseDetailAsync(string id, CancellationToken ct = default);
+    Task<CourseAdminDto?> CreateCourseAsync(string title, string? description, string mapelId, string guruId, CancellationToken ct = default);
+    Task<bool> UpdateCourseAsync(string id, string? title, string? description, bool? isPublished, CancellationToken ct = default);
+    Task<bool> DeleteCourseAsync(string id, CancellationToken ct = default);
+    Task<bool> CourseOpAsync(string id, string op, object payload, CancellationToken ct = default);
+
+    // ── Jadwal Pelajaran ──
+    Task<JadwalResponseDto> GetJadwalAsync(string? kelasId = null, string? hari = null, CancellationToken ct = default);
+    Task<JadwalPelajaranDto?> CreateJadwalAsync(string kelasId, string mapelId, string hari, string jamMulai, string jamSelesai, CancellationToken ct = default);
+    Task<JadwalPelajaranDto?> UpdateJadwalAsync(string id, string kelasId, string mapelId, string hari, string jamMulai, string jamSelesai, CancellationToken ct = default);
+    Task<bool> DeleteJadwalAsync(string id, CancellationToken ct = default);
+    Task<List<string>> CekBentrokJadwalAsync(string kelasId, string hari, string jamMulai, string jamSelesai, string? mapelId = null, string? excludeId = null, CancellationToken ct = default);
+
+    // ── Santri ──
+    Task<SantriListResponseDto> GetSantrisAsync(string? search = null, int page = 1, int limit = 20, string? keberadaan = null, string? status = null, CancellationToken ct = default);
+    Task<SantriDetailDto?> GetSantriDetailAsync(string id, CancellationToken ct = default);
+    Task<bool> CreateSantriDariSiswaAsync(string siswaId, string? nisNo, string? tanggalMasuk, string? catatan, CancellationToken ct = default);
+    Task<bool> CreateSantriNonformalAsync(string nama, string email, string password, string? nisNo, string? tanggalMasuk, CancellationToken ct = default);
+    Task<bool> UpdateSantriAsync(string id, string? nisNo, string? tanggalMasuk, string? catatan, string? status, string? alasan, CancellationToken ct = default);
+    Task<bool> UpdateKeberadaanSantriAsync(string id, string keberadaan, string? alasan, CancellationToken ct = default);
+    Task<bool> DeleteSantriAsync(string id, CancellationToken ct = default);
+    Task<List<SantriStatusLogDto>> GetSantriStatusLogAsync(string santriId, string? jenis = null, CancellationToken ct = default);
+
+    // ── Wali ──
+    Task<List<WaliAdminDto>> GetWalisAsync(string? search = null, CancellationToken ct = default);
+    Task<WaliAdminDto?> CreateWaliAsync(string nama, string hubungan, string? noTelp, string? alamat, CancellationToken ct = default);
+    Task<WaliAdminDto?> UpdateWaliAsync(string id, string? nama, string? hubungan, string? noTelp, string? alamat, CancellationToken ct = default);
+    Task<bool> DeleteWaliAsync(string id, CancellationToken ct = default);
+    Task<bool> AssignWaliToSantriAsync(string santriId, string waliId, bool isPrimary, CancellationToken ct = default);
+    Task<bool> UnassignWaliFromSantriAsync(string santriId, string waliId, CancellationToken ct = default);
+
+    // ── PPDB ──
+    Task<PpdbListResponseDto> GetGelombangsAsync(string? search = null, int page = 1, int limit = 10, string? status = null, string? tahunAjaranId = null, CancellationToken ct = default);
+    Task<GelombangPpdbDto?> CreateGelombangAsync(GelombangPpdbCreateRequest request, CancellationToken ct = default);
+    Task<GelombangPpdbDto?> UpdateGelombangAsync(string id, GelombangPpdbUpdateRequest request, CancellationToken ct = default);
+    Task<bool> UpdateStatusGelombangAsync(string id, string status, CancellationToken ct = default);
+    Task<bool> DeleteGelombangAsync(string id, CancellationToken ct = default);
+    Task<JalurPpdbDto?> CreateJalurAsync(string gelombangId, string nama, string? deskripsi, int? kuota, CancellationToken ct = default);
+    Task<bool> UpdateJalurAsync(string id, string? nama, string? deskripsi, int? kuota, bool? isActive, CancellationToken ct = default);
+    Task<bool> DeleteJalurAsync(string id, CancellationToken ct = default);
+
+    // ── Izin (admin) ──
+    Task<IzinAntreanResponseDto> GetIzinAntreanAsync(CancellationToken ct = default);
+    Task<IzinStatistikDto> GetIzinStatistikAsync(CancellationToken ct = default);
+    Task<IzinRiwayatResponseDto> GetIzinRiwayatAsync(string? santriId = null, string? asramaId = null, string? status = null, int page = 1, CancellationToken ct = default);
+    Task<PengaturanIzinResponseDto> GetPengaturanIzinAsync(CancellationToken ct = default);
+    Task<bool> SetujuiIzinAsync(string izinId, string? catatan, CancellationToken ct = default);
+    Task<bool> TolakIzinAsync(string izinId, string alasan, CancellationToken ct = default);
+    Task<bool> SimpanPengaturanIzinAsync(PengaturanIzinDto cfg, CancellationToken ct = default);
+    Task<AsramaResponseDto> GetAsramaAsync(CancellationToken ct = default);
+    Task<AsramaDto?> CreateAsramaAsync(string nama, string? deskripsi, string? musyrifId, CancellationToken ct = default);
+    Task<KamarDto?> CreateKamarAsync(string asramaId, string nama, int? kapasitas, CancellationToken ct = default);
+    Task<bool> AssignTempatSantriAsync(string santriId, string? asramaId, string? kamarId, CancellationToken ct = default);
 }
