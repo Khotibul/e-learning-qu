@@ -3,6 +3,9 @@
 
     <!-- Gaya DataGrid bertema pondok (dipakai Nilai, Jadwal, Kehadiran, dll) -->
     <!-- Catatan: pakai DynamicResource karena dictionary ini di-merge SEBELUM brush didefinisikan di App.xaml -->
+    <!-- PENTING: JANGAN mengganti Template DataGridRow/DataGridCell dengan template custom.
+         Template custom + VirtualizingPanel.IsVirtualizing menyebabkan cell tidak pernah
+         ter-generate (row tinggi 1px, data terlihat kosong di semua view). Cukup set warna. -->
     <Style TargetType="DataGrid" x:Key="Grid">
         <Setter Property="AutoGenerateColumns" Value="False" />
         <Setter Property="IsReadOnly" Value="True" />
@@ -31,36 +34,31 @@
         <Setter Property="BorderThickness" Value="0,0,0,1" />
     </Style>
 
+    <!-- Template bawaan WPF dipertahankan (hanya padding/warna) agar virtualization tetap bekerja. -->
     <Style TargetType="DataGridCell">
         <Setter Property="Padding" Value="12,0" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="DataGridCell">
-                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter VerticalAlignment="Center" />
-                    </Border>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
     </Style>
 
+    <!-- Hover baris via trigger property (bukan template) — aman untuk virtualization. -->
     <Style TargetType="DataGridRow">
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="DataGridRow">
-                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                            BorderBrush="{DynamicResource BrushBorder}" BorderThickness="0,0,0,1">
-                        <ItemsPresenter />
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BrushInfoBg}" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource BrushInfoBg}" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{DynamicResource BrushInfoBg}" />
+                <Setter Property="Foreground" Value="{DynamicResource BrushPrimaryDark}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
 </ResourceDictionary>
