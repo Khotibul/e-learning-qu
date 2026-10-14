@@ -1,0 +1,180 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.AdminResearcherView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             mc:Ignorable="d" d:DesignHeight="760" d:DesignWidth="1140">
+
+    <UserControl.Resources>
+        <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <TextBlock Text="Researcher" Style="{StaticResource H1}" />
+                <TextBlock Text="Analitik pembelajaran — distribusi nilai, mastery, tren, agent, risiko" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}"
+                    VerticalAlignment="Top" HorizontalAlignment="Right" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <ProgressBar Width="110" Height="4" IsIndeterminate="True" HorizontalAlignment="Right" VerticalAlignment="Center"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        </Grid>
+
+        <Border Grid.Row="2" Background="{StaticResource BrushErrorBg}" CornerRadius="10" Padding="14,12"
+                BorderBrush="{StaticResource BrushError}" BorderThickness="1" Margin="0,0,0,12"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}" TextWrapping="Wrap" />
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="16" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="24,20"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <UniformGrid Columns="6">
+                    <StackPanel Margin="0,0,0,12">
+                        <TextBlock Text="{Binding Data.Overview.TotalSiswa}" Style="{StaticResource StatValue}" />
+                        <TextBlock Text="Siswa" Style="{StaticResource StatLabel}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12">
+                        <TextBlock Text="{Binding Data.Overview.TotalUjian}" Style="{StaticResource StatValue}" />
+                        <TextBlock Text="Ujian" Style="{StaticResource StatLabel}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12">
+                        <TextBlock Text="{Binding Data.Overview.TotalSoal}" Style="{StaticResource StatValue}" />
+                        <TextBlock Text="Soal" Style="{StaticResource StatLabel}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12">
+                        <TextBlock Text="{Binding Data.Overview.RataNilai}" Style="{StaticResource StatValue}" Foreground="{StaticResource BrushInfo}" />
+                        <TextBlock Text="Rata-rata Nilai" Style="{StaticResource StatLabel}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12">
+                        <TextBlock Text="{Binding Data.Overview.SiswaAktif30Hari}" Style="{StaticResource StatValue}" Foreground="{StaticResource BrushSuccess}" />
+                        <TextBlock Text="Siswa Aktif (30h)" Style="{StaticResource StatLabel}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12">
+                        <TextBlock Text="{Binding Data.Overview.SoalTerjawab}" Style="{StaticResource StatValue}" />
+                        <TextBlock Text="Soal Terjawab" Style="{StaticResource StatLabel}" />
+                    </StackPanel>
+                </UniformGrid>
+            </Border>
+
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="16" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Column="0" Grid.Row="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Distribusi Nilai" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding Distribusi}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding Distribusi.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Rentang" Binding="{Binding Label}" Width="*" />
+                                <DataGridTextColumn Header="Jumlah" Binding="{Binding Count}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="2" Grid.Row="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Performa Agent AI (30 hari)" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding Agents}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding Agents.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Agent" Binding="{Binding Agent}" Width="2*" />
+                                <DataGridTextColumn Header="Panggilan" Binding="{Binding TotalCalls}" Width="*" />
+                                <DataGridTextColumn Header="Sukses %" Binding="{Binding SuccessRate}" Width="*" />
+                                <DataGridTextColumn Header="Rata (ms)" Binding="{Binding AvgDuration}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="0" Grid.Row="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Risiko Dropout (peringatan ≥3)" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding DropoutRisk}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding DropoutRisk.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Nama" Binding="{Binding Nama}" Width="2*" />
+                                <DataGridTextColumn Header="NIS" Binding="{Binding Nis}" Width="*" />
+                                <DataGridTextColumn Header="Kelas" Binding="{Binding Kelas}" Width="*" />
+                                <DataGridTextColumn Header="Peringatan" Binding="{Binding JumlahPeringatan}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="2" Grid.Row="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Mastery per Kompetensi (terendah)" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding Mastery}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding Mastery.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Mapel" Binding="{Binding Mapel}" Width="*" />
+                                <DataGridTextColumn Header="Kompetensi" Binding="{Binding Kompetensi}" Width="2*" />
+                                <DataGridTextColumn Header="Rata Skor" Binding="{Binding AvgSkor}" Width="*" />
+                                <DataGridTextColumn Header="Siswa" Binding="{Binding JumlahSiswa}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

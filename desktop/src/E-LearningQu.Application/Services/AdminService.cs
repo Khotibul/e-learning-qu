@@ -276,6 +276,33 @@ public sealed class AdminService : IAdminService
     public async Task<AdminRefsDto> GetRefsAsync(CancellationToken ct = default) =>
         await GetObjectAsync<AdminRefsDto>($"{Base}/refs", ct) ?? new AdminRefsDto();
 
+    // ══════════════════ PENGATURAN (site-config + features) ══════════════════
+
+    public async Task<SiteConfigDto> GetSiteConfigAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<SiteConfigDto>($"{Base}/site-config", ct) ?? new SiteConfigDto();
+
+    public async Task<SiteConfigDto?> SaveSiteConfigAsync(SiteConfigUpdateRequest request, CancellationToken ct = default) =>
+        await PostObjectAsync<SiteConfigDto>($"{Base}/site-config", request, ct);
+
+    public async Task<List<LandingFeatureDto>> GetFeaturesAsync(CancellationToken ct = default) =>
+        await GetListAsync<LandingFeatureDto>($"{Base}/features", ct);
+
+    public async Task<LandingFeatureDto?> SaveFeatureAsync(LandingFeatureRequest request, CancellationToken ct = default) =>
+        await PostObjectAsync<LandingFeatureDto>($"{Base}/features", request, ct);
+
+    public async Task<bool> DeleteFeatureAsync(string id, CancellationToken ct = default) =>
+        await PostSuccessAsync($"{Base}/features", new JsonObject { ["op"] = "delete", ["id"] = id }, ct);
+
+    // ══════════════════ JADWAL UJIAN ══════════════════
+
+    public async Task<JadwalUjianAdminDto> GetJadwalUjianAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<JadwalUjianAdminDto>($"{Base}/jadwal-ujian", ct) ?? new JadwalUjianAdminDto();
+
+    // ══════════════════ RESEARCHER ══════════════════
+
+    public async Task<ResearcherOverviewDto> GetResearcherOverviewAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<ResearcherOverviewDto>($"{Base}/researcher", ct) ?? new ResearcherOverviewDto();
+
     // ══════════════════ HELPERS ══════════════════
 
     private string Token() => _session.Current?.Token
@@ -327,6 +354,12 @@ public sealed class AdminService : IAdminService
     private async Task<bool> PatchSuccessAsync(string path, object body, CancellationToken ct)
     {
         var element = await PatchRawAsync(path, body, ct);
+        return IsSuccess(element);
+    }
+
+    private async Task<bool> PostSuccessAsync(string path, object body, CancellationToken ct)
+    {
+        var element = await PostRawAsync(path, body, ct);
         return IsSuccess(element);
     }
 

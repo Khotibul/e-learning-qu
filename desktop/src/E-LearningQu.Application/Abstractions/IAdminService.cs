@@ -85,4 +85,17 @@ public interface IAdminService
 
     // ── Refs ──
     Task<AdminRefsDto> GetRefsAsync(CancellationToken ct = default);
+
+    // ── Pengaturan (site-config + features) ──
+    Task<SiteConfigDto> GetSiteConfigAsync(CancellationToken ct = default);
+    Task<SiteConfigDto?> SaveSiteConfigAsync(SiteConfigUpdateRequest request, CancellationToken ct = default);
+    Task<List<LandingFeatureDto>> GetFeaturesAsync(CancellationToken ct = default);
+    Task<LandingFeatureDto?> SaveFeatureAsync(LandingFeatureRequest request, CancellationToken ct = default);
+    Task<bool> DeleteFeatureAsync(string id, CancellationToken ct = default);
+
+    // ── Jadwal Ujian (read-only) ──
+    Task<JadwalUjianAdminDto> GetJadwalUjianAsync(CancellationToken ct = default);
+
+    // ── Researcher analytics (read-only) ──
+    Task<ResearcherOverviewDto> GetResearcherOverviewAsync(CancellationToken ct = default);
 }
