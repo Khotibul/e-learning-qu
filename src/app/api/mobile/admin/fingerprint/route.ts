@@ -344,7 +344,7 @@ export async function POST(req: Request) {
         catatan: body.catatan != null ? String(body.catatan) : undefined,
         actorUserId: auth.user.id,
       })
-      return ok(hasil)
+      return ok({ success: true, ...hasil })
     }
 
     return fail("op tidak dikenal", 400)

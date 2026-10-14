@@ -183,7 +183,7 @@ export async function POST(req: Request) {
         catatan: body.catatan != null ? String(body.catatan) : undefined,
       })
       if (!hasil.ok) return fail(hasil.error ?? "Gagal", 400)
-      return ok(hasil)
+      return ok({ success: true, ...hasil })
     }
 
     if (op === "verifikasiPembayaran") {
@@ -194,7 +194,7 @@ export async function POST(req: Request) {
         catatan: body.catatan != null ? String(body.catatan) : undefined,
       })
       if (!hasil.ok) return fail(hasil.error ?? "Gagal", 400)
-      return ok(hasil)
+      return ok({ success: true, ...hasil })
     }
 
     if (op === "tandaiJatuhTempo") {

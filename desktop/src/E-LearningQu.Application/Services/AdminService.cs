@@ -722,6 +722,148 @@ public sealed class AdminService : IAdminService
         return r.Deserialize<List<KantinTransaksiDto>>(Opts) ?? new List<KantinTransaksiDto>();
     }
 
+    // ══════════════════ ABSENSI GURU ══════════════════
+
+    public async Task<AbsensiGuruMonitoringDto> GetAbsensiGuruMonitoringAsync(string? tanggal = null, string? search = null, CancellationToken ct = default)
+    {
+        var qs = new List<string> { "view=monitoring" };
+        if (!string.IsNullOrWhiteSpace(tanggal)) qs.Add($"tanggal={Uri.EscapeDataString(tanggal)}");
+        if (!string.IsNullOrWhiteSpace(search)) qs.Add($"search={Uri.EscapeDataString(search)}");
+        return await GetObjectAsync<AbsensiGuruMonitoringDto>($"{Base}/absensi-guru?{string.Join("&", qs)}", ct) ?? new AbsensiGuruMonitoringDto();
+    }
+
+    public async Task<AbsensiGuruRekapDto> GetAbsensiGuruRekapAsync(string start, string end, CancellationToken ct = default) =>
+        await GetObjectAsync<AbsensiGuruRekapDto>($"{Base}/absensi-guru?view=rekap&start={Uri.EscapeDataString(start)}&end={Uri.EscapeDataString(end)}", ct)
+        ?? new AbsensiGuruRekapDto();
+
+    public Task<List<PenggantiDto>> GetPenggantiListAsync(string? tanggal = null, CancellationToken ct = default)
+    {
+        var qs = new List<string> { "view=pengganti" };
+        if (!string.IsNullOrWhiteSpace(tanggal)) qs.Add($"tanggal={Uri.EscapeDataString(tanggal)}");
+        return GetListAsync<PenggantiDto>($"{Base}/absensi-guru?{string.Join("&", qs)}", ct);
+    }
+
+    public async Task<AbsensiGuruPendukungDto> GetAbsensiGuruPendukungAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<AbsensiGuruPendukungDto>($"{Base}/absensi-guru?view=pendukung", ct) ?? new AbsensiGuruPendukungDto();
+
+    public async Task<bool> KoreksiAbsensiGuruAsync(string? sesiId, string? guruId, string? jadwalPelajaranId, string? tanggal, string status, string alasan, CancellationToken ct = default)
+    {
+        var body = new JsonObject { ["op"] = "koreksi", ["status"] = status, ["alasan"] = alasan };
+        if (!string.IsNullOrWhiteSpace(sesiId)) body["sesiId"] = sesiId;
+        if (!string.IsNullOrWhiteSpace(guruId)) body["guruId"] = guruId;
+        if (!string.IsNullOrWhiteSpace(jadwalPelajaranId)) body["jadwalPelajaranId"] = jadwalPelajaranId;
+        if (!string.IsNullOrWhiteSpace(tanggal)) body["tanggal"] = tanggal;
+        return await PostSuccessAsync($"{Base}/absensi-guru", body, ct);
+    }
+
+    public Task<bool> HapusPenggantiAsync(string id, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/absensi-guru", new JsonObject { ["op"] = "hapusPengganti", ["id"] = id }, ct);
+
+    // ══════════════════ FINGERPRINT ══════════════════
+
+    public Task<List<PerangkatFpDto>> GetPerangkatFpAsync(CancellationToken ct = default) =>
+        GetListAsync<PerangkatFpDto>($"{Base}/fingerprint?view=perangkat", ct);
+
+    public Task<List<PemetaanFpDto>> GetPemetaanFpAsync(string perangkatId, CancellationToken ct = default) =>
+        GetListAsync<PemetaanFpDto>($"{Base}/fingerprint?view=pemetaan&perangkatId={Uri.EscapeDataString(perangkatId)}", ct);
+
+    public Task<List<SiswaCariDto>> CariSiswaFpAsync(string q, CancellationToken ct = default) =>
+        GetListAsync<SiswaCariDto>($"{Base}/fingerprint?view=cari-siswa&q={Uri.EscapeDataString(q)}", ct);
+
+    public async Task<MonitoringHarianDto> GetMonitoringHarianAsync(string? tanggal = null, string? q = null, CancellationToken ct = default)
+    {
+        var qs = new List<string> { "view=monitoring" };
+        if (!string.IsNullOrWhiteSpace(tanggal)) qs.Add($"tanggal={Uri.EscapeDataString(tanggal)}");
+        if (!string.IsNullOrWhiteSpace(q)) qs.Add($"q={Uri.EscapeDataString(q)}");
+        return await GetObjectAsync<MonitoringHarianDto>($"{Base}/fingerprint?{string.Join("&", qs)}", ct) ?? new MonitoringHarianDto();
+    }
+
+    public Task<List<EventFpDto>> GetFpEventsAsync(string? tanggal = null, CancellationToken ct = default)
+    {
+        var qs = new List<string> { "view=events" };
+        if (!string.IsNullOrWhiteSpace(tanggal)) qs.Add($"tanggal={Uri.EscapeDataString(tanggal)}");
+        return GetListAsync<EventFpDto>($"{Base}/fingerprint?{string.Join("&", qs)}", ct);
+    }
+
+    public Task<List<PermintaanManualFpDto>> GetPermintaanManualAsync(CancellationToken ct = default) =>
+        GetListAsync<PermintaanManualFpDto>($"{Base}/fingerprint?view=permintaan", ct);
+
+    public Task<PerangkatBaruDto?> BuatPerangkatFpAsync(string nama, string? lokasi, CancellationToken ct = default) =>
+        PostObjectAsync<PerangkatBaruDto>($"{Base}/fingerprint", new JsonObject { ["op"] = "buatPerangkat", ["nama"] = nama, ["lokasi"] = lokasi }, ct);
+
+    public async Task<bool> UbahPerangkatFpAsync(string id, string? nama, string? lokasi, string? status, CancellationToken ct = default)
+    {
+        var body = new JsonObject { ["op"] = "ubahPerangkat", ["id"] = id };
+        if (nama != null) body["nama"] = nama;
+        if (lokasi != null) body["lokasi"] = lokasi;
+        if (status != null) body["status"] = status;
+        return await PostSuccessAsync($"{Base}/fingerprint", body, ct);
+    }
+
+    public Task<bool> HapusPerangkatFpAsync(string id, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/fingerprint", new JsonObject { ["op"] = "hapusPerangkat", ["id"] = id }, ct);
+
+    public async Task<string?> RotasiApiKeyFpAsync(string id, CancellationToken ct = default)
+    {
+        var element = await PostRawAsync($"{Base}/fingerprint", new JsonObject { ["op"] = "rotasiApiKey", ["id"] = id }, ct);
+        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty("apiKey", out var key))
+            return null;
+        return key.GetString();
+    }
+
+    public Task<bool> TambahPemetaanFpAsync(string perangkatId, string siswaId, string perangkatUserId, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/fingerprint", new JsonObject
+        {
+            ["op"] = "tambahPemetaan",
+            ["perangkatId"] = perangkatId,
+            ["siswaId"] = siswaId,
+            ["perangkatUserId"] = perangkatUserId,
+        }, ct);
+
+    public Task<bool> HapusPemetaanFpAsync(string id, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/fingerprint", new JsonObject { ["op"] = "hapusPemetaan", ["id"] = id }, ct);
+
+    public Task<bool> PutuskanPermintaanManualAsync(string permintaanId, string putusan, string? catatan, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/fingerprint", new JsonObject
+        {
+            ["op"] = "putuskanPermintaan",
+            ["permintaanId"] = permintaanId,
+            ["putusan"] = putusan,
+            ["catatan"] = catatan,
+        }, ct);
+
+    // ══════════════════ KEUANGAN (BENDAHARA) ══════════════════
+
+    public async Task<KeuanganDashboardDto> GetKeuanganDashboardAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<KeuanganDashboardDto>($"{Base}/keuangan?view=dashboard", ct) ?? new KeuanganDashboardDto();
+
+    public async Task<AntreanKeuanganDto> GetAntreanKeuanganAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<AntreanKeuanganDto>($"{Base}/keuangan?view=antrean", ct) ?? new AntreanKeuanganDto();
+
+    public Task<List<AkunLaporanDto>> GetAkunLaporanAsync(CancellationToken ct = default) =>
+        GetListAsync<AkunLaporanDto>($"{Base}/keuangan?view=akun", ct);
+
+    public Task<List<JurnalUmumDto>> GetJurnalUmumAsync(int take = 50, CancellationToken ct = default) =>
+        GetListAsync<JurnalUmumDto>($"{Base}/keuangan?view=jurnal&take={take}", ct);
+
+    public Task<bool> VerifikasiTopupAsync(string topupId, bool setujui, string? catatan, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/keuangan", new JsonObject
+        {
+            ["op"] = "verifikasiTopup",
+            ["topupId"] = topupId,
+            ["setujui"] = setujui,
+            ["catatan"] = catatan,
+        }, ct);
+
+    public Task<bool> VerifikasiPembayaranTagihanAsync(string pembayaranId, bool setujui, string? catatan, CancellationToken ct = default) =>
+        PostSuccessAsync($"{Base}/keuangan", new JsonObject
+        {
+            ["op"] = "verifikasiPembayaran",
+            ["pembayaranId"] = pembayaranId,
+            ["setujui"] = setujui,
+            ["catatan"] = catatan,
+        }, ct);
+
     // ══════════════════ HELPERS ══════════════════
 
     private string Token() => _session.Current?.Token

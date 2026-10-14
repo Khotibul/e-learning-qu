@@ -182,4 +182,35 @@ public interface IAdminService
     Task<KantinCheckoutResultDto?> CheckoutKantinAsync(KantinCheckoutRequest request, CancellationToken ct = default);
     Task<bool> BatalTransaksiKantinAsync(string transaksiId, string alasan, CancellationToken ct = default);
     Task<List<KantinTransaksiDto>> GetRiwayatShiftAsync(string shiftId, CancellationToken ct = default);
+
+    // ── Absensi Guru (mobile/admin/absensi-guru) ──
+    Task<AbsensiGuruMonitoringDto> GetAbsensiGuruMonitoringAsync(string? tanggal = null, string? search = null, CancellationToken ct = default);
+    Task<AbsensiGuruRekapDto> GetAbsensiGuruRekapAsync(string start, string end, CancellationToken ct = default);
+    Task<List<PenggantiDto>> GetPenggantiListAsync(string? tanggal = null, CancellationToken ct = default);
+    Task<AbsensiGuruPendukungDto> GetAbsensiGuruPendukungAsync(CancellationToken ct = default);
+    Task<bool> KoreksiAbsensiGuruAsync(string? sesiId, string? guruId, string? jadwalPelajaranId, string? tanggal, string status, string alasan, CancellationToken ct = default);
+    Task<bool> HapusPenggantiAsync(string id, CancellationToken ct = default);
+
+    // ── Fingerprint & Absensi Harian (mobile/admin/fingerprint) ──
+    Task<List<PerangkatFpDto>> GetPerangkatFpAsync(CancellationToken ct = default);
+    Task<List<PemetaanFpDto>> GetPemetaanFpAsync(string perangkatId, CancellationToken ct = default);
+    Task<List<SiswaCariDto>> CariSiswaFpAsync(string q, CancellationToken ct = default);
+    Task<MonitoringHarianDto> GetMonitoringHarianAsync(string? tanggal = null, string? q = null, CancellationToken ct = default);
+    Task<List<EventFpDto>> GetFpEventsAsync(string? tanggal = null, CancellationToken ct = default);
+    Task<List<PermintaanManualFpDto>> GetPermintaanManualAsync(CancellationToken ct = default);
+    Task<PerangkatBaruDto?> BuatPerangkatFpAsync(string nama, string? lokasi, CancellationToken ct = default);
+    Task<bool> UbahPerangkatFpAsync(string id, string? nama, string? lokasi, string? status, CancellationToken ct = default);
+    Task<bool> HapusPerangkatFpAsync(string id, CancellationToken ct = default);
+    Task<string?> RotasiApiKeyFpAsync(string id, CancellationToken ct = default);
+    Task<bool> TambahPemetaanFpAsync(string perangkatId, string siswaId, string perangkatUserId, CancellationToken ct = default);
+    Task<bool> HapusPemetaanFpAsync(string id, CancellationToken ct = default);
+    Task<bool> PutuskanPermintaanManualAsync(string permintaanId, string putusan, string? catatan, CancellationToken ct = default);
+
+    // ── Keuangan/Bendahara (mobile/admin/keuangan) ──
+    Task<KeuanganDashboardDto> GetKeuanganDashboardAsync(CancellationToken ct = default);
+    Task<AntreanKeuanganDto> GetAntreanKeuanganAsync(CancellationToken ct = default);
+    Task<List<AkunLaporanDto>> GetAkunLaporanAsync(CancellationToken ct = default);
+    Task<List<JurnalUmumDto>> GetJurnalUmumAsync(int take = 50, CancellationToken ct = default);
+    Task<bool> VerifikasiTopupAsync(string topupId, bool setujui, string? catatan, CancellationToken ct = default);
+    Task<bool> VerifikasiPembayaranTagihanAsync(string pembayaranId, bool setujui, string? catatan, CancellationToken ct = default);
 }

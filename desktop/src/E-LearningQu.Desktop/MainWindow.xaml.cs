@@ -543,6 +543,27 @@ public partial class MainWindow : Window
                 _ = vm.LoadAsync();
                 return;
             }
+            case "admin-absensi-guru":
+            {
+                var vm = new AdminAbsensiGuruViewModel(_admin);
+                ContentHost.Content = new AdminAbsensiGuruView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "admin-fingerprint":
+            {
+                var vm = new AdminFingerprintViewModel(_admin);
+                ContentHost.Content = new AdminFingerprintView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "bendahara":
+            {
+                var vm = new AdminKeuanganViewModel(_admin);
+                ContentHost.Content = new AdminKeuanganView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
             default:
                 // View belum diimplementasi — Placeholder (tercatat sebagai GAP, bukan selesai).
                 ContentHost.Content = new PlaceholderView(item.DisplayName);
