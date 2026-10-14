@@ -1,0 +1,95 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.KantinView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignHeight="760" d:DesignWidth="1140">
+
+    <UserControl.Resources>
+        <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <TextBlock Text="Kantin" Style="{StaticResource H1}" />
+                <TextBlock Text="Kasir kantin — outlet, produk, shift" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}"
+                    VerticalAlignment="Top" HorizontalAlignment="Right" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <ProgressBar Width="110" Height="4" IsIndeterminate="True" HorizontalAlignment="Right" VerticalAlignment="Center"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        </Grid>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="12" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Outlet" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                        <ComboBox ItemsSource="{Binding Outlets}" DisplayMemberPath="Nama" SelectedValuePath="Id"
+                                  SelectedValue="{Binding SelectedOutletId}" Style="{StaticResource InputBox}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Bottom">
+                        <Button Content="Pilih" Style="{StaticResource ButtonGhost}" Command="{Binding PilihOutletCommand}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="4">
+                        <TextBlock Text="Saldo Awal Shift" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                        <TextBox Style="{StaticResource InputBox}" Text="{Binding SaldoAwal}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="6" VerticalAlignment="Bottom">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Buka Shift" Style="{StaticResource ButtonPrimary}" Command="{Binding BukaShiftCommand}" Margin="0,0,8,0" />
+                            <Button Content="Tutup Shift" Style="{StaticResource ButtonGhost}" Command="{Binding TutupShiftCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <DataGrid ItemsSource="{Binding Produk}" Style="{StaticResource Grid}"
+                          AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                          Visibility="{Binding Produk.Count, Converter={StaticResource CountToVisibility}}"
+                          EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Nama" Binding="{Binding Nama}" Width="2*" />
+                        <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="*" />
+                        <DataGridTextColumn Header="Kategori" Binding="{Binding Kategori.Nama}" Width="*" />
+                        <DataGridTextColumn Header="Harga" Binding="{Binding HargaJual, StringFormat=Rp{0:N0}}" Width="*" />
+                        <DataGridTextColumn Header="Stok" Binding="{Binding Stok}" Width="Auto" />
+                        <DataGridTextColumn Header="Satuan" Binding="{Binding Satuan}" Width="*" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

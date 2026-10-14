@@ -1,0 +1,134 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.SiswaIzinView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignHeight="820" d:DesignWidth="1140">
+
+    <UserControl.Resources>
+        <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <TextBlock Text="Perizinan Santri" Style="{StaticResource H1}" />
+                <TextBlock Text="{Binding Santri.Nama, StringFormat=Keberadaan: {0}}" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}"
+                    VerticalAlignment="Top" HorizontalAlignment="Right" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <ProgressBar Width="110" Height="4" IsIndeterminate="True" HorizontalAlignment="Right" VerticalAlignment="Center"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        </Grid>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="12" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Jenis" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                            <ComboBox SelectedItem="{Binding Jenis}" Style="{StaticResource InputBox}">
+                                <ComboBoxItem Content="PULANG_RUMAH" />
+                                <ComboBoxItem Content="KELUAR_SEMENTARA" />
+                                <ComboBoxItem Content="BEROBAT" />
+                                <ComboBoxItem Content="KEGIATAN_KELUARGA" />
+                                <ComboBoxItem Content="KEGIATAN_SEKOLAH" />
+                                <ComboBoxItem Content="DARURAT" />
+                                <ComboBoxItem Content="LIBURAN_PONDOK" />
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Rencana Keluar" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                            <TextBox Style="{StaticResource InputBox}" Text="{Binding RencanaKeluar}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="Rencana Kembali" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                            <TextBox Style="{StaticResource InputBox}" Text="{Binding RencanaKembali}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="6">
+                            <TextBlock Text="Penjemput" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                            <TextBox Style="{StaticResource InputBox}" Text="{Binding NamaPenjemput}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="8" VerticalAlignment="Bottom">
+                            <Button Content="Ajukan" Style="{StaticResource ButtonPrimary}" Command="{Binding AjukanCommand}" />
+                        </StackPanel>
+                    </Grid>
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Alasan (min 10 huruf)" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                            <TextBox Style="{StaticResource InputBox}" Text="{Binding Alasan}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Alamat Tujuan" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                            <TextBox Style="{StaticResource InputBox}" Text="{Binding AlamatTujuan}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="4" VerticalAlignment="Bottom">
+                            <TextBlock Text="No. Telp Penjemput" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                            <TextBox Width="160" Style="{StaticResource InputBox}" Text="{Binding NoTelpPenjemput}" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <DataGrid ItemsSource="{Binding Rows}" Style="{StaticResource Grid}"
+                          AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                          Visibility="{Binding Rows.Count, Converter={StaticResource CountToVisibility}}"
+                          EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Jenis" Binding="{Binding Jenis}" Width="*" />
+                        <DataGridTextColumn Header="Alasan" Binding="{Binding Alasan}" Width="2*" />
+                        <DataGridTextColumn Header="Keluar" Binding="{Binding RencanaKeluar, StringFormat={}{0:dd/MM HH:mm}}" Width="*" />
+                        <DataGridTextColumn Header="Kembali" Binding="{Binding RencanaKembali, StringFormat={}{0:dd/MM HH:mm}}" Width="*" />
+                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*" />
+                        <DataGridTextColumn Header="Surat" Binding="{Binding SuratNomor}" Width="*" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -475,6 +475,34 @@ public partial class MainWindow : Window
                 _ = vm.LoadAsync();
                 return;
             }
+            case "siswa-dompet":
+            {
+                var vm = new SiswaDompetViewModel(_admin);
+                ContentHost.Content = new SiswaDompetView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "santri-izin":
+            {
+                var vm = new SiswaIzinViewModel(_admin);
+                ContentHost.Content = new SiswaIzinView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "guru-izin-musyrif":
+            {
+                var vm = new GuruIzinMusyrifViewModel(_admin);
+                ContentHost.Content = new GuruIzinMusyrifView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
+            case "kantin":
+            {
+                var vm = new KantinViewModel(_admin);
+                ContentHost.Content = new KantinView { DataContext = vm };
+                _ = vm.LoadAsync();
+                return;
+            }
             case "kepala-pondok-dashboard":
             {
                 var vm = new KepalaPondokDashboardViewModel(_pondok);

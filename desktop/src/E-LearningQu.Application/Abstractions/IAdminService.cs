@@ -154,4 +154,32 @@ public interface IAdminService
     Task<AsramaDto?> CreateAsramaAsync(string nama, string? deskripsi, string? musyrifId, CancellationToken ct = default);
     Task<KamarDto?> CreateKamarAsync(string asramaId, string nama, int? kapasitas, CancellationToken ct = default);
     Task<bool> AssignTempatSantriAsync(string santriId, string? asramaId, string? kamarId, CancellationToken ct = default);
+
+    // ── Siswa dompet ──
+    Task<DompetSayaDto> GetDompetSayaAsync(CancellationToken ct = default);
+    Task<KantinRiwayatResponseDto> GetRiwayatKantinSayaAsync(CancellationToken ct = default);
+    Task<TagihanResponseDto> GetTagihanSayaAsync(CancellationToken ct = default);
+
+    // ── Santri izin (siswa side) ──
+    Task<IzinSayaResponseDto> GetIzinSayaAsync(CancellationToken ct = default);
+    Task<bool> AjukanIzinAsync(IzinAjukanRequest request, CancellationToken ct = default);
+    Task<bool> DraftIzinAsync(IzinAjukanRequest request, CancellationToken ct = default);
+    Task<bool> BatalIzinAsync(string izinId, string alasan, CancellationToken ct = default);
+
+    // ── Izin musyrif (guru) ──
+    Task<IzinAntreanResponseDto> GetIzinMusyrifAntreanAsync(CancellationToken ct = default);
+    Task<MusyrifMonitoringDto> GetMusyrifMonitoringAsync(CancellationToken ct = default);
+    Task<IzinRiwayatResponseDto> GetIzinMusyrifRiwayatAsync(int page = 1, CancellationToken ct = default);
+    Task<bool> SetujuiIzinMusyrifAsync(string izinId, string? catatan, CancellationToken ct = default);
+    Task<bool> TolakIzinMusyrifAsync(string izinId, string alasan, CancellationToken ct = default);
+
+    // ── Kantin (kasir) ──
+    Task<List<KantinOutletDto>> GetKantinOutletsAsync(CancellationToken ct = default);
+    Task<List<KantinProdukDto>> GetKantinProdukAsync(string outletId, CancellationToken ct = default);
+    Task<KantinShiftDto?> GetKantinShiftAktifAsync(string outletId, CancellationToken ct = default);
+    Task<string?> BukaShiftAsync(string outletId, int saldoAwal, CancellationToken ct = default);
+    Task<bool> TutupShiftAsync(string shiftId, int kasAkhir, string? catatan, CancellationToken ct = default);
+    Task<KantinCheckoutResultDto?> CheckoutKantinAsync(KantinCheckoutRequest request, CancellationToken ct = default);
+    Task<bool> BatalTransaksiKantinAsync(string transaksiId, string alasan, CancellationToken ct = default);
+    Task<List<KantinTransaksiDto>> GetRiwayatShiftAsync(string shiftId, CancellationToken ct = default);
 }

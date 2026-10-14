@@ -1,0 +1,108 @@
+<UserControl x:Class="E_LearningQu.Desktop.Views.SiswaDompetView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignHeight="760" d:DesignWidth="1140">
+
+    <UserControl.Resources>
+        <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+        <conv:InverseBoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="32,28,32,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <TextBlock Text="Dompet Saya" Style="{StaticResource H1}" />
+                <TextBlock Text="Saldo, riwayat ledger, transaksi kantin, dan tagihan" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}"
+                    VerticalAlignment="Top" HorizontalAlignment="Right" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+            <ProgressBar Width="110" Height="4" IsIndeterminate="True" HorizontalAlignment="Right" VerticalAlignment="Center"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BusyToVisibility}}" />
+        </Grid>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="12" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="24,20"
+                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Saldo Dompet" Style="{StaticResource StatLabel}" />
+                    <TextBlock Text="{Binding Dompet.Saldo, StringFormat=Rp{0:N0}}" Style="{StaticResource StatValue}" FontSize="28" Margin="0,4,0,0" />
+                    <TextBlock Text="{Binding Dompet.Nomor}" Style="{StaticResource Muted}" Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Riwayat Transaksi" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding Riwayat}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding Riwayat.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Tipe" Binding="{Binding Tipe}" Width="*" />
+                                <DataGridTextColumn Header="Jumlah" Binding="{Binding Jumlah, StringFormat=Rp{0:N0}}" Width="*" />
+                                <DataGridTextColumn Header="Saldo" Binding="{Binding SaldoSesudah, StringFormat=Rp{0:N0}}" Width="*" />
+                                <DataGridTextColumn Header="Ket" Binding="{Binding Deskripsi}" Width="2*" />
+                                <DataGridTextColumn Header="Tgl" Binding="{Binding CreatedAt, StringFormat={}{0:dd/MM HH:mm}}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16"
+                        BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Tagihan" Style="{StaticResource SectionTitle}" Margin="0,0,0,10" />
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding Tagihan}" Style="{StaticResource Grid}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                  Visibility="{Binding Tagihan.Count, Converter={StaticResource CountToVisibility}}"
+                                  EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Kode" Binding="{Binding Kode}" Width="*" />
+                                <DataGridTextColumn Header="Jenis" Binding="{Binding Jenis.Nama}" Width="*" />
+                                <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=Rp{0:N0}}" Width="*" />
+                                <DataGridTextColumn Header="Sisa" Binding="{Binding Sisa, StringFormat=Rp{0:N0}}" Width="*" />
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

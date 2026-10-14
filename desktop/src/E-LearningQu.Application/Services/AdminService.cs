@@ -575,6 +575,153 @@ public sealed class AdminService : IAdminService
         return PostSuccessAsync($"{Base}/izin", payload, ct);
     }
 
+    // ══════════════════ SISWA DOMPET ══════════════════
+
+    private static string SiswaPath(string suffix) => $"/api/mobile/siswa{suffix}";
+    private static string MusyrifPath(string suffix) => $"/api/mobile/guru/izin-musyrif{suffix}";
+    private static string KantinPath(string suffix) => $"/api/mobile/kantin{suffix}";
+
+    public async Task<DompetSayaDto> GetDompetSayaAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<DompetSayaDto>(SiswaPath("/dompet"), ct) ?? new DompetSayaDto();
+
+    public async Task<KantinRiwayatResponseDto> GetRiwayatKantinSayaAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<KantinRiwayatResponseDto>(SiswaPath("/dompet?view=riwayat"), ct) ?? new KantinRiwayatResponseDto();
+
+    public async Task<TagihanResponseDto> GetTagihanSayaAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<TagihanResponseDto>(SiswaPath("/dompet?view=tagihan"), ct) ?? new TagihanResponseDto();
+
+    // ══════════════════ SANTRI IZIN (siswa side) ══════════════════
+
+    public async Task<IzinSayaResponseDto> GetIzinSayaAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<IzinSayaResponseDto>(SiswaPath("/izin"), ct) ?? new IzinSayaResponseDto();
+
+    public Task<bool> AjukanIzinAsync(IzinAjukanRequest request, CancellationToken ct = default)
+    {
+        var payload = new JsonObject
+        {
+            ["op"] = "ajukan",
+            ["jenis"] = request.Jenis,
+            ["alasan"] = request.Alasan,
+            ["rencanaKeluar"] = request.RencanaKeluar,
+            ["rencanaKembali"] = request.RencanaKembali,
+            ["alamatTujuan"] = request.AlamatTujuan,
+            ["namaPenjemput"] = request.NamaPenjemput,
+            ["hubunganPenjemput"] = request.HubunganPenjemput,
+            ["noTelpPenjemput"] = request.NoTelpPenjemput,
+        };
+        if (request.LampiranId != null) payload["lampiranId"] = request.LampiranId;
+        if (request.DraftId != null) payload["draftId"] = request.DraftId;
+        return PostSuccessAsync(SiswaPath("/izin"), payload, ct);
+    }
+
+    public Task<bool> DraftIzinAsync(IzinAjukanRequest request, CancellationToken ct = default)
+    {
+        var payload = new JsonObject
+        {
+            ["op"] = "draft",
+            ["jenis"] = request.Jenis,
+            ["alasan"] = request.Alasan,
+            ["rencanaKeluar"] = request.RencanaKeluar,
+            ["rencanaKembali"] = request.RencanaKembali,
+            ["alamatTujuan"] = request.AlamatTujuan,
+            ["namaPenjemput"] = request.NamaPenjemput,
+            ["hubunganPenjemput"] = request.HubunganPenjemput,
+            ["noTelpPenjemput"] = request.NoTelpPenjemput,
+        };
+        if (request.LampiranId != null) payload["lampiranId"] = request.LampiranId;
+        if (request.DraftId != null) payload["draftId"] = request.DraftId;
+        return PostSuccessAsync(SiswaPath("/izin"), payload, ct);
+    }
+
+    public Task<bool> BatalIzinAsync(string izinId, string alasan, CancellationToken ct = default) =>
+        PostSuccessAsync(SiswaPath("/izin"), new JsonObject { ["op"] = "batal", ["izinId"] = izinId, ["alasan"] = alasan }, ct);
+
+    // ══════════════════ IZIN MUSYRIF (guru) ══════════════════
+
+    public async Task<IzinAntreanResponseDto> GetIzinMusyrifAntreanAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<IzinAntreanResponseDto>(MusyrifPath("?view=antrean"), ct) ?? new IzinAntreanResponseDto();
+
+    public async Task<MusyrifMonitoringDto> GetMusyrifMonitoringAsync(CancellationToken ct = default) =>
+        await GetObjectAsync<MusyrifMonitoringDto>(MusyrifPath("?view=monitoring"), ct) ?? new MusyrifMonitoringDto();
+
+    public async Task<IzinRiwayatResponseDto> GetIzinMusyrifRiwayatAsync(int page = 1, CancellationToken ct = default) =>
+        await GetObjectAsync<IzinRiwayatResponseDto>(MusyrifPath($"?view=riwayat&page={page}"), ct) ?? new IzinRiwayatResponseDto();
+
+    public Task<bool> SetujuiIzinMusyrifAsync(string izinId, string? catatan, CancellationToken ct = default) =>
+        PostSuccessAsync(MusyrifPath(""), new JsonObject { ["op"] = "setujui", ["izinId"] = izinId, ["catatan"] = catatan }, ct);
+
+    public Task<bool> TolakIzinMusyrifAsync(string izinId, string alasan, CancellationToken ct = default) =>
+        PostSuccessAsync(MusyrifPath(""), new JsonObject { ["op"] = "tolak", ["izinId"] = izinId, ["alasan"] = alasan }, ct);
+
+    // ══════════════════ KANTIN (kasir) ══════════════════
+
+    public async Task<List<KantinOutletDto>> GetKantinOutletsAsync(CancellationToken ct = default)
+    {
+        var element = await GetRawAsync(KantinPath("?view=outlet"), ct);
+        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty("rows", out var r) || r.ValueKind != JsonValueKind.Array)
+            return new List<KantinOutletDto>();
+        return r.Deserialize<List<KantinOutletDto>>(Opts) ?? new List<KantinOutletDto>();
+    }
+
+    public async Task<List<KantinProdukDto>> GetKantinProdukAsync(string outletId, CancellationToken ct = default)
+    {
+        var element = await GetRawAsync(KantinPath($"?view=produk&outletId={Uri.EscapeDataString(outletId)}"), ct);
+        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty("rows", out var r) || r.ValueKind != JsonValueKind.Array)
+            return new List<KantinProdukDto>();
+        return r.Deserialize<List<KantinProdukDto>>(Opts) ?? new List<KantinProdukDto>();
+    }
+
+    public async Task<KantinShiftDto?> GetKantinShiftAktifAsync(string outletId, CancellationToken ct = default)
+    {
+        var element = await GetRawAsync(KantinPath($"?view=shift&outletId={Uri.EscapeDataString(outletId)}"), ct);
+        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty("row", out var r) || r.ValueKind != JsonValueKind.Object)
+            return null;
+        return r.Deserialize<KantinShiftDto>(Opts);
+    }
+
+    public async Task<string?> BukaShiftAsync(string outletId, int saldoAwal, CancellationToken ct = default)
+    {
+        var element = await PostRawAsync(KantinPath(""), new JsonObject { ["op"] = "bukaShift", ["outletId"] = outletId, ["saldoAwal"] = saldoAwal }, ct);
+        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty("shiftId", out var s) || s.ValueKind != JsonValueKind.String)
+            return null;
+        return s.GetString();
+    }
+
+    public Task<bool> TutupShiftAsync(string shiftId, int kasAkhir, string? catatan, CancellationToken ct = default) =>
+        PostSuccessAsync(KantinPath(""), new JsonObject { ["op"] = "tutupShift", ["shiftId"] = shiftId, ["kasAkhir"] = kasAkhir, ["catatan"] = catatan }, ct);
+
+    public async Task<KantinCheckoutResultDto?> CheckoutKantinAsync(KantinCheckoutRequest request, CancellationToken ct = default)
+    {
+        var items = new JsonArray();
+        foreach (var i in request.Items)
+            items.Add(new JsonObject { ["produkId"] = i.ProdukId, ["qty"] = i.Qty });
+        var payload = new JsonObject
+        {
+            ["op"] = "checkout",
+            ["outletId"] = request.OutletId,
+            ["items"] = items,
+            ["metode"] = request.Metode,
+            ["diskon"] = request.Diskon,
+        };
+        if (request.ShiftId != null) payload["shiftId"] = request.ShiftId;
+        if (request.AccountId != null) payload["accountId"] = request.AccountId;
+        var element = await PostRawAsync(KantinPath(""), payload, ct);
+        if (element.ValueKind != JsonValueKind.Object || element.TryGetProperty("error", out _))
+            return null;
+        return element.Deserialize<KantinCheckoutResultDto>(Opts);
+    }
+
+    public Task<bool> BatalTransaksiKantinAsync(string transaksiId, string alasan, CancellationToken ct = default) =>
+        PostSuccessAsync(KantinPath(""), new JsonObject { ["op"] = "batal", ["transaksiId"] = transaksiId, ["alasan"] = alasan }, ct);
+
+    public async Task<List<KantinTransaksiDto>> GetRiwayatShiftAsync(string shiftId, CancellationToken ct = default)
+    {
+        var element = await GetRawAsync(KantinPath($"?view=riwayat&shiftId={Uri.EscapeDataString(shiftId)}"), ct);
+        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty("rows", out var r) || r.ValueKind != JsonValueKind.Array)
+            return new List<KantinTransaksiDto>();
+        return r.Deserialize<List<KantinTransaksiDto>>(Opts) ?? new List<KantinTransaksiDto>();
+    }
+
     // ══════════════════ HELPERS ══════════════════
 
     private string Token() => _session.Current?.Token
