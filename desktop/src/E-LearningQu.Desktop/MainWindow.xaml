@@ -71,7 +71,13 @@
 
                     <!-- Tombol keluar -->
                     <Border DockPanel.Dock="Bottom" Margin="16,8,16,16">
-                        <Button x:Name="LogoutButton" Click="OnLogout" HorizontalAlignment="Stretch"
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="4,0,0,8">
+                                <Ellipse x:Name="ConnDot" Width="8" Height="8" Fill="#6B7280" VerticalAlignment="Center" />
+                                <TextBlock x:Name="ConnLabel" Text="Memeriksa koneksi…" Foreground="#5CA87B" FontSize="11"
+                                           Margin="8,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Button x:Name="LogoutButton" Click="OnLogout" HorizontalAlignment="Stretch"
                                 Content="⏻  Keluar"
                                 Background="Transparent" Foreground="{StaticResource BrushTextOnDarkMuted}"
                                 BorderBrush="#2A8A5C33" BorderThickness="1" Padding="12,10" Cursor="Hand">
@@ -89,7 +95,8 @@
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
                             </Button.Template>
-                        </Button>
+                            </Button>
+                        </StackPanel>
                     </Border>
 
                     <!-- Menu navigasi -->

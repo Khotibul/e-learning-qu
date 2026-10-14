@@ -17,6 +17,9 @@ public sealed class BackendApiClient : IBackendApiClient
 {
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
+    /// <summary>Dipanggil (true=online, false=offline) setelah tiap request HTTP — untuk indikator status koneksi UI.</summary>
+    public static event Action<bool>? ConnectionChanged;
+
     private readonly HttpClient _http;
     private readonly ILogger<BackendApiClient> _logger;
 
@@ -102,12 +105,14 @@ public sealed class BackendApiClient : IBackendApiClient
         catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "HTTP gagal: {Method} {Uri}", request.Method, request.RequestUri);
+            ConnectionChanged?.Invoke(false);
             throw new ApiException(System.Net.HttpStatusCode.ServiceUnavailable, "Tidak dapat terhubung ke server.", inner: ex);
         }
 
         using (response)
         {
             _logger.LogInformation("HTTP {Status}: {Method} {Uri}", (int)response.StatusCode, request.Method, request.RequestUri);
+            ConnectionChanged?.Invoke(true);
 
             if (!response.IsSuccessStatusCode)
             {

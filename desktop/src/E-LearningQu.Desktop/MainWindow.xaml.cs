@@ -4,6 +4,7 @@ using E_LearningQu.Application.Abstractions;
 using E_LearningQu.Contracts.Academic;
 using E_LearningQu.Desktop.ViewModels;
 using E_LearningQu.Desktop.Views;
+using E_LearningQu.Infrastructure.Http;
 
 namespace E_LearningQu.Desktop;
 
@@ -34,7 +35,22 @@ public partial class MainWindow : Window
         _admin = admin;
         _pondok = pondok;
         LogoutButton.Click += OnLogout;
+        BackendApiClient.ConnectionChanged += OnConnectionChanged;
         Loaded += OnLoadedAsync;
+    }
+
+    private void OnConnectionChanged(bool online)
+    {
+        try
+        {
+            Dispatcher.Invoke(() =>
+            {
+                ConnDot.Fill = new System.Windows.Media.SolidColorBrush(
+                    online ? System.Windows.Media.Colors.LimeGreen : System.Windows.Media.Colors.OrangeRed);
+                ConnLabel.Text = online ? "Terhubung server" : "Terputus — cek jaringan";
+            });
+        }
+        catch { /* event boleh datang dari thread non-UI setelah window ditutup */ }
     }
 
     private async void OnLoadedAsync(object sender, RoutedEventArgs e)
