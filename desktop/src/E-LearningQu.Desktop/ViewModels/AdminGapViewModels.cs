@@ -16,8 +16,10 @@ namespace E_LearningQu.Desktop.ViewModels;
 public sealed partial class AdminAbsensiGuruViewModel : ObservableObject
 {
     private readonly IAdminService _admin;
+    private CancellationTokenSource? _loadCts;
 
     [ObservableProperty] private bool isLoading;
+    [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string? errorMessage;
     [ObservableProperty] private string statusMessage = "";
     [ObservableProperty] private int selectedTabIndex;
@@ -38,7 +40,8 @@ public sealed partial class AdminAbsensiGuruViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadAsync(CancellationToken ct = default)
     {
-        IsLoading = true; ErrorMessage = null;
+        if (IsBusy) return;
+        IsBusy = true; IsLoading = true; ErrorMessage = null;
         try
         {
             if (SelectedTabIndex == 1)
@@ -66,11 +69,23 @@ public sealed partial class AdminAbsensiGuruViewModel : ObservableObject
             }
         }
         catch (Exception ex) { ErrorMessage = ex.Message; }
-        finally { IsLoading = false; }
+        finally { IsLoading = false; IsBusy = false; }
     }
 
     partial void OnSelectedTabIndexChanged(int value) => _ = LoadAsync();
-    partial void OnSelectedTanggalChanged(string value) => _ = LoadAsync();
+
+    partial void OnSelectedTanggalChanged(string value)
+    {
+        // Tanggal diketik karakter demi karakter — debounce agar tidak menembak API per ketikan.
+        _loadCts?.Cancel();
+        _loadCts = new CancellationTokenSource();
+        var ct = _loadCts.Token;
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(400, ct);
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => LoadAsync(ct));
+        }, ct);
+    }
 
     [RelayCommand]
     public async Task CariAsync(CancellationToken ct = default) => await LoadAsync(ct);
@@ -99,8 +114,10 @@ public sealed partial class AdminAbsensiGuruViewModel : ObservableObject
 public sealed partial class AdminFingerprintViewModel : ObservableObject
 {
     private readonly IAdminService _admin;
+    private CancellationTokenSource? _loadCts;
 
     [ObservableProperty] private bool isLoading;
+    [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string? errorMessage;
     [ObservableProperty] private string statusMessage = "";
     [ObservableProperty] private int selectedTabIndex;
@@ -129,7 +146,8 @@ public sealed partial class AdminFingerprintViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadAsync(CancellationToken ct = default)
     {
-        IsLoading = true; ErrorMessage = null;
+        if (IsBusy) return;
+        IsBusy = true; IsLoading = true; ErrorMessage = null;
         try
         {
             if (SelectedTabIndex == 1)
@@ -165,11 +183,24 @@ public sealed partial class AdminFingerprintViewModel : ObservableObject
             }
         }
         catch (Exception ex) { ErrorMessage = ex.Message; }
-        finally { IsLoading = false; }
+        finally { IsLoading = false; IsBusy = false; }
     }
 
     partial void OnSelectedTabIndexChanged(int value) => _ = LoadAsync();
-    partial void OnMonitoringTanggalChanged(string value) { if (SelectedTabIndex is 1 or 2) _ = LoadAsync(); }
+
+    partial void OnMonitoringTanggalChanged(string value)
+    {
+        // Tanggal diketik karakter demi karakter — debounce agar tidak menembak API per ketikan.
+        if (SelectedTabIndex is not (1 or 2)) return;
+        _loadCts?.Cancel();
+        _loadCts = new CancellationTokenSource();
+        var ct = _loadCts.Token;
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(400, ct);
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => LoadAsync(ct));
+        }, ct);
+    }
 
     [RelayCommand]
     public async Task PilihPerangkatAsync(PerangkatFpDto? item, CancellationToken ct = default)
