@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -23,6 +24,9 @@ public partial class MainWindow : Window
     private readonly ISiswaService _siswa;
     private readonly IAdminService _admin;
     private readonly IPondokService _pondok;
+
+    /// <summary>Salinan menu tanpa saringan — dipakai ulang saat kolom cari dikosongkan.</summary>
+    private IReadOnlyList<MenuItemDef> _menuAll = Array.Empty<MenuItemDef>();
 
     public MainWindow(ISessionManager session, IAuthService auth, IOAuthService oauth, IDashboardService dashboard, IAkademikService akademik, INavigationService nav, IGuruService guru, ISiswaService siswa, IAdminService admin, IPondokService pondok)
     {
@@ -53,6 +57,7 @@ public partial class MainWindow : Window
                 DesktopLog.Log("Session expired (401 setelah refresh gagal) — force logout");
                 DialogService.Toast("Sesi berakhir — silakan login ulang.", ToastKind.Warning);
                 await _auth.SignOutAsync();
+                _menuAll = Array.Empty<MenuItemDef>();
                 MenuList.ItemsSource = null;
                 ContentHost.Content = null;
                 ShowLogin();
@@ -122,7 +127,8 @@ public partial class MainWindow : Window
         UserLabel.Text = session.DisplayName;
         RoleLabel.Text = DescribeRole(session);
 
-        MenuList.ItemsSource = _nav.BuildMenu(session);
+        _menuAll = _nav.BuildMenu(session);
+        MenuList.ItemsSource = _menuAll;
         if (MenuList.Items.Count > 0)
             MenuList.SelectedIndex = 0;
     }
@@ -151,11 +157,10 @@ public partial class MainWindow : Window
     /// <summary>Saring menu sidebar berdasarkan DisplayName (tidak case-sensitive).</summary>
     private void OnMenuSearchChanged(object sender, TextChangedEventArgs e)
     {
-        if (MenuList.ItemsSource is not IEnumerable<MenuItemDef> items) return;
         var q = MenuSearchBox.Text.Trim();
         MenuList.ItemsSource = string.IsNullOrWhiteSpace(q)
-            ? items
-            : items.Where(i => i.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase));
+            ? _menuAll
+            : _menuAll.Where(i => i.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     private bool _sidebarCollapsed;
@@ -648,6 +653,7 @@ public partial class MainWindow : Window
     private async void OnLogout(object sender, RoutedEventArgs e)
     {
         await _auth.SignOutAsync();
+        _menuAll = Array.Empty<MenuItemDef>();
         MenuList.ItemsSource = null;
         ContentHost.Content = null;
         ShowLogin();
