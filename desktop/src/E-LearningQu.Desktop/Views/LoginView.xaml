@@ -47,17 +47,17 @@
                 <!-- Fitur singkat -->
                 <StackPanel Margin="0,22,0,0">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                        <TextBlock Text="🎓" FontSize="15" Width="28" />
+                        <TextBlock Text="&#xE8AB;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="28"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="Kurikulum terpadu: kelas, diniyah &amp; tahfidz"
                                    Foreground="{StaticResource BrushTextOnDarkMuted}" FontSize="13" VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                        <TextBlock Text="🤖" FontSize="15" Width="28" />
+                        <TextBlock Text="&#xE99A;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="28"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="AI Tutor &amp; analitik belajar real-time"
                                    Foreground="{StaticResource BrushTextOnDarkMuted}" FontSize="13" VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="🕌" FontSize="15" Width="28" />
+                        <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="15" Width="28"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="Manajemen asrama, izin &amp; keuangan pondok"
                                    Foreground="{StaticResource BrushTextOnDarkMuted}" FontSize="13" VerticalAlignment="Center" />
                     </StackPanel>
@@ -92,7 +92,7 @@
                 <Border Background="{StaticResource BrushInfoBg}" CornerRadius="10" Padding="12,10"
                         Margin="0,4,0,18" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="🔐" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock FontSize="12" Foreground="{StaticResource BrushTextSecondary}"
                                    TextWrapping="Wrap" VerticalAlignment="Center">
                             <Run Text="Multi-login otomatis — peran (siswa, guru, pengurus pondok, dst) " />
@@ -106,7 +106,7 @@
                         Margin="0,0,0,12" BorderBrush="{StaticResource BrushError}" BorderThickness="1"
                         Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibility}}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="⚠" FontSize="14" Foreground="{StaticResource BrushError}"
+                        <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{StaticResource BrushError}"
                                    Margin="0,0,8,0" VerticalAlignment="Center" />
                         <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushError}"
                                    FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center" />

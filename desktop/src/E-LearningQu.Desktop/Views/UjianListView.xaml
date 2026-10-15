@@ -126,7 +126,7 @@
             <Border Style="{StaticResource CardAlt}"
                     Visibility="{Binding Ujians.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=invert}">
                 <StackPanel HorizontalAlignment="Center" Margin="0,16">
-                    <TextBlock Text="📝" FontSize="30" HorizontalAlignment="Center" />
+                    <TextBlock Text="&#xE7C3;" FontFamily="Segoe MDL2 Assets" FontSize="30" HorizontalAlignment="Center"  Foreground="{StaticResource BrushAccent}"/>
                     <TextBlock Text="Belum ada ujian tersedia." FontSize="14"
                                Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Center"
                                Margin="0,8,0,0" />

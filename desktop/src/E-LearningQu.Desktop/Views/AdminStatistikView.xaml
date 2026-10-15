@@ -56,7 +56,7 @@
                     BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                        <TextBlock Text="👨‍🏫" FontSize="22" VerticalAlignment="Center" />
+                        <TextBlock Text="&#xE939;" FontFamily="Segoe MDL2 Assets" FontSize="22" VerticalAlignment="Center"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="Guru &amp; Murid" Style="{StaticResource H2}" Margin="10,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                     <UniformGrid Columns="2">
@@ -76,7 +76,7 @@
                     BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                        <TextBlock Text="🏫" FontSize="22" VerticalAlignment="Center" />
+                        <TextBlock Text="&#xE8A9;" FontFamily="Segoe MDL2 Assets" FontSize="22" VerticalAlignment="Center"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="Per Kelas" Style="{StaticResource H2}" Margin="10,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                     <DataGrid ItemsSource="{Binding PerKelas}" Style="{StaticResource Grid}"
@@ -98,7 +98,7 @@
                     BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                        <TextBlock Text="📚" FontSize="22" VerticalAlignment="Center" />
+                        <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="22" VerticalAlignment="Center"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="Per Mata Pelajaran" Style="{StaticResource H2}" Margin="10,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                     <DataGrid ItemsSource="{Binding PerMapel}" Style="{StaticResource Grid}"
@@ -119,7 +119,7 @@
             <Border Grid.Column="2" Grid.Row="2" Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="24,20"
                     BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="📊" FontSize="40" HorizontalAlignment="Center" />
+                    <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="40" Foreground="{StaticResource BrushAccent}" HorizontalAlignment="Center" />
                     <TextBlock Text="Statistik akademik" Style="{StaticResource H2}" Margin="0,12,0,4" HorizontalAlignment="Center" />
                     <TextBlock Text="Data diperbarui setiap kali dimuat ulang" Style="{StaticResource Muted}" HorizontalAlignment="Center" />
                 </StackPanel>

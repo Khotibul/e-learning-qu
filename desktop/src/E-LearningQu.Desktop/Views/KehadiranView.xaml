@@ -47,7 +47,7 @@
                 <StackPanel Orientation="Horizontal">
                     <Border Width="46" Height="46" CornerRadius="14" Background="{StaticResource BrushInfoBg}"
                             VerticalAlignment="Center">
-                        <TextBlock Text="🗓️" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBlock Text="&#xE787;" FontFamily="Segoe MDL2 Assets" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"  Foreground="{StaticResource BrushAccent}"/>
                     </Border>
                     <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="{Binding RekapText}" FontSize="16" FontWeight="SemiBold"

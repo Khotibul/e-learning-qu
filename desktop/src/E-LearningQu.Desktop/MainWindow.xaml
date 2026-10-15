@@ -112,7 +112,8 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Icon}" FontSize="15" Width="26"
+                                    <TextBlock Text="{Binding Icon}" FontFamily="Segoe MDL2 Assets" FontSize="16" Width="26"
+                                               Foreground="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=Foreground}"
                                                VerticalAlignment="Center" />
                                      <TextBlock Text="{Binding DisplayName}" FontSize="13.5"
                                                VerticalAlignment="Center"

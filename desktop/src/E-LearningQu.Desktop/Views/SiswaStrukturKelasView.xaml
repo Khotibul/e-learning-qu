@@ -48,7 +48,7 @@
                 BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
                 Visibility="{Binding Siswas.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=invert}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <TextBlock Text="🏫" FontSize="36" HorizontalAlignment="Center" />
+                <TextBlock Text="&#xE8A9;" FontFamily="Segoe MDL2 Assets" FontSize="36" HorizontalAlignment="Center"  Foreground="{StaticResource BrushAccent}"/>
                 <TextBlock Text="Belum ada siswa" Style="{StaticResource H2}" Margin="0,12,0,4" HorizontalAlignment="Center" />
             </StackPanel>
         </Border>

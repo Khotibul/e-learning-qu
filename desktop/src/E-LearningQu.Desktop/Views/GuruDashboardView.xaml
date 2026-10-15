@@ -64,7 +64,7 @@
             <Border Style="{StaticResource CardAlt}"
                     Visibility="{Binding Statistik.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=invert}">
                 <StackPanel HorizontalAlignment="Center" Margin="0,16">
-                    <TextBlock Text="🕌" FontSize="30" HorizontalAlignment="Center" />
+                    <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="30" HorizontalAlignment="Center"  Foreground="{StaticResource BrushAccent}"/>
                     <TextBlock Text="Belum ada data untuk ditampilkan." FontSize="14"
                                Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Center"
                                Margin="0,8,0,0" />

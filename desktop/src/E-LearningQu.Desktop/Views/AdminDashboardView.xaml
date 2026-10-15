@@ -44,7 +44,7 @@
                 <Border Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16" Margin="0,0,14,14"
                         BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="👨‍🏫" FontSize="24" />
+                        <TextBlock Text="&#xE939;" FontFamily="Segoe MDL2 Assets" FontSize="24"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="{Binding Stats.TotalGuru}" Style="{StaticResource H2}" Margin="0,8,0,0" />
                         <TextBlock Text="Guru" Style="{StaticResource Muted}" />
                     </StackPanel>
@@ -52,7 +52,7 @@
                 <Border Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16" Margin="0,0,14,14"
                         BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="👨‍🎓" FontSize="24" />
+                        <TextBlock Text="&#xE939;" FontFamily="Segoe MDL2 Assets" FontSize="24"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="{Binding Stats.TotalSiswa}" Style="{StaticResource H2}" Margin="0,8,0,0" />
                         <TextBlock Text="Siswa" Style="{StaticResource Muted}" />
                     </StackPanel>
@@ -60,7 +60,7 @@
                 <Border Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16" Margin="0,0,14,14"
                         BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="🏫" FontSize="24" />
+                        <TextBlock Text="&#xE8A9;" FontFamily="Segoe MDL2 Assets" FontSize="24"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="{Binding Stats.TotalKelas}" Style="{StaticResource H2}" Margin="0,8,0,0" />
                         <TextBlock Text="Kelas" Style="{StaticResource Muted}" />
                     </StackPanel>
@@ -68,7 +68,7 @@
                 <Border Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16" Margin="0,0,0,14"
                         BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="📚" FontSize="24" />
+                        <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="24"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="{Binding Stats.TotalMapel}" Style="{StaticResource H2}" Margin="0,8,0,0" />
                         <TextBlock Text="Mata Pelajaran" Style="{StaticResource Muted}" />
                     </StackPanel>
@@ -76,7 +76,7 @@
                 <Border Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16" Margin="0,0,14,14"
                         BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="📝" FontSize="24" />
+                        <TextBlock Text="&#xE7C3;" FontFamily="Segoe MDL2 Assets" FontSize="24"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="{Binding Stats.TotalSoal}" Style="{StaticResource H2}" Margin="0,8,0,0" />
                         <TextBlock Text="Total Soal" Style="{StaticResource Muted}" />
                     </StackPanel>
@@ -84,7 +84,7 @@
                 <Border Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16" Margin="0,0,14,14"
                         BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="📋" FontSize="24" />
+                        <TextBlock Text="&#xE8FD;" FontFamily="Segoe MDL2 Assets" FontSize="24"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="{Binding Stats.TotalUjian}" Style="{StaticResource H2}" Margin="0,8,0,0" />
                         <TextBlock Text="Total Ujian" Style="{StaticResource Muted}" />
                     </StackPanel>
@@ -92,7 +92,7 @@
                 <Border Background="{StaticResource BrushSurfaceAlt}" CornerRadius="14" Padding="20,16" Margin="0,0,14,14"
                         BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="🏆" FontSize="24" />
+                        <TextBlock Text="&#xE734;" FontFamily="Segoe MDL2 Assets" FontSize="24"  Foreground="{StaticResource BrushAccent}"/>
                         <TextBlock Text="{Binding Stats.TotalNilai}" Style="{StaticResource H2}" Margin="0,8,0,0" />
                         <TextBlock Text="Nilai Tersimpan" Style="{StaticResource Muted}" />
                     </StackPanel>
