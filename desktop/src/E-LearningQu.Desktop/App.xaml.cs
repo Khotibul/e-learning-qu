@@ -16,6 +16,25 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
+        // Audit hardening: jangan mati senyap — rekam semua exception.
+        DispatcherUnhandledException += (_, args) =>
+        {
+            DesktopLog.Log($"UI EXCEPTION: {args.Exception}");
+            args.Handled = true;
+            try
+            {
+                DialogService.Toast($"Terjadi kesalahan: {args.Exception.Message}", ToastKind.Error);
+            }
+            catch { /* toast gagal saat startup awal — abaikan */ }
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            DesktopLog.Log($"FATAL: {args.ExceptionObject}");
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            DesktopLog.Log($"UNOBSERVED: {args.Exception}");
+            args.SetObserved();
+        };
+
         _host = Host.CreateDefaultBuilder()
             .ConfigureAppConfiguration(cfg =>
             {

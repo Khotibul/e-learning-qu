@@ -8,6 +8,7 @@
 
     <UserControl.Resources>
         <conv:BoolToVisibilityConverter x:Key="BusyToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
     </UserControl.Resources>
 
     <Grid Margin="32,28,32,32">
