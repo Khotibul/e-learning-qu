@@ -18,6 +18,7 @@ public abstract partial class AdminPagedViewModel<TDto> : ObservableObject
     [ObservableProperty] private int totalPages = 1;
     [ObservableProperty] private int total;
     [ObservableProperty] private bool includeDeleted;
+    [ObservableProperty] private bool isBusy;
 
     public ObservableCollection<TDto> Items { get; } = new();
 
@@ -28,7 +29,8 @@ public abstract partial class AdminPagedViewModel<TDto> : ObservableObject
     [RelayCommand]
     public async Task LoadAsync(CancellationToken ct = default)
     {
-        IsLoading = true; ErrorMessage = null;
+        if (IsBusy) return;
+        IsBusy = true; IsLoading = true; ErrorMessage = null;
         try
         {
             var result = await FetchAsync(null, Page, IncludeDeleted, ct);
@@ -43,7 +45,7 @@ public abstract partial class AdminPagedViewModel<TDto> : ObservableObject
             ErrorMessage = ex.Message;
             DesktopLog.Log($"Load FAIL {GetType().Name}: {ex}");
         }
-        finally { IsLoading = false; }
+        finally { IsLoading = false; IsBusy = false; }
     }
 
     [RelayCommand]
@@ -73,6 +75,42 @@ public abstract partial class AdminPagedViewModel<TDto> : ObservableObject
         if (Page <= 1) return;
         Page--; await LoadAsync(ct);
     }
+
+    [RelayCommand]
+    public async Task HapusAsync(TDto item, CancellationToken ct = default)
+    {
+        if (IsBusy) return;
+        try
+        {
+            // Confirm before delete — subclass can override
+            if (await ConfirmDeleteAsync(item, ct))
+            {
+                IsBusy = true;
+                await DeleteCoreAsync(item, ct);
+                await LoadAsync(ct);
+            }
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsBusy = false; }
+    }
+
+    [RelayCommand]
+    public async Task PulihkanAsync(TDto item, CancellationToken ct = default)
+    {
+        if (IsBusy) return;
+        try
+        {
+            IsBusy = true;
+            await RestoreCoreAsync(item, ct);
+            await LoadAsync(ct);
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsBusy = false; }
+    }
+
+    protected virtual Task<bool> ConfirmDeleteAsync(TDto item, CancellationToken ct) => Task.FromResult(true);
+    protected virtual Task DeleteCoreAsync(TDto item, CancellationToken ct) => Task.CompletedTask;
+    protected virtual Task RestoreCoreAsync(TDto item, CancellationToken ct) => Task.CompletedTask;
 
     partial void OnSearchTextChanged(string value) => _ = SearchAsync();
 }
@@ -113,35 +151,28 @@ public partial class AdminGuruViewModel : AdminPagedViewModel<AdminUserDto>
     protected override Task<PagedResult<AdminUserDto>> FetchAsync(string? search, int page, bool includeDeleted, CancellationToken ct) =>
         _admin.GetGurusAsync(search, page, 10, includeDeleted, ct);
 
-    [RelayCommand]
-    public async Task DeleteAsync(AdminUserDto item, CancellationToken ct = default)
-    {
-        try
-        {
-            if (await _admin.DeleteGuruAsync(item.Id, ct)) await LoadAsync(ct);
-        }
-        catch (Exception ex) { ErrorMessage = ex.Message; }
-    }
+    protected override async Task<bool> ConfirmDeleteAsync(AdminUserDto item, CancellationToken ct) =>
+        await DialogService.ConfirmAsync("Hapus Guru", $"Yakin hapus guru \"{item.Nama}\"? Data dapat dipulihkan.");
 
-    [RelayCommand]
-    public async Task RestoreAsync(AdminUserDto item, CancellationToken ct = default)
-    {
-        try
-        {
-            if (await _admin.RestoreGuruAsync(item.Id, ct)) await LoadAsync(ct);
-        }
-        catch (Exception ex) { ErrorMessage = ex.Message; }
-    }
+    protected override async Task DeleteCoreAsync(AdminUserDto item, CancellationToken ct) =>
+        await _admin.DeleteGuruAsync(item.Id, ct);
+
+    protected override async Task RestoreCoreAsync(AdminUserDto item, CancellationToken ct) =>
+        await _admin.RestoreGuruAsync(item.Id, ct);
 
     [RelayCommand]
     public async Task ResetPasswordAsync(AdminUserDto item, CancellationToken ct = default)
     {
+        if (IsBusy) return;
+        if (!await DialogService.ConfirmAsync("Reset Password", $"Reset password {item.Nama} ke default?")) return;
         try
         {
+            IsBusy = true;
             if (await _admin.ResetGuruPasswordAsync(item.Id, ct))
                 StatusMessage = $"Password {item.Nama} direset ke default";
         }
         catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsBusy = false; }
     }
 }
 
@@ -155,35 +186,28 @@ public partial class AdminMuridViewModel : AdminPagedViewModel<AdminUserDto>
     protected override Task<PagedResult<AdminUserDto>> FetchAsync(string? search, int page, bool includeDeleted, CancellationToken ct) =>
         _admin.GetMuridsAsync(search, page, 10, includeDeleted, null, ct);
 
-    [RelayCommand]
-    public async Task DeleteAsync(AdminUserDto item, CancellationToken ct = default)
-    {
-        try
-        {
-            if (await _admin.DeleteMuridAsync(item.Id, ct)) await LoadAsync(ct);
-        }
-        catch (Exception ex) { ErrorMessage = ex.Message; }
-    }
+    protected override async Task<bool> ConfirmDeleteAsync(AdminUserDto item, CancellationToken ct) =>
+        await DialogService.ConfirmAsync("Hapus Murid", $"Yakin hapus murid \"{item.Nama}\"? Data dapat dipulihkan.");
 
-    [RelayCommand]
-    public async Task RestoreAsync(AdminUserDto item, CancellationToken ct = default)
-    {
-        try
-        {
-            if (await _admin.RestoreMuridAsync(item.Id, ct)) await LoadAsync(ct);
-        }
-        catch (Exception ex) { ErrorMessage = ex.Message; }
-    }
+    protected override async Task DeleteCoreAsync(AdminUserDto item, CancellationToken ct) =>
+        await _admin.DeleteMuridAsync(item.Id, ct);
+
+    protected override async Task RestoreCoreAsync(AdminUserDto item, CancellationToken ct) =>
+        await _admin.RestoreMuridAsync(item.Id, ct);
 
     [RelayCommand]
     public async Task ResetPasswordAsync(AdminUserDto item, CancellationToken ct = default)
     {
+        if (IsBusy) return;
+        if (!await DialogService.ConfirmAsync("Reset Password", $"Reset password {item.Nama} ke default?")) return;
         try
         {
+            IsBusy = true;
             if (await _admin.ResetMuridPasswordAsync(item.Id, ct))
                 StatusMessage = $"Password {item.Nama} direset ke default";
         }
         catch (Exception ex) { ErrorMessage = ex.Message; }
+        finally { IsBusy = false; }
     }
 }
 

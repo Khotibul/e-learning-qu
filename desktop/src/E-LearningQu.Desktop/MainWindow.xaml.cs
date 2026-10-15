@@ -36,7 +36,26 @@ public partial class MainWindow : Window
         _pondok = pondok;
         LogoutButton.Click += OnLogout;
         BackendApiClient.ConnectionChanged += OnConnectionChanged;
+        BackendApiClient.SessionExpired += OnSessionExpired;
         Loaded += OnLoadedAsync;
+        DialogService.Owner = this;
+    }
+
+    private void OnSessionExpired()
+    {
+        try
+        {
+            Dispatcher.Invoke(async () =>
+            {
+                DesktopLog.Log("Session expired (401 setelah refresh gagal) — force logout");
+                DialogService.Toast("Sesi berakhir — silakan login ulang.", ToastKind.Warning);
+                await _auth.SignOutAsync();
+                MenuList.ItemsSource = null;
+                ContentHost.Content = null;
+                ShowLogin();
+            });
+        }
+        catch { /* event boleh datang dari thread non-UI setelah window ditutup */ }
     }
 
     private void OnConnectionChanged(bool online)
@@ -131,6 +150,10 @@ public partial class MainWindow : Window
         var session = _session.Current;
         if (session is null) return;
         DesktopLog.Log($"Navigate {item.ViewKey} (role={session.Role}, tokenLen={session.Token?.Length ?? 0})");
+
+        // Cleanup: stop ujian timers if currently on KerjakanUjianView
+        if (ContentHost.Content is KerjakanUjianView { DataContext: KerjakanUjianViewModel kuj })
+            kuj.StopTimers();
 
         switch (item.ViewKey)
         {

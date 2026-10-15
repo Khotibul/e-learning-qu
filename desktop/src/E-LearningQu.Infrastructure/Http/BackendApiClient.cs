@@ -20,6 +20,12 @@ public sealed class BackendApiClient : IBackendApiClient
     /// <summary>Dipanggil (true=online, false=offline) setelah tiap request HTTP — untuk indikator status koneksi UI.</summary>
     public static event Action<bool>? ConnectionChanged;
 
+    /// <summary>Dipanggil saat respons 401 masih terjadi setelah auto-refresh token gagal — UI harus logout.</summary>
+    public static event Action? SessionExpired;
+
+    /// <summary>Supaya UI tidak logout berulang saat banyak request 401 bersamaan.</summary>
+    private static int _sessionExpiredRaised;
+
     private readonly HttpClient _http;
     private readonly ILogger<BackendApiClient> _logger;
 
@@ -113,6 +119,17 @@ public sealed class BackendApiClient : IBackendApiClient
         {
             _logger.LogInformation("HTTP {Status}: {Method} {Uri}", (int)response.StatusCode, request.Method, request.RequestUri);
             ConnectionChanged?.Invoke(true);
+
+            if (response.IsSuccessStatusCode)
+                Interlocked.Exchange(ref _sessionExpiredRaised, 0);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                && Interlocked.Exchange(ref _sessionExpiredRaised, 1) == 0)
+            {
+                // 401 masih terbawa sampai sini → auto-refresh di AuthAutoRefreshHandler sudah gagal.
+                _logger.LogWarning("401 setelah refresh gagal — memberi sinyal sesi berakhir");
+                SessionExpired?.Invoke();
+            }
 
             if (!response.IsSuccessStatusCode)
             {

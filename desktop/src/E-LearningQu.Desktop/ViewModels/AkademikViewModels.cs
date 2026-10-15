@@ -77,6 +77,12 @@ public sealed partial class KerjakanUjianViewModel : ObservableObject
 
     public event EventHandler? SelesaiDiSubmit;
 
+    public void StopTimers()
+    {
+        _tickTimer.Stop();
+        _autosaveTimer.Stop();
+    }
+
     public SoalDto? SoalAktif => Detail.Soal.Count == 0 ? null : Detail.Soal[Math.Clamp(CurrentIndex, 0, Detail.Soal.Count - 1)];
 
     public string JawabanAktif

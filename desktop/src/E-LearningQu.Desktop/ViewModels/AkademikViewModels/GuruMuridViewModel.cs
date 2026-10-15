@@ -43,7 +43,7 @@ public partial class GuruMuridViewModel : ObservableObject
         _ = Task.Run(async () =>
         {
             await Task.Delay(300, ct);
-            await SearchAsync(value, ct);
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => SearchAsync(value, ct));
         }, ct);
     }
 
@@ -114,7 +114,7 @@ public partial class GuruSoalViewModel : ObservableObject
         _ = Task.Run(async () =>
         {
             await Task.Delay(300, ct);
-            await SearchAsync(value, ct);
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => SearchAsync(value, ct));
         }, ct);
     }
 
