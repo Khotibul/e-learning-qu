@@ -43,8 +43,27 @@ public partial class MainWindow : Window
         _pondok = pondok;
         BackendApiClient.ConnectionChanged += OnConnectionChanged;
         BackendApiClient.SessionExpired += OnSessionExpired;
+        BrandService.Changed += OnBrandChanged;
         Loaded += OnLoadedAsync;
         DialogService.Owner = this;
+        ApplyBrand();
+    }
+
+    /// <summary>Terapkan brand dari SiteConfig (logo/nama/tagline/ikon jendela).</summary>
+    private void OnBrandChanged() => Dispatcher.Invoke(ApplyBrand);
+
+    private void ApplyBrand()
+    {
+        try
+        {
+            if (BrandService.Logo is not null) BrandLogo.Source = BrandService.Logo;
+            BrandName.Text = BrandService.SiteName;
+            BrandTagline.Text = BrandService.Tagline;
+            if (BrandService.Favicon is not null) Icon = BrandService.Favicon;
+            var suffix = Title.Contains(" — ") ? Title[(Title.IndexOf(" — ") + 3)..] : Title;
+            Title = $"{BrandService.SiteName} — {suffix}";
+        }
+        catch { /* brand bersifat kosmetik — jangan ganggu startup */ }
     }
 
     private void OnSessionExpired()
@@ -103,7 +122,7 @@ public partial class MainWindow : Window
     {
         ShellHost.Visibility = Visibility.Collapsed;
         LoginHost.Visibility = Visibility.Visible;
-        Title = "E-Learning-Qu Desktop — Masuk";
+        Title = $"{BrandService.SiteName} — Masuk";
 
         var vm = new LoginViewModel(_auth, _oauth);
         vm.LoginSucceeded += (_, _) => ShowShell();
@@ -121,7 +140,7 @@ public partial class MainWindow : Window
 
         LoginHost.Visibility = Visibility.Collapsed;
         ShellHost.Visibility = Visibility.Visible;
-        Title = $"E-Learning-Qu Desktop — {session.DisplayName}";
+        Title = $"{BrandService.SiteName} — {session.DisplayName}";
 
         UserLabel.Text = session.DisplayName;
         RoleLabel.Text = DescribeRole(session);

@@ -24,13 +24,14 @@
                 <!-- Ornamen atas -->
                 <Border Width="64" Height="64" CornerRadius="18" Background="{StaticResource BrushAccent}"
                         HorizontalAlignment="Left" Margin="0,0,0,20">
-                    <Image Source="pack://application:,,,/Assets/logo.png" Width="46" Height="46"
+                    <Image x:Name="BrandLogo" Source="pack://application:,,,/Assets/logo.png" Width="46" Height="46"
                            Stretch="Uniform" />
                 </Border>
 
-                <TextBlock Text="E-Learning-Qu" Style="{StaticResource H1}"
-                           Foreground="{StaticResource BrushTextOnDark}" FontSize="34" />
-                <TextBlock Text="Pondok Pesantren Digital" Foreground="{StaticResource BrushAccent}"
+                <TextBlock x:Name="BrandName" Text="E-Learning-Qu" Style="{StaticResource H1}"
+                           Foreground="{StaticResource BrushTextOnDark}" FontSize="34"
+                           TextWrapping="Wrap" MaxWidth="440" />
+                <TextBlock x:Name="BrandTagline" Text="Pondok Pesantren Digital" Foreground="{StaticResource BrushAccent}"
                            FontSize="16" FontWeight="SemiBold" Margin="0,6,0,0" />
 
                 <Border Height="2" Width="72" Background="{StaticResource BrushAccent}"

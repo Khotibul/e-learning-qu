@@ -9,6 +9,22 @@ public partial class LoginView : UserControl
     public LoginView()
     {
         InitializeComponent();
+        BrandService.Changed += OnBrandChanged;
+        Unloaded += (_, _) => BrandService.Changed -= OnBrandChanged;
+        ApplyBrand();
+    }
+
+    private void OnBrandChanged() => Dispatcher.Invoke(ApplyBrand);
+
+    private void ApplyBrand()
+    {
+        try
+        {
+            if (BrandService.Logo is not null) BrandLogo.Source = BrandService.Logo;
+            BrandName.Text = BrandService.SiteName;
+            BrandTagline.Text = BrandService.Tagline;
+        }
+        catch { /* kosmetik */ }
     }
 
     /// <summary>PasswordBox tidak bindable di WPF — sinkronkan manual ke VM.</summary>

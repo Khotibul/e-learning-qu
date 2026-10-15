@@ -33,6 +33,10 @@ public partial class App : System.Windows.Application
 
         await _host.StartAsync();
 
+        // Branding dari SiteConfig website (logo/nama/tagline) — fire-and-forget, ada fallback aset.
+        var baseUrl = _host.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<E_LearningQu.Infrastructure.Options.BackendOptions>>().Value.BaseUrl;
+        _ = BrandService.RefreshAsync(baseUrl);
+
         var mainWindow = _host.Services.GetRequiredService<MainWindow>();
         MainWindow = mainWindow;
         mainWindow.Show();

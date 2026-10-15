@@ -38,14 +38,15 @@
                         <StackPanel Orientation="Horizontal">
                             <Border Width="46" Height="46" CornerRadius="12" Background="{StaticResource BrushAccent}"
                                     VerticalAlignment="Center">
-                                <Image Source="pack://application:,,,/Assets/logo.png" Width="34" Height="34"
+                                <Image x:Name="BrandLogo" Source="pack://application:,,,/Assets/logo.png" Width="34" Height="34"
                                        Stretch="Uniform" />
                             </Border>
-                            <StackPanel x:Name="SidebarText" VerticalAlignment="Center" Margin="12,0,0,0">
-                                <TextBlock Text="E-Learning-Qu" Foreground="{StaticResource BrushTextOnDark}"
-                                           FontFamily="{StaticResource FontDisplay}" FontSize="16" FontWeight="SemiBold" />
-                                <TextBlock Text="Pondok Pesantren Digital" Foreground="{StaticResource BrushAccent}"
-                                           FontSize="10.5" Margin="0,2,0,0" />
+                            <StackPanel x:Name="SidebarText" VerticalAlignment="Center" Margin="12,0,0,0" MaxWidth="150">
+                                <TextBlock x:Name="BrandName" Text="E-Learning-Qu" Foreground="{StaticResource BrushTextOnDark}"
+                                           FontFamily="{StaticResource FontDisplay}" FontSize="16" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock x:Name="BrandTagline" Text="Pondok Pesantren Digital" Foreground="{StaticResource BrushAccent}"
+                                           FontSize="10.5" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                             <TextBlock x:Name="CollapseGlyph" Text="«" FontSize="14" Foreground="#5CA87B"
                                        VerticalAlignment="Center" HorizontalAlignment="Right" Margin="12,0,0,0" />
