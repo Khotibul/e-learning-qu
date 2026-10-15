@@ -375,19 +375,27 @@ public sealed partial class AdminKeuanganViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadAsync(CancellationToken ct = default)
     {
+        if (IsLoading) return;
         IsLoading = true; ErrorMessage = null;
         try
         {
-            Dashboard = await _admin.GetKeuanganDashboardAsync(ct);
-            var antrean = await _admin.GetAntreanKeuanganAsync(ct);
+            // Empat rumpun data independen — dimuat paralel agar tidak waterfall.
+            var dashTask = _admin.GetKeuanganDashboardAsync(ct);
+            var antreanTask = _admin.GetAntreanKeuanganAsync(ct);
+            var akunTask = _admin.GetAkunLaporanAsync(ct);
+            var jurnalTask = _admin.GetJurnalUmumAsync(50, ct);
+            await Task.WhenAll(dashTask, antreanTask, akunTask, jurnalTask);
+
+            Dashboard = await dashTask;
+            var antrean = await antreanTask;
             AntreanTopup.Clear();
             foreach (var t in antrean.Topups) AntreanTopup.Add(t);
             AntreanPembayaran.Clear();
             foreach (var p in antrean.Pembayaran) AntreanPembayaran.Add(p);
             Akun.Clear();
-            foreach (var a in await _admin.GetAkunLaporanAsync(ct)) Akun.Add(a);
+            foreach (var a in await akunTask) Akun.Add(a);
             Jurnal.Clear();
-            foreach (var j in await _admin.GetJurnalUmumAsync(50, ct)) Jurnal.Add(j);
+            foreach (var j in await jurnalTask) Jurnal.Add(j);
             StatusMessage = $"Topup menunggu {Dashboard.TopupMenunggu} • Tagihan pending {Dashboard.TagihanPending} • {Jurnal.Count} jurnal";
         }
         catch (Exception ex) { ErrorMessage = ex.Message; }
