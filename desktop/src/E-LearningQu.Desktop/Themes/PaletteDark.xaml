@@ -1,0 +1,75 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ================= Palette: Pondok Pesantren (GELAP / opsional) =================
+         Kunci identik dengan PaletteLight.xaml → ganti Source di App.xaml untuk mengaktifkan.
+         Prinsip: hijau/emas tetap brand; surface gelap; teks terang. -->
+    <Color x:Key="ColorPrimary">#1E7A50</Color>
+    <Color x:Key="ColorPrimaryDark">#17603F</Color>
+    <Color x:Key="ColorPrimaryLight">#249563</Color>
+    <Color x:Key="ColorAccent">#D9B84A</Color>
+    <Color x:Key="ColorAccentDark">#C9A227</Color>
+    <Color x:Key="ColorSidebar">#0B1F17</Color>
+    <Color x:Key="ColorSidebarHover">#123F2E</Color>
+    <Color x:Key="ColorSidebarActive">#1A5E43</Color>
+    <Color x:Key="ColorSurface">#1C2321</Color>
+    <Color x:Key="ColorSurfaceAlt">#222B27</Color>
+    <Color x:Key="ColorCanvas">#141A18</Color>
+    <Color x:Key="ColorBorder">#313D38</Color>
+    <Color x:Key="ColorBorderStrong">#465651</Color>
+    <Color x:Key="ColorTextPrimary">#ECF3F0</Color>
+    <Color x:Key="ColorTextSecondary">#A9B8B2</Color>
+    <Color x:Key="ColorTextOnDark">#F1F6F3</Color>
+    <Color x:Key="ColorTextOnDarkMuted">#8FA89C</Color>
+    <Color x:Key="ColorError">#F2554A</Color>
+    <Color x:Key="ColorErrorBg">#3A1F1D</Color>
+    <Color x:Key="ColorInfoBg">#1B2E2A</Color>
+    <Color x:Key="ColorGold">#D9B84A</Color>
+    <Color x:Key="ColorSuccess">#3FBF8F</Color>
+    <Color x:Key="ColorInfo">#4FC3B8</Color>
+    <Color x:Key="ColorWarning">#E0A83C</Color>
+    <Color x:Key="ColorWarningBg">#3A2E17</Color>
+    <Color x:Key="ColorSuccessBg">#1E332B</Color>
+    <Color x:Key="ColorFocusRing">#66D9B84A</Color>
+    <Color x:Key="ColorOverlay">#B3000000</Color>
+
+    <!-- Token tabel & data (zebra, hover, seleksi, aksen header) -->
+    <Color x:Key="ColorRowHover">#23302B</Color>
+    <Color x:Key="ColorRowSelected">#2A4A3C</Color>
+    <Color x:Key="ColorHeaderAccent">#33D9B84A</Color>
+
+    <SolidColorBrush x:Key="BrushPrimary" Color="{StaticResource ColorPrimary}" />
+    <SolidColorBrush x:Key="BrushPrimaryDark" Color="{StaticResource ColorPrimaryDark}" />
+    <SolidColorBrush x:Key="BrushPrimaryLight" Color="{StaticResource ColorPrimaryLight}" />
+    <SolidColorBrush x:Key="BrushAccent" Color="{StaticResource ColorAccent}" />
+    <SolidColorBrush x:Key="BrushAccentDark" Color="{StaticResource ColorAccentDark}" />
+    <SolidColorBrush x:Key="BrushSidebar" Color="{StaticResource ColorSidebar}" />
+    <SolidColorBrush x:Key="BrushSidebarHover" Color="{StaticResource ColorSidebarHover}" />
+    <SolidColorBrush x:Key="BrushSidebarActive" Color="{StaticResource ColorSidebarActive}" />
+    <SolidColorBrush x:Key="BrushSurface" Color="{StaticResource ColorSurface}" />
+    <SolidColorBrush x:Key="BrushSurfaceAlt" Color="{StaticResource ColorSurfaceAlt}" />
+    <SolidColorBrush x:Key="BrushCanvas" Color="{StaticResource ColorCanvas}" />
+    <SolidColorBrush x:Key="BrushBorder" Color="{StaticResource ColorBorder}" />
+    <SolidColorBrush x:Key="BrushBorderStrong" Color="{StaticResource ColorBorderStrong}" />
+    <SolidColorBrush x:Key="BrushTextPrimary" Color="{StaticResource ColorTextPrimary}" />
+    <SolidColorBrush x:Key="BrushTextSecondary" Color="{StaticResource ColorTextSecondary}" />
+    <SolidColorBrush x:Key="BrushTextOnDark" Color="{StaticResource ColorTextOnDark}" />
+    <SolidColorBrush x:Key="BrushTextOnDarkMuted" Color="{StaticResource ColorTextOnDarkMuted}" />
+    <SolidColorBrush x:Key="BrushError" Color="{StaticResource ColorError}" />
+    <SolidColorBrush x:Key="BrushErrorBg" Color="{StaticResource ColorErrorBg}" />
+    <SolidColorBrush x:Key="BrushInfoBg" Color="{StaticResource ColorInfoBg}" />
+    <SolidColorBrush x:Key="BrushGold" Color="{StaticResource ColorGold}" />
+    <SolidColorBrush x:Key="BrushSuccess" Color="{StaticResource ColorSuccess}" />
+    <SolidColorBrush x:Key="BrushInfo" Color="{StaticResource ColorInfo}" />
+    <SolidColorBrush x:Key="BrushWarning" Color="{StaticResource ColorWarning}" />
+    <SolidColorBrush x:Key="BrushWarningBg" Color="{StaticResource ColorWarningBg}" />
+    <SolidColorBrush x:Key="BrushSuccessBg" Color="{StaticResource ColorSuccessBg}" />
+    <SolidColorBrush x:Key="BrushFocusRing" Color="{StaticResource ColorFocusRing}" />
+    <SolidColorBrush x:Key="BrushOverlay" Color="{StaticResource ColorOverlay}" />
+    <SolidColorBrush x:Key="BrushText" Color="{StaticResource ColorTextPrimary}" />
+
+    <SolidColorBrush x:Key="BrushRowHover" Color="{StaticResource ColorRowHover}" />
+    <SolidColorBrush x:Key="BrushRowSelected" Color="{StaticResource ColorRowSelected}" />
+    <SolidColorBrush x:Key="BrushHeaderAccent" Color="{StaticResource ColorHeaderAccent}" />
+
+</ResourceDictionary>
