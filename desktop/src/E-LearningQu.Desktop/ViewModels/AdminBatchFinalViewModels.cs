@@ -204,17 +204,18 @@ public sealed partial class GuruIzinMusyrifViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public async Task TolakAsync((IzinAntreanDto item, string alasan) arg, CancellationToken ct = default)
+    public async Task TolakAsync(IzinAntreanDto? item, CancellationToken ct = default)
     {
-        var (item, alasan) = arg;
-        if (item is null || string.IsNullOrWhiteSpace(alasan) || alasan.Trim().Length < 5)
+        if (item is null) return;
+        var alasan = item.AlasanTolak?.Trim() ?? "";
+        if (alasan.Length < 5)
         {
             ErrorMessage = "Alasan penolakan minimal 5 karakter";
             return;
         }
         try
         {
-            if (await _admin.TolakIzinMusyrifAsync(item.Id, alasan.Trim(), ct))
+            if (await _admin.TolakIzinMusyrifAsync(item.Id, alasan, ct))
             {
                 Antrean.Remove(item);
                 StatusMessage = "Izin ditolak musyrif";

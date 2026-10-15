@@ -392,6 +392,12 @@ public sealed class IzinAntreanDto
     [JsonPropertyName("status")] public string Status { get; set; } = "";
     [JsonPropertyName("suratNomor")] public string? SuratNomor { get; set; }
     [JsonPropertyName("santri")] public IzinSantriBriefDto? Santri { get; set; }
+
+    /// <summary>
+    /// Alasan penolakan yang diisi operator di kolom grid (client-side saja).
+    /// Tidak dikirim/diterima API — hanya dipakai sebagai parameter TolakAsync.
+    /// </summary>
+    public string? AlasanTolak { get; set; }
 }
 
 public sealed class IzinSantriBriefDto

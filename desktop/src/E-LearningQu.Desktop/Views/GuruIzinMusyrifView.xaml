@@ -80,12 +80,27 @@
                             <DataGridTextColumn Header="Jenis" Binding="{Binding Jenis}" Width="*" />
                             <DataGridTextColumn Header="Keluar" Binding="{Binding RencanaKeluar, StringFormat={}{0:dd/MM HH:mm}}" Width="*" />
                             <DataGridTextColumn Header="Kembali" Binding="{Binding RencanaKembali, StringFormat={}{0:dd/MM HH:mm}}" Width="*" />
-                            <DataGridTemplateColumn Header="" Width="70">
+                            <DataGridTemplateColumn Header="Alasan Tolak" Width="160">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Button Content="Setujui" Style="{StaticResource ButtonGhost}" Padding="6,2"
-                                                Command="{Binding DataContext.SetujuiCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                CommandParameter="{Binding}" />
+                                        <TextBox Text="{Binding AlasanTolak, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                 Background="Transparent" BorderThickness="0" Padding="6,4"
+                                                 Foreground="{StaticResource BrushTextPrimary}"
+                                                 ToolTip="Isi alasan penolakan (min. 5 huruf)" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="" Width="140">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="Setujui" Style="{StaticResource ButtonGhost}" Padding="6,2"
+                                                    Command="{Binding DataContext.SetujuiCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Content="Tolak" Style="{StaticResource ButtonGhost}" Padding="6,2" Margin="6,0,0,0"
+                                                    Command="{Binding DataContext.TolakCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
