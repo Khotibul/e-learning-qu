@@ -16,6 +16,7 @@ public partial class LoginViewModel : ObservableObject
     private string email = "";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
     private string password = "";
 
     [ObservableProperty]
