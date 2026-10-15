@@ -1,5 +1,8 @@
-﻿using System.Windows;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using E_LearningQu.Application.Abstractions;
 using E_LearningQu.Contracts.Academic;
 using E_LearningQu.Desktop.ViewModels;
@@ -143,6 +146,31 @@ public partial class MainWindow : Window
     {
         if (MenuList.SelectedItem is not MenuItemDef item) return;
         Navigate(item);
+    }
+
+    /// <summary>Saring menu sidebar berdasarkan DisplayName (tidak case-sensitive).</summary>
+    private void OnMenuSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        if (MenuList.ItemsSource is not IEnumerable<MenuItemDef> items) return;
+        var q = MenuSearchBox.Text.Trim();
+        MenuList.ItemsSource = string.IsNullOrWhiteSpace(q)
+            ? items
+            : items.Where(i => i.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool _sidebarCollapsed;
+
+    private void OnToggleSidebar(object sender, MouseButtonEventArgs e)
+    {
+        _sidebarCollapsed = !_sidebarCollapsed;
+        var col = ShellHost.ColumnDefinitions[0];
+        col.Width = new GridLength(_sidebarCollapsed ? 72 : 264);
+        SidebarText.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        CollapseGlyph.Text = _sidebarCollapsed ? "»" : "«";
+        UserLabel.Visibility = RoleLabel.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        LogoutButton.Content = _sidebarCollapsed ? "⏻" : "⏻  Keluar";
+        ConnLabel.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        MenuSearchBox.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void Navigate(MenuItemDef item)

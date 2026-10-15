@@ -32,19 +32,25 @@
 
                     <!-- Header brand + user -->
                     <StackPanel DockPanel.Dock="Top" Margin="16,18,16,14">
+                    <!-- Baris brand + tombol lipat sidebar -->
+                    <Border Background="Transparent" Cursor="Hand" ToolTip="Lipat / buka sidebar"
+                            MouseLeftButtonDown="OnToggleSidebar">
                         <StackPanel Orientation="Horizontal">
                             <Border Width="46" Height="46" CornerRadius="12" Background="{StaticResource BrushAccent}"
                                     VerticalAlignment="Center">
                                 <Image Source="pack://application:,,,/Assets/logo.png" Width="34" Height="34"
                                        Stretch="Uniform" />
                             </Border>
-                            <StackPanel VerticalAlignment="Center" Margin="12,0,0,0">
+                            <StackPanel x:Name="SidebarText" VerticalAlignment="Center" Margin="12,0,0,0">
                                 <TextBlock Text="E-Learning-Qu" Foreground="{StaticResource BrushTextOnDark}"
                                            FontFamily="{StaticResource FontDisplay}" FontSize="16" FontWeight="SemiBold" />
                                 <TextBlock Text="Pondok Pesantren Digital" Foreground="{StaticResource BrushAccent}"
                                            FontSize="10.5" Margin="0,2,0,0" />
                             </StackPanel>
+                            <TextBlock x:Name="CollapseGlyph" Text="«" FontSize="14" Foreground="#5CA87B"
+                                       VerticalAlignment="Center" HorizontalAlignment="Right" Margin="12,0,0,0" />
                         </StackPanel>
+                    </Border>
 
                         <!-- Kartu profil -->
                         <Border Background="#14684314" CornerRadius="12" Padding="12" Margin="0,16,0,0"
@@ -69,6 +75,14 @@
                         <TextBlock Text="MENU" Foreground="#5CA87B" FontSize="10" FontWeight="SemiBold"
                                    Margin="12,0,0,6" />
                     </StackPanel>
+
+                    <!-- Cari menu -->
+                    <Border DockPanel.Dock="Top" Margin="16,0,16,8">
+                        <TextBox x:Name="MenuSearchBox" Style="{StaticResource InputBox}"
+                                 Padding="10,8" FontSize="12.5"
+                                 TextChanged="OnMenuSearchChanged"
+                                 ToolTip="Ketik untuk menyaring menu" />
+                    </Border>
 
                     <!-- Tombol keluar -->
                     <Border DockPanel.Dock="Bottom" Margin="16,8,16,16">
