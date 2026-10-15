@@ -30,6 +30,9 @@
                          ToolTip="Cari nama / NIS" />
                 <CheckBox Content="Tampil terhapus" VerticalAlignment="Center" Margin="0,0,10,0"
                           IsChecked="{Binding IncludeDeleted}" />
+                <Button Content="+ Tambah" Style="{StaticResource ButtonPrimary}" Margin="0,0,10,0"
+                        Command="{Binding TambahCommand}"
+                        Visibility="{Binding SupportsCrud, Converter={StaticResource BusyToVisibility}}" />
                 <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}" />
             </StackPanel>
         </Grid>
@@ -69,10 +72,13 @@
                 <DataGridTextColumn Header="Email" Binding="{Binding User.Email}" Width="2*" />
                 <DataGridTextColumn Header="NIS" Binding="{Binding Nis}" Width="*" />
                 <DataGridTextColumn Header="Kelas" Binding="{Binding Kelas.Nama}" Width="*" />
-                <DataGridTemplateColumn Width="260">
+                <DataGridTemplateColumn Width="330">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
+                                <Button Content="Edit" Style="{StaticResource ButtonRow}" Margin="0,0,6,0"
+                                        Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}" />
                                 <Button Content="Reset PW" Style="{StaticResource ButtonRow}" Margin="0,0,6,0"
                                         Command="{Binding DataContext.ResetPasswordCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                         CommandParameter="{Binding}" />

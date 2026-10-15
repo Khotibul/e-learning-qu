@@ -28,6 +28,9 @@
                 <TextBox Width="200" Style="{StaticResource InputBox}" Margin="0,0,10,0"
                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                          ToolTip="Cari nama / kode" />
+                <Button Content="+ Tambah" Style="{StaticResource ButtonPrimary}" Margin="0,0,10,0"
+                        Command="{Binding TambahCommand}"
+                        Visibility="{Binding SupportsCrud, Converter={StaticResource BusyToVisibility}}" />
                 <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}" />
             </StackPanel>
         </Grid>
@@ -68,12 +71,17 @@
                 <DataGridTextColumn Header="Semester" Binding="{Binding Semester.Nama}" Width="*" />
                 <DataGridTextColumn Header="Tahun Ajaran" Binding="{Binding Semester.TahunAjaran.Nama}" Width="*" />
                 <DataGridTextColumn Header="Pengajar" Binding="{Binding Count.Pengajaran}" Width="*" />
-                <DataGridTemplateColumn Width="100">
+                <DataGridTemplateColumn Width="160">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Button Content="Hapus" Style="{StaticResource ButtonRowDanger}"
-                                    Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    CommandParameter="{Binding}" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Edit" Style="{StaticResource ButtonRow}" Margin="0,0,8,0"
+                                        Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}" />
+                                <Button Content="Hapus" Style="{StaticResource ButtonRowDanger}"
+                                        Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}" />
+                            </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

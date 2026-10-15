@@ -24,8 +24,12 @@
                 <TextBlock Text="Pengumuman" Style="{StaticResource H1}" />
                 <TextBlock Text="Kelola pengumuman sekolah" Style="{StaticResource Muted}" Margin="0,4,0,0" />
             </StackPanel>
-            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}"
-                    VerticalAlignment="Top" HorizontalAlignment="Right" />
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
+                <Button Content="+ Tambah" Style="{StaticResource ButtonPrimary}" Margin="0,0,10,0"
+                        Command="{Binding TambahCommand}"
+                        Visibility="{Binding SupportsCrud, Converter={StaticResource BusyToVisibility}}" />
+                <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}" />
+            </StackPanel>
         </Grid>
 
         <Grid Grid.Row="1" Margin="0,0,0,12">

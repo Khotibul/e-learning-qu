@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Windows;
 using E_LearningQu.Desktop.Views;
 
@@ -14,6 +15,15 @@ public static class DialogService
         {
             var win = new ConfirmWindow(title, message, confirmText) { Owner = Owner };
             return win.ShowDialog() == true;
+        }).Task;
+
+    public static Task<IReadOnlyDictionary<string, string?>?> FormAsync(
+        string title, IReadOnlyList<FormFieldDef> fields,
+        string subtitle = "", string saveText = "Simpan") =>
+        System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            var win = new FormDialogWindow(title, fields, subtitle, saveText) { Owner = Owner };
+            return win.ShowDialog() == true ? win.Values : null;
         }).Task;
 
     public static void Toast(string message, ToastKind kind = ToastKind.Info) =>
