@@ -11,40 +11,82 @@
         <Setter Property="IsReadOnly" Value="True" />
         <Setter Property="HeadersVisibility" Value="Column" />
         <Setter Property="GridLinesVisibility" Value="None" />
-        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
         <Setter Property="Background" Value="{DynamicResource BrushSurface}" />
         <Setter Property="RowBackground" Value="{DynamicResource BrushSurface}" />
         <Setter Property="AlternatingRowBackground" Value="{DynamicResource BrushSurfaceAlt}" />
         <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource BrushBorder}" />
         <Setter Property="FontSize" Value="13" />
-        <Setter Property="RowHeight" Value="42" />
-        <Setter Property="ColumnHeaderHeight" Value="44" />
+        <Setter Property="RowHeight" Value="44" />
+        <Setter Property="ColumnHeaderHeight" Value="46" />
         <Setter Property="CanUserAddRows" Value="False" />
         <Setter Property="CanUserDeleteRows" Value="False" />
+        <Setter Property="CanUserSortColumns" Value="True" />
+        <Setter Property="CanUserReorderColumns" Value="True" />
+        <Setter Property="CanUserResizeColumns" Value="True" />
+        <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="EnableRowVirtualization" Value="True" />
+        <Setter Property="EnableColumnVirtualization" Value="True" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
         <Setter Property="SelectionMode" Value="Single" />
+        <Setter Property="SelectionUnit" Value="FullRow" />
     </Style>
 
+    <!-- Header kolom: bersih, huruf kecil SemiBold, aksen garis emas tipis di bawah -->
     <Style TargetType="DataGridColumnHeader">
         <Setter Property="Background" Value="{DynamicResource BrushSurfaceAlt}" />
-        <Setter Property="Foreground" Value="{DynamicResource BrushPrimaryDark}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushTextSecondary}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="FontSize" Value="12.5" />
-        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="Padding" Value="14,0" />
         <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridColumnHeader">
+                    <Grid Background="{TemplateBinding Background}">
+                        <Border Height="3" VerticalAlignment="Bottom"
+                                Background="{DynamicResource BrushAccent}" Opacity="0.55" />
+                        <ContentPresenter VerticalAlignment="Center" Margin="{TemplateBinding Padding}" />
+                        <Thumb x:Name="PART_LeftHeaderGripper" HorizontalAlignment="Left" Width="6" Background="Transparent" />
+                        <Thumb x:Name="PART_RightHeaderGripper" HorizontalAlignment="Right" Width="6" Background="Transparent" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource BrushRowHover}" />
+                        </Trigger>
+                        <Trigger Property="SortDirection" Value="Ascending">
+                            <Setter Property="Foreground" Value="{DynamicResource BrushPrimary}" />
+                        </Trigger>
+                        <Trigger Property="SortDirection" Value="Descending">
+                            <Setter Property="Foreground" Value="{DynamicResource BrushPrimary}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
-    <!-- Template bawaan WPF dipertahankan (hanya padding/warna) agar virtualization tetap bekerja. -->
+    <!-- Sel: hanya padding/warna (template bawaan dipertahankan agar virtualization bekerja). -->
     <Style TargetType="DataGridCell">
-        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="Padding" Value="14,0" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Foreground" Value="{DynamicResource BrushPrimaryDark}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
-    <!-- Hover baris via trigger property (bukan template) — aman untuk virtualization. -->
+    <!-- Baris: zebra halus + hover + seleksi (trigger property, bukan template) — aman untuk virtualization. -->
     <Style TargetType="DataGridRow">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
@@ -52,10 +94,10 @@
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="{DynamicResource BrushInfoBg}" />
+                <Setter Property="Background" Value="{DynamicResource BrushRowHover}" />
             </Trigger>
             <Trigger Property="IsSelected" Value="True">
-                <Setter Property="Background" Value="{DynamicResource BrushInfoBg}" />
+                <Setter Property="Background" Value="{DynamicResource BrushRowSelected}" />
                 <Setter Property="Foreground" Value="{DynamicResource BrushPrimaryDark}" />
             </Trigger>
         </Style.Triggers>

@@ -4,6 +4,7 @@
         Title="{Binding DialogTitle}"
         Width="420" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
         ResizeMode="NoResize"
         Background="Transparent"
         AllowsTransparency="True"

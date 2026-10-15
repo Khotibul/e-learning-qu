@@ -41,7 +41,6 @@ public partial class MainWindow : Window
         _siswa = siswa;
         _admin = admin;
         _pondok = pondok;
-        LogoutButton.Click += OnLogout;
         BackendApiClient.ConnectionChanged += OnConnectionChanged;
         BackendApiClient.SessionExpired += OnSessionExpired;
         Loaded += OnLoadedAsync;
@@ -652,10 +651,20 @@ public partial class MainWindow : Window
 
     private async void OnLogout(object sender, RoutedEventArgs e)
     {
-        await _auth.SignOutAsync();
-        _menuAll = Array.Empty<MenuItemDef>();
-        MenuList.ItemsSource = null;
-        ContentHost.Content = null;
-        ShowLogin();
+        try
+        {
+            var ok = await DialogService.ConfirmAsync(
+                "Keluar", "Yakin ingin keluar dari akun ini?", "Ya, Keluar");
+            if (!ok) return;
+            await _auth.SignOutAsync();
+            _menuAll = Array.Empty<MenuItemDef>();
+            MenuList.ItemsSource = null;
+            ContentHost.Content = null;
+            ShowLogin();
+        }
+        catch (Exception ex)
+        {
+            DialogService.Toast($"Gagal keluar: {ex.Message}", ToastKind.Error);
+        }
     }
 }
