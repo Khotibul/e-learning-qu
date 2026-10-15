@@ -1,4 +1,4 @@
-<UserControl x:Class="E_LearningQu.Desktop.Views.AdminPengaturanView"
+﻿<UserControl x:Class="E_LearningQu.Desktop.Views.AdminPengaturanView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -114,7 +114,7 @@
                             <DataGridTemplateColumn Header="Aksi" Width="80">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Button Content="Hapus" Style="{StaticResource ButtonGhost}" Padding="8,3" FontSize="11"
+                                        <Button Content="Hapus" Style="{StaticResource ButtonRowDanger}"
                                                 Command="{Binding DataContext.HapusFiturCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}" />
                                     </DataTemplate>

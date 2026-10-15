@@ -73,13 +73,13 @@
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
-                                <Button Content="Reset PW" Style="{StaticResource ButtonGhost}" Padding="8,4" Margin="0,0,6,0"
+                                <Button Content="Reset PW" Style="{StaticResource ButtonRow}" Margin="0,0,6,0"
                                         Command="{Binding DataContext.ResetPasswordCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                         CommandParameter="{Binding}" />
-                                <Button Content="Hapus" Style="{StaticResource ButtonGhost}" Padding="8,4" Margin="0,0,6,0"
+                                <Button Content="Hapus" Style="{StaticResource ButtonRowDanger}" Margin="0,0,6,0"
                                         Command="{Binding DataContext.HapusCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                         CommandParameter="{Binding}" />
-                                <Button Content="Pulihkan" Style="{StaticResource ButtonGhost}" Padding="8,4"
+                                <Button Content="Pulihkan" Style="{StaticResource ButtonRow}"
                                         Command="{Binding DataContext.PulihkanCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                         CommandParameter="{Binding}" />
                             </StackPanel>

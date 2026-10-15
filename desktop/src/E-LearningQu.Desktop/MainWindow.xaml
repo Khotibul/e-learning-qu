@@ -93,7 +93,12 @@
                                            Margin="8,0,0,0" VerticalAlignment="Center" />
                             </StackPanel>
                             <Button x:Name="LogoutButton" Click="OnLogout" HorizontalAlignment="Stretch"
-                                Style="{StaticResource ButtonLogout}" Content="⏻  Keluar" />
+                                Style="{StaticResource ButtonLogout}">
+                                <TextBlock>
+                                    <Run Text="&#xE7E8;" FontFamily="Segoe MDL2 Assets" />
+                                    <Run Text="  Keluar" />
+                                </TextBlock>
+                            </Button>
                         </StackPanel>
                     </Border>
 

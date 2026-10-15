@@ -70,7 +70,7 @@
                 <DataGridTemplateColumn Width="100">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Button Content="Hapus" Style="{StaticResource ButtonGhost}" Padding="8,4"
+                            <Button Content="Hapus" Style="{StaticResource ButtonRowDanger}"
                                     Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                     CommandParameter="{Binding}" />
                         </DataTemplate>

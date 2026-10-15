@@ -59,7 +59,7 @@
                                   SelectedValue="{Binding SelectedOutletId}" Style="{StaticResource InputCombo}" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" VerticalAlignment="Bottom">
-                        <Button Content="Pilih" Style="{StaticResource ButtonGhost}" Command="{Binding PilihOutletCommand}" />
+                        <Button Content="Pilih" Style="{StaticResource ButtonRow}" Command="{Binding PilihOutletCommand}" />
                     </StackPanel>
                     <StackPanel Grid.Column="4">
                         <TextBlock Text="Saldo Awal Shift" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
@@ -68,7 +68,7 @@
                     <StackPanel Grid.Column="6" VerticalAlignment="Bottom">
                         <StackPanel Orientation="Horizontal">
                             <Button Content="Buka Shift" Style="{StaticResource ButtonPrimary}" Command="{Binding BukaShiftCommand}" Margin="0,0,8,0" />
-                            <Button Content="Tutup Shift" Style="{StaticResource ButtonGhost}" Command="{Binding TutupShiftCommand}" />
+                            <Button Content="Tutup Shift" Style="{StaticResource ButtonRow}" Command="{Binding TutupShiftCommand}" />
                         </StackPanel>
                     </StackPanel>
                 </Grid>

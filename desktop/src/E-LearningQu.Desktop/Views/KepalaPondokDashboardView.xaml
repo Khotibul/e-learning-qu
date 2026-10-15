@@ -162,10 +162,10 @@
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal">
-                                                <Button Content="Setujui" Style="{StaticResource ButtonPrimary}" Padding="8,3" FontSize="11"
+                                                <Button Content="Setujui" Style="{StaticResource ButtonPillSuccess}"
                                                         Command="{Binding DataContext.PutuskanIzinCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}" Margin="0,0,6,0" />
-                                                <Button Content="Tolak" Style="{StaticResource ButtonGhost}" Padding="8,3" FontSize="11"
+                                                <Button Content="Tolak" Style="{StaticResource ButtonPillDanger}"
                                                         Command="{Binding DataContext.TolakIzinCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}" />
                                             </StackPanel>

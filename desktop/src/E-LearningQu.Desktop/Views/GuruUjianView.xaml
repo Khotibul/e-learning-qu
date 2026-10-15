@@ -50,13 +50,13 @@
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
-                                <Button Content="Mulai" Style="{StaticResource ButtonGhost}" Padding="8,3" FontSize="11" Margin="0,0,6,0"
+                                <Button Content="Mulai" Style="{StaticResource ButtonRow}" Margin="0,0,6,0"
                                         Command="{Binding DataContext.StartCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                         CommandParameter="{Binding}" />
-                                <Button Content="Berhenti" Style="{StaticResource ButtonGhost}" Padding="8,3" FontSize="11" Margin="0,0,6,0"
+                                <Button Content="Berhenti" Style="{StaticResource ButtonRow}" Margin="0,0,6,0"
                                         Command="{Binding DataContext.StopCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                         CommandParameter="{Binding}" />
-                                <Button Content="Hapus" Style="{StaticResource ButtonGhost}" Padding="8,3" FontSize="11"
+                                <Button Content="Hapus" Style="{StaticResource ButtonRowDanger}"
                                         Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                         CommandParameter="{Binding}" />
                             </StackPanel>

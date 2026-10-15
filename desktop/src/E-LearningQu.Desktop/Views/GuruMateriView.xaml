@@ -36,7 +36,7 @@
                 <DataGridTextColumn Header="Tipe" Binding="{Binding FileType}" Width="70" />
                 <DataGridTemplateColumn Width="90">
                     <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate><Button Content="Hapus" Style="{StaticResource ButtonGhost}" Padding="8,4" FontSize="12"
+                        <DataTemplate><Button Content="Hapus" Style="{StaticResource ButtonRowDanger}" FontSize="12"
                                               Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" /></DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

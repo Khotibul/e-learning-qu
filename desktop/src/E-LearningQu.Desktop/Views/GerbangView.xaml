@@ -127,7 +127,7 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                                     <Button Content="Check-out" Style="{StaticResource ButtonPrimary}" Padding="12,5" Margin="0,0,8,0"
                                             Command="{Binding CheckoutTokenCommand}" />
-                                    <Button Content="Check-in" Style="{StaticResource ButtonGhost}" Padding="12,5"
+                                    <Button Content="Check-in" Style="{StaticResource ButtonRow}" Padding="12,5"
                                             Command="{Binding LoadCommand}" />
                                 </StackPanel>
                             </StackPanel>

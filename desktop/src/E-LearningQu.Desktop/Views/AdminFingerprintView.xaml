@@ -134,16 +134,16 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal">
-                                            <Button Content="Peta" Style="{StaticResource ButtonGhost}" Padding="6,2"
+                                            <Button Content="Peta" Style="{StaticResource ButtonRow}"
                                                     Command="{Binding DataContext.PilihPerangkatCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                     CommandParameter="{Binding}" />
-                                            <Button Content="Status" Style="{StaticResource ButtonGhost}" Padding="6,2" Margin="4,0,0,0"
+                                            <Button Content="Status" Style="{StaticResource ButtonRow}" Margin="4,0,0,0"
                                                     Command="{Binding DataContext.ToggleStatusCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                     CommandParameter="{Binding}" />
-                                            <Button Content="Key" Style="{StaticResource ButtonGhost}" Padding="6,2" Margin="4,0,0,0"
+                                            <Button Content="Key" Style="{StaticResource ButtonRow}" Margin="4,0,0,0"
                                                     Command="{Binding DataContext.RotasiKeyCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                     CommandParameter="{Binding}" />
-                                            <Button Content="Hapus" Style="{StaticResource ButtonGhost}" Padding="6,2" Margin="4,0,0,0"
+                                            <Button Content="Hapus" Style="{StaticResource ButtonRowDanger}" Margin="4,0,0,0"
                                                     Command="{Binding DataContext.HapusPerangkatCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                     CommandParameter="{Binding}" />
                                         </StackPanel>
@@ -187,7 +187,7 @@
                                     <DataGridTemplateColumn Header="" Width="60">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <Button Content="Hapus" Style="{StaticResource ButtonGhost}" Padding="6,2"
+                                                <Button Content="Hapus" Style="{StaticResource ButtonRowDanger}"
                                                         Command="{Binding DataContext.HapusPemetaanCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                         CommandParameter="{Binding}" />
                                             </DataTemplate>
@@ -287,10 +287,10 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
-                                    <Button Content="Setujui" Style="{StaticResource ButtonGhost}" Padding="6,2"
+                                    <Button Content="Setujui" Style="{StaticResource ButtonPillSuccess}"
                                             Command="{Binding DataContext.SetujuiPermintaanCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                             CommandParameter="{Binding Id}" />
-                                    <Button Content="Tolak" Style="{StaticResource ButtonGhost}" Padding="6,2" Margin="4,0,0,0"
+                                    <Button Content="Tolak" Style="{StaticResource ButtonPillDanger}" Margin="4,0,0,0"
                                             Command="{Binding DataContext.TolakPermintaanCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                             CommandParameter="{Binding Id}" />
                                 </StackPanel>
