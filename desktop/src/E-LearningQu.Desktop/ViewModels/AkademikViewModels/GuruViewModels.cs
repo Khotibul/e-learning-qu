@@ -1,8 +1,11 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using E_LearningQu.Application.Abstractions;
 using E_LearningQu.Contracts.Teacher;
+using E_LearningQu.Desktop;
 
 namespace E_LearningQu.Desktop.ViewModels;
 
@@ -32,6 +35,52 @@ public partial class GuruUjianViewModel : ObservableObject
         }
         catch (Exception ex) { ErrorMessage = ex.Message; }
         finally { IsLoading = false; }
+    }
+
+    [RelayCommand]
+    public async Task TambahAsync(CancellationToken ct = default)
+    {
+        if (IsLoading) return;
+        try
+        {
+            var refs = await _guru.GetUjianRefsAsync(ct);
+            var fields = new[]
+            {
+                new FormFieldDef { Key = "nama", Label = "Nama Ujian", Kind = FormFieldKind.Text, Required = true },
+                new FormFieldDef { Key = "deskripsi", Label = "Deskripsi", Kind = FormFieldKind.Memo },
+                new FormFieldDef { Key = "mataPelajaranId", Label = "Mata Pelajaran", Kind = FormFieldKind.Combo, Required = true,
+                    Options = refs?.Mapels.Select(m => new ComboOption(m.Id, m.Nama)).ToList() ?? new List<ComboOption>() },
+                new FormFieldDef { Key = "kelasId", Label = "Kelas", Kind = FormFieldKind.Combo, Required = true,
+                    Options = refs?.Kelas.Select(k => new ComboOption(k.Id, k.Nama)).ToList() ?? new List<ComboOption>() },
+                new FormFieldDef { Key = "tanggal", Label = "Tanggal (YYYY-MM-DD)", Kind = FormFieldKind.Date,
+                    Value = DateTime.Now.ToString("yyyy-MM-dd") },
+                new FormFieldDef { Key = "jamMulai", Label = "Jam Mulai (HH:mm)", Kind = FormFieldKind.Text, Value = "07:00" },
+                new FormFieldDef { Key = "jamSelesai", Label = "Jam Selesai (HH:mm)", Kind = FormFieldKind.Text, Value = "09:00" },
+                new FormFieldDef { Key = "durasi", Label = "Durasi (menit)", Kind = FormFieldKind.Int, Required = true, Value = "60" },
+                new FormFieldDef { Key = "nilaiMinimum", Label = "Nilai Minimum", Kind = FormFieldKind.Int, Value = "70" },
+            };
+            var values = await DialogService.FormAsync("Tambah Ujian", fields, subtitle: "Susun ujian baru lalu simpan.", saveText: "Simpan");
+            if (values is null) return;
+            var payload = new Dictionary<string, object?>
+            {
+                ["op"] = "createUjian",
+                ["nama"] = values.GetValueOrDefault("nama") ?? "",
+                ["deskripsi"] = values.GetValueOrDefault("deskripsi"),
+                ["mataPelajaranId"] = values.GetValueOrDefault("mataPelajaranId") ?? "",
+                ["kelasId"] = values.GetValueOrDefault("kelasId") ?? "",
+                ["tanggal"] = values.GetValueOrDefault("tanggal") ?? DateTime.Now.ToString("yyyy-MM-dd"),
+                ["jamMulai"] = values.GetValueOrDefault("jamMulai") ?? "07:00",
+                ["jamSelesai"] = values.GetValueOrDefault("jamSelesai") ?? "09:00",
+                ["durasi"] = int.TryParse(values.GetValueOrDefault("durasi"), out var d) ? d : 60,
+                ["nilaiMinimum"] = int.TryParse(values.GetValueOrDefault("nilaiMinimum"), out var n) ? n : 70,
+            };
+            if (await _guru.CreateUjianAsync(payload, ct) is not null)
+            {
+                StatusMessage = "Ujian ditambahkan";
+                await LoadAsync(ct);
+            }
+        }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
     }
 
     [RelayCommand]

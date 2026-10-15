@@ -16,7 +16,11 @@
                 <TextBlock Text="Kelola Ujian" Style="{StaticResource H1}" />
                 <TextBlock Text="Mulai, berhenti, atau hapus ujian Anda" Style="{StaticResource Muted}" Margin="0,4,0,0" />
             </StackPanel>
-            <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}" VerticalAlignment="Top" />
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
+                <Button Content="+ Tambah" Style="{StaticResource ButtonPrimary}" Margin="0,0,12,0"
+                        Command="{Binding TambahCommand}" />
+                <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}" />
+            </StackPanel>
         </Grid>
         <Grid Grid.Row="1" Margin="0,0,0,12">
             <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" />

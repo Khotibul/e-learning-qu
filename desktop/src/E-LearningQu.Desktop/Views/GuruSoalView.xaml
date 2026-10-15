@@ -27,6 +27,8 @@
                 <TextBox Width="240" Style="{StaticResource InputBox}" Margin="0,0,12,0"
                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                          ToolTip="Cari pertanyaan" />
+                <Button Content="+ Tambah" Style="{StaticResource ButtonPrimary}" Margin="0,0,12,0"
+                        Command="{Binding TambahCommand}" />
                 <Button Content="Muat Ulang" Style="{StaticResource ButtonGhost}" Command="{Binding LoadCommand}" />
             </StackPanel>
         </Grid>
@@ -62,12 +64,17 @@
                 <DataGridTextColumn Header="Jenis" Binding="{Binding JenisSoal}" Width="*" />
                 <DataGridTextColumn Header="Poin" Binding="{Binding Poin}" Width="60" />
                 <DataGridTextColumn Header="Mapel" Binding="{Binding MataPelajaran.Nama}" Width="*" />
-                <DataGridTemplateColumn Width="90">
+                <DataGridTemplateColumn Width="160">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Button Content="Hapus" Style="{StaticResource ButtonRowDanger}" FontSize="12"
-                                    Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    CommandParameter="{Binding}" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Edit" Style="{StaticResource ButtonRow}" FontSize="12" Margin="0,0,8,0"
+                                        Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}" />
+                                <Button Content="Hapus" Style="{StaticResource ButtonRowDanger}" FontSize="12"
+                                        Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}" />
+                            </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
