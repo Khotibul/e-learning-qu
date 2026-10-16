@@ -34,6 +34,7 @@ type Baris = {
   siswaId: string
   nama: string
   nis: string | null
+  fotoUrl?: string | null
   kelas: string
   jamMasuk: string | null
   jamPulang: string | null
@@ -45,6 +46,19 @@ type Baris = {
   perangkatMasuk: string | null
   perangkatPulang: string | null
   koreksiAlasan: string | null
+}
+
+function FotoAvatar({ src, nama, size = 28 }: { src?: string | null; nama?: string; size?: number }) {
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt={nama || "foto"} width={size} height={size} className="rounded-full object-cover ring-1 ring-border" style={{ width: size, height: size }} />
+  }
+  const inisial = (nama || "?").trim().slice(0, 1).toUpperCase()
+  return (
+    <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground ring-1 ring-border" style={{ width: size, height: size, fontSize: size * 0.4 }} aria-hidden>
+      {inisial}
+    </span>
+  )
 }
 
 const hariIni = () => ymd()
@@ -274,7 +288,12 @@ export default function AdminFingerprint() {
                   ) : (
                     rows.map((b, i) => (
                       <TableRow key={(b.id ?? "x") + i}>
-                        <TableCell className="font-medium">{b.nama}</TableCell>
+                        <TableCell className="font-medium">
+                          <span className="flex items-center gap-2">
+                            <FotoAvatar src={b.fotoUrl} nama={b.nama} />
+                            {b.nama}
+                          </span>
+                        </TableCell>
                         <TableCell>{b.nis ?? "-"}</TableCell>
                         <TableCell>{b.kelas}</TableCell>
                         <TableCell className="font-mono">{b.jamMasuk ?? "-"}</TableCell>
@@ -317,7 +336,15 @@ export default function AdminFingerprint() {
                       <TableRow key={e.id}>
                         <TableCell className="font-mono text-xs">{new Date(e.serverAt).toLocaleString("id-ID")}</TableCell>
                         <TableCell className="text-xs">{e.perangkat}<br /><span className="text-muted-foreground">{e.kode}</span></TableCell>
-                        <TableCell className="text-xs">{e.nama}{e.nis ? ` (${e.nis})` : ""}</TableCell>
+                        <TableCell className="text-xs">
+                          <span className="flex items-center gap-2">
+                            <FotoAvatar src={e.fotoThumbUrl} nama={e.nama} size={22} />
+                            <span>
+                              {e.nama}{e.nis ? ` (${e.nis})` : ""}
+                              {!e.teridentifikasi && <Badge variant="outline" className="ml-1 border-amber-300 text-amber-700">belum dikenal</Badge>}
+                            </span>
+                          </span>
+                        </TableCell>
                         <TableCell><Badge variant="outline">{e.tipe}</Badge></TableCell>
                         <TableCell>
                           <Badge className={
@@ -529,8 +556,8 @@ export default function AdminFingerprint() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>UID Mesin</TableHead>
-                    <TableHead>Nama Siswa</TableHead>
-                    <TableHead>NIS</TableHead>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>NIS/NIP</TableHead>
                     <TableHead>Kelas</TableHead>
                     <TableHead>Sejak</TableHead>
                     <TableHead className="text-right">Aksi</TableHead>
@@ -542,7 +569,16 @@ export default function AdminFingerprint() {
                   ) : pemetaan.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-mono">{p.perangkatUserId}</TableCell>
-                      <TableCell className="font-medium">{p.nama}</TableCell>
+                      <TableCell className="font-medium">
+                        <span className="flex items-center gap-2">
+                          <FotoAvatar src={p.fotoThumbUrl} nama={p.nama} size={24} />
+                          <span>
+                            {p.nama}
+                            {p.tipeIdentitas === "GURU_PEGAWAI" && <Badge variant="outline" className="ml-1 border-blue-300 text-blue-700">guru/pegawai</Badge>}
+                            {p.tipeIdentitas === "TIDAK_DIKENAL" && <Badge variant="outline" className="ml-1 border-amber-300 text-amber-700">belum dikenal</Badge>}
+                          </span>
+                        </span>
+                      </TableCell>
                       <TableCell>{p.nis ?? "-"}</TableCell>
                       <TableCell>{p.kelas}</TableCell>
                       <TableCell className="text-xs">{new Date(p.createdAt).toLocaleDateString("id-ID")}</TableCell>

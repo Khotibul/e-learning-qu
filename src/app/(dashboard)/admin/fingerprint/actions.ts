@@ -105,18 +105,28 @@ export async function daftarPemetaan(perangkatId: string) {
   await requireAdmin()
   return prisma.pemetaanFingerprint.findMany({
     where: { perangkatId },
-    include: { siswa: { select: { id: true, nama: true, nis: true, kelas: { select: { nama: true } } } } },
+    include: {
+      siswa: { select: { id: true, nama: true, nis: true, kelas: { select: { nama: true } }, user: { select: { image: true, biodata: { select: { fotoThumbId: true } } } } } },
+      user: { select: { id: true, name: true, image: true, role: true, guru: { select: { nip: true } }, biodata: { select: { fotoThumbId: true } } } },
+    },
     orderBy: { createdAt: "desc" },
   }).then((rows) =>
-    rows.map((r) => ({
-      id: r.id,
-      perangkatUserId: r.perangkatUserId,
-      siswaId: r.siswaId,
-      nama: r.siswa.nama,
-      nis: r.siswa.nis,
-      kelas: r.siswa.kelas?.nama ?? "-",
-      createdAt: r.createdAt.toISOString(),
-    }))
+    rows.map((r) => {
+      const fotoDariSiswa = r.siswa?.user?.image ?? r.siswa?.user?.biodata?.fotoThumbId
+      const fotoDariUser = r.user?.image ?? r.user?.biodata?.fotoThumbId
+      return {
+        id: r.id,
+        perangkatUserId: r.perangkatUserId,
+        siswaId: r.siswaId,
+        userId: r.userId,
+        tipeIdentitas: r.siswaId ? "SISWA" : r.userId ? "GURU_PEGAWAI" : "TIDAK_DIKENAL",
+        nama: r.siswa?.nama ?? r.user?.name ?? "-",
+        nis: r.siswa?.nis ?? r.user?.guru?.nip ?? null,
+        kelas: r.siswa?.kelas?.nama ?? "-",
+        fotoThumbUrl: (fotoDariSiswa ? `/api/upload/${fotoDariSiswa}` : null) ?? (fotoDariUser ? `/api/upload/${fotoDariUser}` : null) ?? fotoDariUser ?? null,
+        createdAt: r.createdAt.toISOString(),
+      }
+    })
   )
 }
 
@@ -182,7 +192,7 @@ export async function monitoringHarian(opts?: { tanggal?: string; kelasId?: stri
   const rows = await prisma.absensiHarianSiswa.findMany({
     where: where as never,
     include: {
-      siswa: { select: { id: true, nama: true, nis: true, kelasId: true, kelas: { select: { nama: true } } } },
+      siswa: { select: { id: true, nama: true, nis: true, kelasId: true, kelas: { select: { nama: true } }, user: { select: { image: true, biodata: { select: { fotoThumbId: true } } } } } },
       eventMasuk: { select: { eventKey: true, perangkat: { select: { nama: true } } } },
       eventPulang: { select: { eventKey: true, perangkat: { select: { nama: true } } } },
     },
@@ -195,6 +205,7 @@ export async function monitoringHarian(opts?: { tanggal?: string; kelasId?: stri
     siswaId: r.siswa.id,
     nama: r.siswa.nama,
     nis: r.siswa.nis,
+    fotoUrl: r.siswa.user?.image ?? (r.siswa.user?.biodata?.fotoThumbId ? `/api/upload/${r.siswa.user.biodata.fotoThumbId}` : null),
     kelasId: r.siswa.kelasId,
     kelas: r.siswa.kelas?.nama ?? "-",
     jamMasuk: r.jamMasuk,
@@ -219,7 +230,7 @@ export async function monitoringHarian(opts?: { tanggal?: string; kelasId?: stri
   const sudah = new Set(list.map((r) => r.siswaId))
   const semuaSiswa = await prisma.siswa.findMany({
     where: { deletedAt: null, ...(opts?.kelasId ? { kelasId: opts.kelasId } : {}) },
-    select: { id: true, nama: true, nis: true, kelasId: true, kelas: { select: { nama: true } } },
+    select: { id: true, nama: true, nis: true, kelasId: true, kelas: { select: { nama: true } }, user: { select: { image: true, biodata: { select: { fotoThumbId: true } } } } },
     orderBy: { nama: "asc" },
     take: 2000,
   })
@@ -230,6 +241,7 @@ export async function monitoringHarian(opts?: { tanggal?: string; kelasId?: stri
       siswaId: s.id,
       nama: s.nama,
       nis: s.nis,
+      fotoUrl: s.user?.image ?? (s.user?.biodata?.fotoThumbId ? `/api/upload/${s.user.biodata.fotoThumbId}` : null),
       kelasId: s.kelasId,
       kelas: s.kelas?.nama ?? "-",
       jamMasuk: null as string | null,
@@ -264,6 +276,7 @@ export async function daftarEvent(opts?: { tanggal?: string; take?: number }) {
     where: { serverAt: { gte: tanggal, lt: new Date(tanggal.getTime() + 86400000) } },
     include: {
       siswa: { select: { nama: true, nis: true } },
+      user: { select: { name: true, image: true, guru: { select: { nama: true, nip: true } }, biodata: { select: { fotoThumbId: true } } } },
       perangkat: { select: { nama: true, kode: true } },
     },
     orderBy: { serverAt: "desc" },
@@ -274,8 +287,10 @@ export async function daftarEvent(opts?: { tanggal?: string; take?: number }) {
     eventKey: r.eventKey,
     perangkat: r.perangkat?.nama ?? "-",
     kode: r.perangkat?.kode ?? "-",
-    nama: r.siswa?.nama ?? "(tidak dikenal)",
-    nis: r.siswa?.nis ?? null,
+    nama: r.siswa?.nama ?? r.user?.guru?.nama ?? r.user?.name ?? "(tidak dikenal)",
+    nis: r.siswa?.nis ?? r.user?.guru?.nip ?? null,
+    teridentifikasi: !!(r.siswaId || r.userId),
+    fotoThumbUrl: r.user?.biodata?.fotoThumbId ? `/api/upload/${r.user.biodata.fotoThumbId}` : (r.user?.image ?? null),
     tipe: r.tipe,
     status: r.status,
     pesan: r.pesan,

@@ -4,7 +4,9 @@
     "next-env.d.ts",
     "src/lib/**/*.ts",
     "src/app/api/**/*.ts",
-    "src/app/api/**/*.tsx"
+    "src/app/api/**/*.tsx",
+    "src/app/(dashboard)/admin/fingerprint/**/*.ts",
+    "src/app/(dashboard)/admin/fingerprint/**/*.tsx"
   ],
   "exclude": ["node_modules"]
 }
