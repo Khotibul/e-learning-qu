@@ -170,7 +170,7 @@ export async function GET(req: Request) {
       const sudah = new Set(list.map((r) => r.siswaId))
       const semuaSiswa = await prisma.siswa.findMany({
         where: { deletedAt: null, ...(kelasId ? { kelasId } : {}) },
-        select: { id: true, nama: true, nis: true, kelasId: true, kelas: { select: { nama: true } } },
+        select: { id: true, nama: true, nis: true, kelasId: true, kelas: { select: { nama: true } }, user: { select: { image: true, biodata: { select: { fotoThumbId: true } } } } },
         orderBy: { nama: "asc" },
         take: 2000,
       })
@@ -183,8 +183,8 @@ export async function GET(req: Request) {
           nis: s.nis,
           kelasId: s.kelasId,
           kelas: s.kelas?.nama ?? "-",
-          fotoUrl: null,
-          fotoThumbUrl: null,
+          fotoUrl: s.user?.image ?? null,
+          fotoThumbUrl: s.user?.biodata?.fotoThumbId ? `/api/upload/${s.user.biodata.fotoThumbId}` : (s.user?.image ?? null),
           jamMasuk: null,
           jamPulang: null,
           statusMasuk: null,
