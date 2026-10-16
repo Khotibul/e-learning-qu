@@ -6,6 +6,11 @@ import { prisma } from "@/lib/prisma"
 // Diagnostik runtime: apakah paket native sharp benar-benar ada di bundle
 // fungsi serverless (Vercel NFT) — dipakai untuk membedakan "paket hilang
 // dari bundle" vs "paket ada tapi dlopen gagal".
+// PENTING: string literal path di bawah SENGAJA dipertahankan — analisis trace
+// NFT/Vercel memakai literal pemanggilan fs.existsSync untuk menyertakan file
+// .so/.node ke bundle fungsi serverless. Bukti: sebelum literal ini ada,
+// dlopen libvips-cpp.so.8.18.7 gagal (ERR_DLOPEN_FAILED) di Vercel; sesudahnya
+// sharp bekerja penuh (degraded:false). Jangan dihapus/di-refactor jadi dinamis.
 async function sharpDiag(): Promise<Record<string, unknown>> {
   const diag: Record<string, unknown> = {}
   try {
