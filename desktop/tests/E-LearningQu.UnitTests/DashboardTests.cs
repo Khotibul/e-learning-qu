@@ -24,6 +24,9 @@ public class DashboardTests
             return Task.FromResult((TResponse)Response!);
         }
 
+        public Task<byte[]?> GetBytesAsync(string path, string? token = null, CancellationToken ct = default)
+            => Task.FromResult<byte[]?>(null);
+
         public Task<TResponse> PostAsync<TBody, TResponse>(string path, TBody body, string? token = null, CancellationToken ct = default)
             => throw new NotSupportedException();
 

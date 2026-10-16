@@ -206,6 +206,11 @@ public interface IAdminService
     Task<bool> HapusPemetaanFpAsync(string id, CancellationToken ct = default);
     Task<bool> PutuskanPermintaanManualAsync(string permintaanId, string putusan, string? catatan, CancellationToken ct = default);
 
+    /// <summary>Unduh foto/thumbnail (URL /api/upload/*) paralel ke FotoCache SEBELUM
+    /// baris tabel ditambahkan, agar binding converter langsung menemukan biner.
+    /// Selalu menyelesaikan tanpa melempar — foto dekoratif tidak boleh merusak muat tabel.</summary>
+    Task PreloadFotoAsync(IEnumerable<string?> urls, CancellationToken ct = default);
+
     // ── Keuangan/Bendahara (mobile/admin/keuangan) ──
     Task<KeuanganDashboardDto> GetKeuanganDashboardAsync(CancellationToken ct = default);
     Task<AntreanKeuanganDto> GetAntreanKeuanganAsync(CancellationToken ct = default);

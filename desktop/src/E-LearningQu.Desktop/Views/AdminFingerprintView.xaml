@@ -10,6 +10,7 @@
         <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
         <conv:BoolToVisibilityConverter x:Key="BusyToVisibility" />
         <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+        <conv:ThumbUrlToImageConverter x:Key="Thumb" />
 
         <Style x:Key="PanelPerangkat" TargetType="Border">
             <Setter Property="Visibility" Value="Collapsed" />
@@ -238,6 +239,16 @@
                           AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                           EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
                     <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Foto" Width="54">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="8" Background="{StaticResource BrushSurfaceAlt}"
+                                            Width="34" Height="34" ClipToBounds="True">
+                                        <Image Source="{Binding FotoUrl, Converter={StaticResource Thumb}}" Stretch="UniformToFill" />
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Nama" Binding="{Binding Nama}" Width="2*" />
                         <DataGridTextColumn Header="NIS" Binding="{Binding Nis}" Width="*" />
                         <DataGridTextColumn Header="Kelas" Binding="{Binding Kelas}" Width="*" />
@@ -258,12 +269,23 @@
                       AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                       EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
                 <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Foto" Width="54">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border CornerRadius="8" Background="{StaticResource BrushSurfaceAlt}"
+                                        Width="34" Height="34" ClipToBounds="True">
+                                    <Image Source="{Binding FotoThumbUrl, Converter={StaticResource Thumb}}" Stretch="UniformToFill" />
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTextColumn Header="Waktu" Binding="{Binding ServerAt}" Width="*" />
                     <DataGridTextColumn Header="Perangkat" Binding="{Binding Perangkat}" Width="*" />
                     <DataGridTextColumn Header="Kode" Binding="{Binding Kode}" Width="80" />
                     <DataGridTextColumn Header="Nama" Binding="{Binding Nama}" Width="2*" />
                     <DataGridTextColumn Header="NIS" Binding="{Binding Nis}" Width="*" />
                     <DataGridTextColumn Header="Tipe" Binding="{Binding Tipe}" Width="70" />
+                    <DataGridCheckBoxColumn Header="Dikenal" Binding="{Binding Teridentifikasi, Mode=OneWay}" Width="56" />
                     <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*" />
                     <DataGridTextColumn Header="Pesan" Binding="{Binding Pesan}" Width="2*" />
                 </DataGrid.Columns>

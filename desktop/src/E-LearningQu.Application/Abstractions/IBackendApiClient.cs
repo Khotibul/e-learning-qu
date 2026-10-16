@@ -4,6 +4,11 @@ namespace E_LearningQu.Application.Abstractions;
 public interface IBackendApiClient
 {
     Task<TResponse> GetAsync<TResponse>(string path, string? token = null, CancellationToken ct = default);
+
+    /// <summary>GET biner (foto profil/thumbnail). Sukses = byte[]; non-2xx/gagal
+    /// jaringan = null — TIDAK melempar (gambar dekoratif, kegagalan tak boleh
+    /// merusak muat tabel atau memicu sinyal session-expired).</summary>
+    Task<byte[]?> GetBytesAsync(string path, string? token = null, CancellationToken ct = default);
     Task<TResponse> PostAsync<TBody, TResponse>(string path, TBody body, string? token = null, CancellationToken ct = default);
     Task<TResponse> PostAsync<TResponse>(string path, CancellationToken ct = default);
 

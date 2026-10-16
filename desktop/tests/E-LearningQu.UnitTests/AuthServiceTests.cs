@@ -20,6 +20,9 @@ public class AuthServiceTests
         public Task<TResponse> GetAsync<TResponse>(string path, string? token = null, CancellationToken ct = default)
             => throw new NotSupportedException();
 
+        public Task<byte[]?> GetBytesAsync(string path, string? token = null, CancellationToken ct = default)
+            => Task.FromResult<byte[]?>(null);
+
         public Task<TResponse> PostAsync<TBody, TResponse>(string path, TBody body, string? token = null, CancellationToken ct = default)
         {
             LastPath = path;

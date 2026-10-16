@@ -832,6 +832,40 @@ public sealed class AdminService : IAdminService
             ["catatan"] = catatan,
         }, ct);
 
+    /// <summary>Unduh foto/thumbnail paralel ke FotoCache. Dijalankan sebelum baris
+    /// ditambahkan ke ObservableCollection supaya binding converter langsung punya
+    /// biner. Tidak PERNAH melempar (foto dekoratif; kegagalan = kolom foto kosong).</summary>
+    public async Task PreloadFotoAsync(IEnumerable<string?> urls, CancellationToken ct = default)
+    {
+        try
+        {
+            var antre = urls
+                .Where(u => !string.IsNullOrWhiteSpace(u))
+                .Select(u => u!)
+                .Distinct()
+                .Where(u => !FotoCache.Contains(u))
+                .ToList();
+            if (antre.Count == 0) return;
+
+            var token = _session.Current?.Token;
+            if (string.IsNullOrWhiteSpace(token)) return;
+
+            await Parallel.ForEachAsync(
+                antre,
+                new ParallelOptions { MaxDegreeOfParallelism = 6, CancellationToken = ct },
+                async (url, innerCt) =>
+                {
+                    try
+                    {
+                        var bytes = await _api.GetBytesAsync(url, token, innerCt);
+                        if (bytes is { Length: > 0 }) FotoCache.Put(url, bytes);
+                    }
+                    catch { /* foto dekoratif — abaikan */ }
+                });
+        }
+        catch { /* kontrak: tak boleh merusak muat tabel */ }
+    }
+
     // ══════════════════ KEUANGAN (BENDAHARA) ══════════════════
 
     public async Task<KeuanganDashboardDto> GetKeuanganDashboardAsync(CancellationToken ct = default) =>

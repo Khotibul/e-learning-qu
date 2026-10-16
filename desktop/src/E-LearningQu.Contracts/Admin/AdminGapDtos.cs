@@ -170,6 +170,7 @@ public sealed class MonitoringHarianBarisDto
     public string? PerangkatMasuk { get; set; }
     public string? PerangkatPulang { get; set; }
     public string? KoreksiAlasan { get; set; }
+    public string? FotoUrl { get; set; }
 }
 
 public sealed class MonitoringHarianRingkasanDto
@@ -197,6 +198,8 @@ public sealed class EventFpDto
     public string Kode { get; set; } = "";
     public string Nama { get; set; } = "";
     public string? Nis { get; set; }
+    public bool Teridentifikasi { get; set; }
+    public string? FotoThumbUrl { get; set; }
     public string Tipe { get; set; } = "";
     public string Status { get; set; } = "";
     public string? Pesan { get; set; }

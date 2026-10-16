@@ -153,6 +153,8 @@ public sealed partial class AdminFingerprintViewModel : ObservableObject
             if (SelectedTabIndex == 1)
             {
                 var m = await _admin.GetMonitoringHarianAsync(MonitoringTanggal, SearchText, ct);
+                // Isi cache foto DULU, baru isi baris — binding converter langsung menemukan biner.
+                await _admin.PreloadFotoAsync(m.Rows.Select(r => r.FotoUrl), ct);
                 Ringkasan = m.Summary;
                 Monitoring.Clear();
                 foreach (var r in m.Rows) Monitoring.Add(r);
@@ -161,6 +163,7 @@ public sealed partial class AdminFingerprintViewModel : ObservableObject
             else if (SelectedTabIndex == 2)
             {
                 var list = await _admin.GetFpEventsAsync(MonitoringTanggal, ct);
+                await _admin.PreloadFotoAsync(list.Select(e => e.FotoThumbUrl), ct);
                 Events.Clear();
                 foreach (var e in list) Events.Add(e);
                 StatusMessage = $"{Events.Count} event hari ini";
@@ -192,6 +195,21 @@ public sealed partial class AdminFingerprintViewModel : ObservableObject
     {
         // Tanggal diketik karakter demi karakter — debounce agar tidak menembak API per ketikan.
         if (SelectedTabIndex is not (1 or 2)) return;
+        _loadCts?.Cancel();
+        _loadCts = new CancellationTokenSource();
+        var ct = _loadCts.Token;
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(400, ct);
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => LoadAsync(ct));
+        }, ct);
+    }
+
+    partial void OnSearchTextChanged(string value)
+    {
+        // Box "Cari siswa" tab Monitoring — tanpa handler ini kotak cari mati
+        // (teks terikat tapi tak pernah memuat ulang; pola sama dgn OnMonitoringTanggalChanged).
+        if (SelectedTabIndex != 1) return;
         _loadCts?.Cancel();
         _loadCts = new CancellationTokenSource();
         var ct = _loadCts.Token;

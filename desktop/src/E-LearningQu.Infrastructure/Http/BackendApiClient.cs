@@ -44,6 +44,31 @@ public sealed class BackendApiClient : IBackendApiClient
         return await SendAsync<TResponse>(request, ct);
     }
 
+    public async Task<byte[]?> GetBytesAsync(string path, string? token = null, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, Normalize(path));
+        AttachAuth(request, token);
+        try
+        {
+            using var response = await _http.SendAsync(request, ct);
+            _logger.LogInformation("HTTP {Status}: {Method} {Uri}", (int)response.StatusCode, request.Method, request.RequestUri);
+            ConnectionChanged?.Invoke(true);
+            if (!response.IsSuccessStatusCode) return null;
+            var bytes = await response.Content.ReadAsByteArrayAsync(ct);
+            return bytes.Length == 0 ? null : bytes;
+        }
+        catch (TaskCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogDebug(ex, "GET biner gagal: {Uri}", request.RequestUri);
+            ConnectionChanged?.Invoke(false);
+            return null;
+        }
+    }
+
     public async Task<TResponse> PostAsync<TBody, TResponse>(string path, TBody body, string? token = null, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, Normalize(path))

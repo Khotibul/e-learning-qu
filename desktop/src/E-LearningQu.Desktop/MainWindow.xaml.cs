@@ -676,6 +676,7 @@ public partial class MainWindow : Window
                 "Keluar", "Yakin ingin keluar dari akun ini?", "Ya, Keluar");
             if (!ok) return;
             await _auth.SignOutAsync();
+            E_LearningQu.Application.Common.FotoCache.Clear(); // foto akun lama tidak bocor ke akun berikutnya
             _menuAll = Array.Empty<MenuItemDef>();
             MenuList.ItemsSource = null;
             ContentHost.Content = null;
