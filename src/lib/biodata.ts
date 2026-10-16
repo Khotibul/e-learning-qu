@@ -7,9 +7,18 @@ async function getSharp(): Promise<typeof import("sharp").default> {
   try {
     const mod = await import("sharp")
     return mod.default
-  } catch {
-    throw new Error("Pemrosesan gambar tidak tersedia di server (modul sharp gagal dimuat)")
+  } catch (e) {
+    const cause = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
+    throw new Error(`Pemrosesan gambar tidak tersedia di server (modul sharp gagal dimuat) — ${cause}`)
   }
+}
+
+/** Deteksi format gambar dari magic bytes (tanpa sharp). */
+function sniffImageFormat(b: Buffer): "jpeg" | "png" | "webp" | null {
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpeg"
+  if (b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "png"
+  if (b.length >= 12 && b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP") return "webp"
+  return null
 }
 
 // ─── MASTER BIODATA ORANG ────────────────────────────────────────────────
@@ -108,48 +117,82 @@ export async function upsertBiodata(
  * menampilkan dengan auth yang sama).
  */
 export async function simpanFotoProfil(userId: string, file: File) {
-  const sharp = await getSharp()
   if (file.size > FOTO_MAX_BYTES) throw new Error(`Ukuran foto maksimal ${Math.round(FOTO_MAX_BYTES / 1024 / 1024)}MB`)
   const raw = Buffer.from(await file.arrayBuffer())
-  let format: string | undefined
-  try {
-    format = (await sharp(raw).metadata()).format
-  } catch {
-    throw new Error("File bukan gambar yang valid")
-  }
+  const format = sniffImageFormat(raw)
+  if (!format) throw new Error("File bukan gambar yang valid")
   if (format !== "jpeg" && format !== "png" && format !== "webp") {
     throw new Error("Format foto harus JPEG, PNG, atau WebP")
   }
-  // .rotate() tanpa argumen = ikut EXIF orientation, lalu re-encode
-  // menghapus seluruh metadata/EXIF yang tidak diperlukan.
-  const asli = await sharp(raw)
-    .rotate()
-    .resize(FOTO_MAX_DIM, FOTO_MAX_DIM, { fit: "cover", position: "attention" })
-    .jpeg({ quality: 84, mozjpeg: true })
-    .toBuffer()
-  const thumb = await sharp(asli)
-    .resize(FOTO_THUMB_DIM, FOTO_THUMB_DIM, { fit: "cover", position: "attention" })
-    .jpeg({ quality: 78 })
-    .toBuffer()
 
   const stamp = new Date().toISOString().slice(0, 10)
-  const [fAsli, fThumb] = await prisma.$transaction([
-    prisma.upload.create({
-      data: { filename: `foto-${stamp}-${userId.slice(0, 8)}.jpg`, mime: "image/jpeg", size: asli.length, data: asli, userId, akses: "INTERNAL" },
-    }),
-    prisma.upload.create({
-      data: { filename: `foto-${stamp}-${userId.slice(0, 8)}-thumb.jpg`, mime: "image/jpeg", size: thumb.length, data: thumb, userId, akses: "INTERNAL" },
-    }),
-  ])
+  let asli: Buffer
+  let thumb: Buffer | null
+  let ext: string
+  let mime: string
+  let degraded = false
+  let sharpCause: string | undefined
+  try {
+    const sharp = await getSharp()
+    // .rotate() tanpa argumen = ikut EXIF orientation, lalu re-encode
+    // menghapus seluruh metadata/EXIF yang tidak diperlukan.
+    asli = await sharp(raw)
+      .rotate()
+      .resize(FOTO_MAX_DIM, FOTO_MAX_DIM, { fit: "cover", position: "attention" })
+      .jpeg({ quality: 84, mozjpeg: true })
+      .toBuffer()
+    thumb = await sharp(asli)
+      .resize(FOTO_THUMB_DIM, FOTO_THUMB_DIM, { fit: "cover", position: "attention" })
+      .jpeg({ quality: 78 })
+      .toBuffer()
+    ext = "jpg"
+    mime = "image/jpeg"
+  } catch (e) {
+    // Runtime tanpa sharp (native module gagal dimuat): fitur TIDAK boleh
+    // mati — simpan file apa adanya (magic bytes sudah tervalidasi), tanpa
+    // normalisasi EXIF/resize/thumbnail. Baris foto_penuh saja dibuat.
+    console.error("foto: sharp tidak tersedia, simpan file apa adanya:", e)
+    asli = raw
+    thumb = null
+    ext = format === "jpeg" ? "jpg" : format
+    mime = format === "jpeg" ? "image/jpeg" : format === "png" ? "image/png" : "image/webp"
+    degraded = true
+    sharpCause = e instanceof Error ? e.message : String(e)
+  }
+
+  let fAsliId: string
+  let fThumbId: string | null = null
+  if (thumb) {
+    const [fAsli, fThumb] = await prisma.$transaction([
+      prisma.upload.create({
+        data: { filename: `foto-${stamp}-${userId.slice(0, 8)}.jpg`, mime: "image/jpeg", size: asli.length, data: asli, userId, akses: "INTERNAL" },
+      }),
+      prisma.upload.create({
+        data: { filename: `foto-${stamp}-${userId.slice(0, 8)}-thumb.jpg`, mime: "image/jpeg", size: thumb.length, data: thumb, userId, akses: "INTERNAL" },
+      }),
+    ])
+    fAsliId = fAsli.id
+    fThumbId = fThumb.id
+  } else {
+    const fAsli = await prisma.upload.create({
+      data: { filename: `foto-${stamp}-${userId.slice(0, 8)}.${ext}`, mime, size: asli.length, data: asli, userId, akses: "INTERNAL" },
+    })
+    fAsliId = fAsli.id
+  }
 
   await prisma.biodataOrang.upsert({
     where: { userId },
-    create: { userId, fotoUploadId: fAsli.id, fotoThumbId: fThumb.id, fotoUpdatedAt: new Date() },
-    update: { fotoUploadId: fAsli.id, fotoThumbId: fThumb.id, fotoUpdatedAt: new Date() },
+    create: { userId, fotoUploadId: fAsliId, fotoThumbId: fThumbId, fotoUpdatedAt: new Date() },
+    update: { fotoUploadId: fAsliId, fotoThumbId: fThumbId, fotoUpdatedAt: new Date() },
   })
   // User.image = URL foto penuh (satu sumber tampilan avatar lintas aplikasi)
-  await prisma.user.update({ where: { id: userId }, data: { image: `/api/upload/${fAsli.id}` } })
-  return { fotoUrl: `/api/upload/${fAsli.id}`, fotoThumbUrl: `/api/upload/${fThumb.id}` }
+  await prisma.user.update({ where: { id: userId }, data: { image: `/api/upload/${fAsliId}` } })
+  return {
+    fotoUrl: `/api/upload/${fAsliId}`,
+    fotoThumbUrl: fThumbId ? `/api/upload/${fThumbId}` : null,
+    degraded,
+    ...(sharpCause ? { sharpCause } : {}),
+  }
 }
 
 /** Hapus foto profil (baris Upload dipertahankan sebagai arsip media; referensi diputus). */
