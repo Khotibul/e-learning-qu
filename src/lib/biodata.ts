@@ -3,13 +3,42 @@ import { prisma } from "@/lib/prisma"
 // sharp dimuat LAZY (dynamic import) — module-load route yang hanya membaca
 // biodata/monitoring tidak boleh ikut crash bila native module sharp gagal
 // dimuat di runtime serverless (akses foto = fitur, bukan syarat hidup route).
+// Diagnostik runtime: apakah paket native sharp benar-benar ada di bundle
+// fungsi serverless (Vercel NFT) — dipakai untuk membedakan "paket hilang
+// dari bundle" vs "paket ada tapi dlopen gagal".
+async function sharpDiag(): Promise<Record<string, unknown>> {
+  const diag: Record<string, unknown> = {}
+  try {
+    const fs = await import("node:fs")
+    const path = await import("node:path")
+    const cwd = process.cwd()
+    diag.cwd = cwd
+    diag.node = process.version
+    diag.platform = `${process.platform}/${process.arch}`
+    const cands = [
+      "node_modules/sharp/package.json",
+      "node_modules/@img/sharp-linux-x64/package.json",
+      "node_modules/@img/sharp-libvips-linux-x64/package.json",
+      "node_modules/@img/sharp-libvips-linux-x64/lib/libvips-cpp.so.8.18.7",
+      "node_modules/@img/sharp-linux-x64/sharp-linux-x64.node",
+    ]
+    for (const c of cands) diag[c] = fs.existsSync(path.resolve(cwd, c)) ? "ADA" : "HILANG"
+    try { diag.imgDir = fs.readdirSync(path.resolve(cwd, "node_modules/@img")).slice(0, 40) } catch (e) { diag.imgDir = `err:${(e as Error).message}` }
+    try { diag.libvipsDir = fs.readdirSync(path.resolve(cwd, "node_modules/@img/sharp-libvips-linux-x64/lib")).slice(0, 40) } catch (e) { diag.libvipsDir = `err:${(e as Error).message}` }
+  } catch (e) {
+    diag.diagError = String(e)
+  }
+  return diag
+}
+
 async function getSharp(): Promise<typeof import("sharp").default> {
   try {
     const mod = await import("sharp")
     return mod.default
   } catch (e) {
     const cause = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
-    throw new Error(`Pemrosesan gambar tidak tersedia di server (modul sharp gagal dimuat) — ${cause}`)
+    const diag = await sharpDiag()
+    throw new Error(`Pemrosesan gambar tidak tersedia di server (modul sharp gagal dimuat) — ${cause} | diag=${JSON.stringify(diag)}`)
   }
 }
 
