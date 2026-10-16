@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const msg = e instanceof Error ? e.message : "Gagal mengunggah foto"
     if (msg.startsWith("Ukuran") || msg.startsWith("Format") || msg.startsWith("File bukan")) return fail(msg, 400)
     console.error(e)
-    return fail("Gagal mengunggah foto")
+    return fail("Gagal mengunggah foto: " + msg)
   }
 }
 
