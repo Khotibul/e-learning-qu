@@ -1,5 +1,16 @@
 import { prisma } from "@/lib/prisma"
-import sharp from "sharp"
+
+// sharp dimuat LAZY (dynamic import) — module-load route yang hanya membaca
+// biodata/monitoring tidak boleh ikut crash bila native module sharp gagal
+// dimuat di runtime serverless (akses foto = fitur, bukan syarat hidup route).
+async function getSharp(): Promise<typeof import("sharp").default> {
+  try {
+    const mod = await import("sharp")
+    return mod.default
+  } catch {
+    throw new Error("Pemrosesan gambar tidak tersedia di server (modul sharp gagal dimuat)")
+  }
+}
 
 // ─── MASTER BIODATA ORANG ────────────────────────────────────────────────
 // Satu identitas utama per orang: identitas pribadi menempel di User
@@ -97,6 +108,7 @@ export async function upsertBiodata(
  * menampilkan dengan auth yang sama).
  */
 export async function simpanFotoProfil(userId: string, file: File) {
+  const sharp = await getSharp()
   if (file.size > FOTO_MAX_BYTES) throw new Error(`Ukuran foto maksimal ${Math.round(FOTO_MAX_BYTES / 1024 / 1024)}MB`)
   const raw = Buffer.from(await file.arrayBuffer())
   let format: string | undefined
