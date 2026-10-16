@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { ymd } from "@/lib/utils"
 import { options, requireAdmin, ok, fail } from "../_lib"
@@ -59,7 +58,10 @@ export async function GET(req: Request) {
       if (!perangkatId) return fail("perangkatId wajib", 400)
       const rows = await prisma.pemetaanFingerprint.findMany({
         where: { perangkatId },
-        include: { siswa: { select: { id: true, nama: true, nis: true, kelas: { select: { nama: true } } } } },
+        include: {
+          siswa: { select: { id: true, nama: true, nis: true, kelas: { select: { nama: true } } } },
+          user: { select: { id: true, name: true, image: true, guru: { select: { nama: true, nip: true } }, biodata: { select: { fotoThumbId: true } } } },
+        },
         orderBy: { createdAt: "desc" },
       })
       return ok(
@@ -67,9 +69,12 @@ export async function GET(req: Request) {
           id: r.id,
           perangkatUserId: r.perangkatUserId,
           siswaId: r.siswaId,
-          nama: r.siswa.nama,
-          nis: r.siswa.nis,
-          kelas: r.siswa.kelas?.nama ?? "-",
+          userId: r.userId,
+          tipeIdentitas: r.siswaId ? "SISWA" : r.userId ? "GURU_PEGAWAI" : "TIDAK_DIKENAL",
+          nama: r.siswa?.nama ?? r.user?.guru?.nama ?? r.user?.name ?? "(tanpa identitas)",
+          nis: r.siswa?.nis ?? r.user?.guru?.nip ?? null,
+          kelas: r.siswa?.kelas?.nama ?? "-",
+          fotoThumbUrl: r.user?.biodata?.fotoThumbId ? `/api/upload/${r.user.biodata.fotoThumbId}` : null,
           createdAt: r.createdAt.toISOString(),
         }))
       )
@@ -102,7 +107,12 @@ export async function GET(req: Request) {
       const rows = await prisma.absensiHarianSiswa.findMany({
         where: where as never,
         include: {
-          siswa: { select: { id: true, nama: true, nis: true, kelasId: true, kelas: { select: { nama: true } } } },
+          siswa: {
+            select: {
+              id: true, nama: true, nis: true, kelasId: true, kelas: { select: { nama: true } },
+              user: { select: { image: true, biodata: { select: { fotoThumbId: true } } } },
+            },
+          },
           eventMasuk: { select: { eventKey: true, perangkat: { select: { nama: true } } } },
           eventPulang: { select: { eventKey: true, perangkat: { select: { nama: true } } } },
         },
@@ -117,6 +127,8 @@ export async function GET(req: Request) {
         nis: string | null
         kelasId: string | null
         kelas: string
+        fotoUrl: string | null
+        fotoThumbUrl: string | null
         jamMasuk: string | null
         jamPulang: string | null
         statusMasuk: string | null
@@ -136,6 +148,8 @@ export async function GET(req: Request) {
         nis: r.siswa.nis,
         kelasId: r.siswa.kelasId,
         kelas: r.siswa.kelas?.nama ?? "-",
+        fotoUrl: r.siswa.user?.image ?? null,
+        fotoThumbUrl: r.siswa.user?.biodata?.fotoThumbId ? `/api/upload/${r.siswa.user.biodata.fotoThumbId}` : (r.siswa.user?.image ?? null),
         jamMasuk: r.jamMasuk,
         jamPulang: r.jamPulang,
         statusMasuk: r.statusMasuk,
@@ -169,6 +183,8 @@ export async function GET(req: Request) {
           nis: s.nis,
           kelasId: s.kelasId,
           kelas: s.kelas?.nama ?? "-",
+          fotoUrl: null,
+          fotoThumbUrl: null,
           jamMasuk: null,
           jamPulang: null,
           statusMasuk: null,
@@ -201,6 +217,7 @@ export async function GET(req: Request) {
         where: { serverAt: { gte: tanggal, lt: new Date(tanggal.getTime() + 86400000) } },
         include: {
           siswa: { select: { nama: true, nis: true } },
+          user: { select: { name: true, image: true, guru: { select: { nama: true, nip: true } }, biodata: { select: { fotoThumbId: true } } } },
           perangkat: { select: { nama: true, kode: true } },
         },
         orderBy: { serverAt: "desc" },
@@ -212,8 +229,11 @@ export async function GET(req: Request) {
           eventKey: r.eventKey,
           perangkat: r.perangkat?.nama ?? "-",
           kode: r.perangkat?.kode ?? "-",
-          nama: r.siswa?.nama ?? "(tidak dikenal)",
-          nis: r.siswa?.nis ?? null,
+          nama: r.siswa?.nama ?? r.user?.guru?.nama ?? r.user?.name ?? null,
+          nis: r.siswa?.nis ?? r.user?.guru?.nip ?? null,
+          // TIDAK_DIKENAL = belum teridentifikasi — jangan ditautkan sembarangan
+          teridentifikasi: !!(r.siswaId || r.userId),
+          fotoThumbUrl: r.user?.biodata?.fotoThumbId ? `/api/upload/${r.user.biodata.fotoThumbId}` : (r.user?.image ?? null),
           tipe: r.tipe,
           status: r.status,
           pesan: r.pesan,
@@ -322,6 +342,32 @@ export async function POST(req: Request) {
       if (dup) return fail(dup.perangkatUserId === uid ? "UID sudah terdaftar di perangkat ini" : "Siswa sudah terpetakan di perangkat ini", 409)
       await prisma.pemetaanFingerprint.create({ data: { perangkatId, siswaId, perangkatUserId: uid } })
       await audit(auth.user.id, "TAMBAH_PEMETAAN_FINGERPRINT", "PemetaanFingerprint", perangkatId, { siswaId, uid })
+      return ok({ success: true })
+    }
+
+    // Pemetaan UID mesin ↔ identitas non-siswa (guru/pegawai/pembina).
+    // Identitas orang = User (satu sumber); scan tercatat sebagai event
+    // teridentifikasi tanpa menautkan ke siswa lain secara sembarangan.
+    if (op === "tambahPemetaanUser") {
+      const perangkatId = String(body.perangkatId || "")
+      const userId = String(body.userId || "")
+      const uid = String(body.perangkatUserId ?? "").trim()
+      if (!uid) return fail("UID sidik jari di mesin wajib diisi", 400)
+      if (uid.length > 32) return fail("UID maksimal 32 karakter", 400)
+      const perangkat = await prisma.perangkatFingerprint.findUnique({ where: { id: perangkatId } })
+      if (!perangkat) return fail("Perangkat tidak ditemukan", 404)
+      const user = await prisma.user.findFirst({
+        where: { id: userId, isActive: true },
+        select: { id: true, name: true, guru: { select: { nama: true } } },
+      })
+      if (!user) return fail("User tidak ditemukan", 404)
+      const dup = await prisma.pemetaanFingerprint.findFirst({
+        where: { OR: [{ perangkatId, perangkatUserId: uid }, { perangkatId, userId }] },
+        select: { perangkatUserId: true, userId: true },
+      })
+      if (dup) return fail(dup.perangkatUserId === uid ? "UID sudah terdaftar di perangkat ini" : "User sudah terpetakan di perangkat ini", 409)
+      await prisma.pemetaanFingerprint.create({ data: { perangkatId, userId, siswaId: null, perangkatUserId: uid } })
+      await audit(auth.user.id, "TAMBAH_PEMETAAN_FINGERPRINT_USER", "PemetaanFingerprint", perangkatId, { userId, uid })
       return ok({ success: true })
     }
 

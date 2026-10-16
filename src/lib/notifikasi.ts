@@ -99,7 +99,16 @@ export async function penerimaKehadiranSiswa(siswaId: string): Promise<PenerimaN
     // Wali kelas membuka dashboard kelasnya, bukan halaman siswa
     hasil.push({ userId: siswa.kelas.guru.userId, label: "wali-kelas", link: "/guru/wali-kelas" })
   }
-  // TODO(wali-murid): bila tabel relasi wali murid tersedia, tambahkan userId wali di sini.
+  // Wali murid — hanya yang memiliki hak eksplisit bolehNotifikasi
+  // (kontak keluarga TIDAK otomatis berhak menerima notifikasi).
+  const relasi = await prisma.santriWali.findMany({
+    where: { santri: { siswaId, deletedAt: null }, bolehNotifikasi: true, wali: { userId: { not: null }, deletedAt: null } },
+    select: { wali: { select: { userId: true } } },
+    distinct: ["waliId"],
+  })
+  for (const r of relasi) {
+    if (r.wali.userId) hasil.push({ userId: r.wali.userId, label: "wali-murid", link: "/wali-santri" })
+  }
   return hasil
 }
 

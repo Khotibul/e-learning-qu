@@ -153,9 +153,21 @@ export async function prosesScan(params: {
     const libur = await cekHariLibur(new Date())
     if (libur) return await selesai("DITOLAK", `Absensi ditolak: ${libur}`)
 
-    // 5) Identitas siswa — pemetaan UID perangkat (bukan template biometrik)
+    // 5) Identitas — pemetaan UID perangkat (bukan template biometrik).
+    //    Prioritas: siswa (flux absensi harian); lalu identitas non-siswa
+    //    (guru/pegawai via userId) — tercatat sebagai event teridentifikasi.
     let siswa = null as Awaited<ReturnType<typeof cariSiswa>> | null
     siswa = await cariSiswa(perangkat.id, perangkatUserId, nis)
+    if (!siswa && perangkatUserId) {
+      const nonSiswa = await prisma.pemetaanFingerprint.findFirst({
+        where: { perangkatId: perangkat.id, perangkatUserId },
+        select: { userId: true },
+      })
+      if (nonSiswa?.userId) {
+        await prisma.fingerprintEvent.update({ where: { id: event.id }, data: { userId: nonSiswa.userId } }).catch(() => {})
+        return await selesai("SUKSES", "Scan tercatat untuk identitas non-siswa (guru/pegawai) — lihat monitoring")
+      }
+    }
     if (!siswa) {
       await prisma.fingerprintEvent.update({ where: { id: event.id }, data: { siswaId: null } }).catch(() => {})
       return await selesai("TIDAK_DIKENAL", "Sidik jari tidak dikenal / belum terdaftar pada mesin ini")

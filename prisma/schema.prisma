@@ -122,6 +122,9 @@ model User {
   guru          Guru?
   siswa         Siswa?
   santri        Santri?
+  biodata       BiodataOrang?
+  pemetaanFingerprint PemetaanFingerprint[]
+  fingerprintEvents   FingerprintEvent[]
   waliSantri    WaliSantri[]
   accounts      Account[]
   sessions      Session[]
@@ -1051,20 +1054,26 @@ model PerangkatFingerprint {
   @@map("perangkat_fingerprint")
 }
 
-// Pemetaan UID sidik jari di mesin ↔ siswa (unik per perangkat)
+// Pemetaan UID sidik jari di mesin ↔ identitas internal.
+// siswaId dipertahankan (legacy — absensi harian siswa); userId untuk
+// pemetaan non-siswa (guru/pegawai/pembina) — identitas orang = User.
 model PemetaanFingerprint {
   id              String   @id @default(uuid()) @db.Uuid
   perangkatId     String   @db.Uuid
-  siswaId         String   @db.Uuid
+  siswaId         String?  @db.Uuid // null untuk pemetaan non-siswa (guru/pegawai via userId)
+  userId          String?  @db.Uuid // identitas non-siswa (guru/pegawai); null untuk pemetaan siswa
   perangkatUserId String   // UID di mesin, BUKAN template sidik jari
   createdAt       DateTime @default(now())
 
   perangkat PerangkatFingerprint @relation(fields: [perangkatId], references: [id], onDelete: Cascade)
-  siswa     Siswa                @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  siswa     Siswa?               @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  user      User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([perangkatId, perangkatUserId])
   @@unique([perangkatId, siswaId])
+  @@unique([perangkatId, userId])
   @@index([siswaId])
+  @@index([userId])
   @@map("pemetaan_fingerprint")
 }
 
@@ -1074,6 +1083,7 @@ model FingerprintEvent {
   eventKey     String    @unique // `${kodePerangkat}:${scanId}` dari perangkat
   perangkatId  String?   @db.Uuid
   siswaId      String?   @db.Uuid
+  userId       String?   @db.Uuid // identitas non-siswa (guru/pegawai) bila dipetakan via userId
   tipe         String    // MASUK | PULANG
   status       String    @default("DIPROSES") // DIPROSES | SUKSES | DUPLIKAT | TIDAK_DIKENAL | DITOLAK | GAGAL
   pesan        String?
@@ -1083,10 +1093,12 @@ model FingerprintEvent {
 
   perangkat   PerangkatFingerprint? @relation(fields: [perangkatId], references: [id], onDelete: SetNull)
   siswa       Siswa?                @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  user        User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
   absensiMasuk  AbsensiHarianSiswa? @relation("EventMasuk")
   absensiPulang AbsensiHarianSiswa? @relation("EventPulang")
 
   @@index([siswaId, serverAt])
+  @@index([userId, serverAt])
   @@index([perangkatId, serverAt])
   @@index([status])
   @@map("fingerprint_events")
@@ -1898,6 +1910,14 @@ model WaliSantri {
   hubungan  HubunganWali
   noTelp    String?
   alamat    String?
+  // ── master biodata wali (opsional; wali belum tentu punya akun) ──
+  email          String?
+  pekerjaan      String?
+  pendidikan     String?
+  tempatLahir    String?
+  tanggalLahir   DateTime?
+  statusHidup    String?  // HIDUP | ALMARHUM | TIDAK_DIKETAHUI
+  fotoUploadId   String?  @db.Uuid
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   deletedAt DateTime?
@@ -1914,6 +1934,15 @@ model SantriWali {
   santriId  String   @db.Uuid
   waliId    String   @db.Uuid
   isPrimary Boolean  @default(false) // wali utama untuk notifikasi/persetujuan
+  // ── hak akses eksplisit (default ketat: TIDAK otomatis berhak) ──
+  aksesProfil        Boolean @default(false) // melihat biodata anak
+  aksesAbsensi       Boolean @default(false) // melihat riwayat absensi
+  aksesTagihan       Boolean @default(false) // melihat tagihan/iuran
+  aksesTopup         Boolean @default(false) // mengajukan top-up dompet
+  bolehNotifikasi    Boolean @default(false) // menerima notifikasi kehadiran/dll
+  bolehSetujuiIzin   Boolean @default(false) // menyetujui izin keluar
+  bolehUploadFoto    Boolean @default(false) // mengunggah foto profil anak
+  kontakDarurat      Boolean @default(false) // ditampilkan sebagai kontak darurat
   createdAt DateTime @default(now())
 
   santri Santri     @relation(fields: [santriId], references: [id], onDelete: Cascade)
@@ -2996,4 +3025,51 @@ model JurnalItem {
   @@index([jurnalId])
   @@index([akunId])
   @@map("jurnal_item")
+}
+
+// ─── MASTER BIODATA ORANG (satu identitas utama per orang) ──────────────
+// Identitas pribadi melekat pada ORANG (User), bukan peran — satu orang
+// yang sekaligus siswa+santri atau guru+ustadz tidak menduplikasi data.
+// Field sensitif (NIK, KK) disimpan di sini dan TIDAK dikirim penuh pada
+// daftar umum (hanya di detail berotorisasi, dinormalisasi/di-masking).
+
+enum JenisKelamin {
+  LAKI_LAKI
+  PEREMPUAN
+}
+
+model BiodataOrang {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String        @unique @db.Uuid
+  panggilan String?
+  jenisKelamin JenisKelamin?
+  tempatLahir  String?
+  tanggalLahir DateTime?
+  // ── field sensitif (akses terbatas: pemilik + Admin) ──
+  nik       String?
+  nomorKK   String?
+  kewarganegaraan String  @default("WNI")
+  agama     String?
+  alamat    String?
+  provinsi  String?
+  kabupaten String?
+  kecamatan String?
+  desa      String?
+  kodePos   String?
+  noHp      String?
+  // ── kontak darurat ──
+  kontakDaruratNama     String?
+  kontakDaruratHubungan String?
+  kontakDaruratTelp     String?
+  // ── foto profil (referensi baris Upload; thumb = thumbnail 128px) ──
+  fotoUploadId  String?   @db.Uuid
+  fotoThumbId   String?   @db.Uuid
+  fotoUpdatedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("biodata_orang")
 }
