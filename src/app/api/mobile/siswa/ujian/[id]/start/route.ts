@@ -40,12 +40,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const jamMulai = new Date(ujian.jamMulai)
       const jamSelesai = new Date(ujian.jamSelesai)
       if (ujian.status === "DRAFT" && now >= jamMulai) {
-        await prisma.ujian.update({ where: { id: ujian.id }, data: { status: "AKTIF" } })
-        ujian.status = "AKTIF" as never
+        const tr = await prisma.ujian.updateMany({ where: { id: ujian.id, status: "DRAFT" }, data: { status: "AKTIF" } })
+        if (tr.count > 0) ujian.status = "AKTIF" as never
+        else {
+          const fresh = await prisma.ujian.findUnique({ where: { id: ujian.id }, select: { status: true } })
+          if (fresh) ujian.status = fresh.status as never
+        }
       }
       if (ujian.status === "AKTIF" && now >= jamSelesai) {
-        await prisma.ujian.update({ where: { id: ujian.id }, data: { status: "SELESAI" } })
-        ujian.status = "SELESAI" as never
+        const tr = await prisma.ujian.updateMany({ where: { id: ujian.id, status: "AKTIF" }, data: { status: "SELESAI" } })
+        if (tr.count > 0) ujian.status = "SELESAI" as never
+        else {
+          const fresh = await prisma.ujian.findUnique({ where: { id: ujian.id }, select: { status: true } })
+          if (fresh) ujian.status = fresh.status as never
+        }
       }
       if (ujian.status === "DRAFT" && now < jamMulai) return NextResponse.json({ error: "Ujian belum dimulai" }, { status: 400, headers: corsHeaders })
     }
@@ -60,8 +68,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     if (ujian.bisaRetake) {
-      await prisma.jawabanUjian.deleteMany({ where: { ujianId: id, siswaId: siswa.id } })
-      await prisma.nilai.deleteMany({ where: { ujianId: id, siswaId: siswa.id } })
+      await prisma.$transaction([
+        prisma.jawabanUjian.deleteMany({ where: { ujianId: id, siswaId: siswa.id } }),
+        prisma.nilai.deleteMany({ where: { ujianId: id, siswaId: siswa.id } }),
+      ])
     }
 
     if (await isAssessmentLocked(id, siswa.id)) {
@@ -74,7 +84,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const existing = await prisma.jawabanUjian.findMany({ where: { ujianId: id, siswaId: siswa.id }, select: { soalId: true, jawaban: true, raguRagu: true } })
 
     if (existing.length === 0) {
-      await prisma.jawabanUjian.createMany({ data: ujian.ujianSoal.map((us) => ({ ujianId: id, siswaId: siswa.id, soalId: us.soalId })) })
+      await prisma.jawabanUjian.createMany({ data: ujian.ujianSoal.map((us) => ({ ujianId: id, siswaId: siswa.id, soalId: us.soalId })), skipDuplicates: true })
     }
 
     const savedAnswers: Record<string, string> = {}

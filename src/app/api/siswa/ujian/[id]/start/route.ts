@@ -56,19 +56,29 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const jamSelesai = new Date(ujian.jamSelesai)
 
       if (ujian.status === "DRAFT" && now >= jamMulai) {
-        await prisma.ujian.update({
-          where: { id: ujian.id },
+        const tr = await prisma.ujian.updateMany({
+          where: { id: ujian.id, status: "DRAFT" },
           data: { status: "AKTIF" },
         })
-        ujian.status = "AKTIF"
+        if (tr.count > 0) {
+          ujian.status = "AKTIF"
+        } else {
+          const fresh = await prisma.ujian.findUnique({ where: { id: ujian.id }, select: { status: true } })
+          if (fresh) ujian.status = fresh.status
+        }
       }
 
       if (ujian.status === "AKTIF" && now >= jamSelesai) {
-        await prisma.ujian.update({
-          where: { id: ujian.id },
+        const tr = await prisma.ujian.updateMany({
+          where: { id: ujian.id, status: "AKTIF" },
           data: { status: "SELESAI" },
         })
-        ujian.status = "SELESAI"
+        if (tr.count > 0) {
+          ujian.status = "SELESAI"
+        } else {
+          const fresh = await prisma.ujian.findUnique({ where: { id: ujian.id }, select: { status: true } })
+          if (fresh) ujian.status = fresh.status
+        }
       }
 
       if (ujian.status === "DRAFT" && now < jamMulai) {
@@ -91,12 +101,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     // ── Retake: clear old data BEFORE locked/graded checks ──
     if (ujian.bisaRetake) {
-      await prisma.jawabanUjian.deleteMany({
-        where: { ujianId: id, siswaId: siswa.id },
-      })
-      await prisma.nilai.deleteMany({
-        where: { ujianId: id, siswaId: siswa.id },
-      })
+      await prisma.$transaction([
+        prisma.jawabanUjian.deleteMany({
+          where: { ujianId: id, siswaId: siswa.id },
+        }),
+        prisma.nilai.deleteMany({
+          where: { ujianId: id, siswaId: siswa.id },
+        }),
+      ])
     }
 
     if (await isAssessmentLocked(id, siswa.id)) {
@@ -126,6 +138,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           siswaId: siswa.id,
           soalId: us.soalId,
         })),
+        skipDuplicates: true,
       })
     }
 

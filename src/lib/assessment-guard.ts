@@ -61,6 +61,10 @@ export async function lockAssessment(ujianId: string, siswaId: string): Promise<
 
   if (relevantSubmitted.length === 0) return
 
+  // Jangan kunci selama masih ada anggota kelas yang belum submit —
+  // cegah kunci dini saat submit pertama tiba (exam peak-load).
+  if (relevantSubmitted.length < siswaIds.length) return
+
   const allGraded = await Promise.all(
     relevantSubmitted.map(async (sid) => {
       const hasNilai = await prisma.nilai.findFirst({

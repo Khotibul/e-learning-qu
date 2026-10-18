@@ -88,33 +88,50 @@ export async function POST(
       },
     })
 
-    const newScore = Math.min(100, examSession.cheatingScore + score)
-
-    const updateData: Record<string, unknown> = {
-      cheatingScore: newScore,
+    // Increment atomik — aman terhadap laporan bersamaan dari banyak event
+    const updateData: {
+      cheatingScore: { increment: number }
+      tabSwitchCount?: { increment: number }
+      totalBlurMs?: { increment: number }
+    } = {
+      cheatingScore: { increment: score },
     }
 
     if (type === "TAB_SWITCH") {
-      updateData.tabSwitchCount = examSession.tabSwitchCount + 1
+      updateData.tabSwitchCount = { increment: 1 }
     }
 
-    if (type === "WINDOW_BLUR" && detail?.durationMs) {
-      updateData.totalBlurMs =
-        examSession.totalBlurMs + (detail.durationMs as number)
+    if (type === "WINDOW_BLUR" && detail?.durationMs && typeof detail.durationMs === "number") {
+      updateData.totalBlurMs = { increment: detail.durationMs }
     }
 
-    if (newScore >= 75 && !examSession.isFlagged) {
-      updateData.isFlagged = true
-      updateData.flagReason = `Cheating score reached ${newScore}`
-      if (examSession.status === "IN_PROGRESS") {
-        updateData.status = "FLAGGED"
-      }
-    }
-
-    const updatedSession = await prisma.examSession.update({
+    let updatedSession = await prisma.examSession.update({
       where: { id: examSession.id },
       data: updateData,
     })
+
+    if (updatedSession.cheatingScore > 100) {
+      updatedSession = await prisma.examSession.update({
+        where: { id: examSession.id },
+        data: { cheatingScore: 100 },
+      })
+    }
+
+    if (updatedSession.cheatingScore >= 75 && !updatedSession.isFlagged) {
+      await prisma.examSession.updateMany({
+        where: { id: examSession.id, isFlagged: false },
+        data: {
+          isFlagged: true,
+          flagReason: `Cheating score reached ${updatedSession.cheatingScore}`,
+        },
+      })
+      await prisma.examSession.updateMany({
+        where: { id: examSession.id, status: "IN_PROGRESS" },
+        data: { status: "FLAGGED" },
+      })
+      updatedSession =
+        (await prisma.examSession.findUnique({ where: { id: examSession.id } })) ?? updatedSession
+    }
 
     await logExamAudit({
       ujianId: id,
@@ -127,7 +144,7 @@ export async function POST(
         eventType: type,
         severity,
         score,
-        cumulativeScore: newScore,
+        cumulativeScore: updatedSession.cheatingScore,
         eventId: event.id,
       },
       ipAddress: request.headers.get("x-forwarded-for") ?? undefined,

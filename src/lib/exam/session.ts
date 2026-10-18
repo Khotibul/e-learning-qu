@@ -87,8 +87,8 @@ export async function examHeartbeat(sessionId: string): Promise<{
   const isExpired = remainingMs <= 0
 
   if (isExpired) {
-    await prisma.examSession.update({
-      where: { id: sessionId },
+    await prisma.examSession.updateMany({
+      where: { id: sessionId, status: "IN_PROGRESS" },
       data: {
         status: "TIMED_OUT",
         submittedAt: now,
@@ -110,15 +110,16 @@ export async function submitExamSession(sessionId: string): Promise<{
   })
 
   if (!session) throw new Error("Session not found")
-  if (session.status !== "IN_PROGRESS") {
-    throw new Error(`Session is ${session.status}, not IN_PROGRESS`)
+  if (session.status === "SUBMITTED" || session.status === "TIMED_OUT") {
+    // Submit ganda / race dengan heartbeat — idempoten, jangan lempar error
+    return { serverTime: Date.now(), durationMs: session.totalDurationMs ?? 0 }
   }
 
   const now = new Date()
   const durationMs = now.getTime() - session.serverStartedAt.getTime()
 
-  await prisma.examSession.update({
-    where: { id: sessionId },
+  const tr = await prisma.examSession.updateMany({
+    where: { id: sessionId, status: { in: ["IN_PROGRESS", "FLAGGED"] } },
     data: {
       submittedAt: now,
       serverSubmitAt: now,
@@ -126,6 +127,15 @@ export async function submitExamSession(sessionId: string): Promise<{
       status: "SUBMITTED",
     },
   })
+
+  if (tr.count === 0) {
+    // Transisi sudah dilakukan pihak lain (race) — kembalikan durasi tersimpan
+    const fresh = await prisma.examSession.findUnique({ where: { id: sessionId } })
+    return {
+      serverTime: now.getTime(),
+      durationMs: fresh?.totalDurationMs ?? durationMs,
+    }
+  }
 
   return { serverTime: now.getTime(), durationMs }
 }
@@ -147,9 +157,16 @@ export async function flagSession(
       isFlagged: true,
       flagReason: reason,
       cheatingScore,
-      status: cheatingScore >= 50 ? "FLAGGED" : session.status,
     },
   })
+
+  if (cheatingScore >= 50) {
+    // Transisi status hanya dari IN_PROGRESS — jangan menimpa TIMED_OUT/SUBMITTED
+    await prisma.examSession.updateMany({
+      where: { id: sessionId, status: "IN_PROGRESS" },
+      data: { status: "FLAGGED" },
+    })
+  }
 }
 
 export async function getActiveSession(ujianId: string, siswaId: string) {

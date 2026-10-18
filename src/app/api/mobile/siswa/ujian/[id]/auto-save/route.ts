@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getMobileUser } from "@/lib/mobile-auth"
+import { isAssessmentLocked } from "@/lib/assessment-guard"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +32,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const siswa = await prisma.siswa.findUnique({ where: { userId: user.id } })
     if (!siswa) return NextResponse.json({ error: "Siswa not found" }, { status: 404, headers: corsHeaders })
 
+    const rl = rateLimit(`autosave:${getClientIp(req)}:${siswa.id}:${id}`, 120, 60000)
+    if (!rl.success) return NextResponse.json({ error: "Terlalu banyak permintaan" }, { status: 429, headers: { ...corsHeaders, "Retry-After": "60" } })
+
     const subBuckets: Record<string, Record<number, string>> = {}
     const directAnswers: Record<string, string> = {}
     if (answers && typeof answers === "object") {
@@ -48,6 +53,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     const ujian = await prisma.ujian.findUnique({ where: { id }, include: { ujianSoal: { include: { soal: true } } } })
     if (!ujian) return NextResponse.json({ error: "Ujian not found" }, { status: 404, headers: corsHeaders })
+
+    if (await isAssessmentLocked(id, siswa.id)) {
+      return NextResponse.json({ error: "Ujian ini sudah dinilai dan tidak dapat diubah" }, { status: 403, headers: corsHeaders })
+    }
 
     const parentRagu = (soalId: string) => {
       if (!Array.isArray(raguRagu)) return false

@@ -720,6 +720,7 @@ model Nilai {
   mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id])
   semester      Semester      @relation(fields: [semesterId], references: [id])
 
+  @@unique([siswaId, ujianId])
   @@index([siswaId])
   @@index([siswaId, deletedAt])
   @@index([ujianId])

@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
+import { isAssessmentLocked } from "@/lib/assessment-guard"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 const SUB_RE = /^(.+)::sub::(\d+)$/
 
@@ -26,6 +28,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     if (!siswa) {
       return NextResponse.json({ error: "Siswa not found" }, { status: 404 })
+    }
+
+    const rl = rateLimit(`autosave:${getClientIp(req)}:${siswa.id}:${id}`, 120, 60000)
+    if (!rl.success) {
+      return NextResponse.json({ error: "Terlalu banyak permintaan" }, { status: 429, headers: { "Retry-After": "60" } })
     }
 
     // Regroup flattened sub-answers into parent soal JSON arrays
@@ -59,6 +66,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Ujian not found" }, { status: 404 })
     }
 
+    if (await isAssessmentLocked(id, siswa.id)) {
+      return NextResponse.json({ error: "Ujian ini sudah dinilai dan tidak dapat diubah" }, { status: 403 })
+    }
+
     const parentRagu = (soalId: string) => {
       if (!Array.isArray(raguRagu)) return false
       const subs = subSoalItem(ujian.ujianSoal.find((us) => us.soal.id === soalId)?.soal.subSoal)
@@ -66,7 +77,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return subs.some((_: any, i: number) => raguRagu.includes(`${soalId}::sub::${i}`))
     }
 
-    for (const us of ujian.ujianSoal) {
+    const ops = ujian.ujianSoal.map((us) => {
       const subs = subSoalItem(us.soal.subSoal)
       let jawabanJson: string
       if (subs.length > 0 && subBuckets[us.soal.id]) {
@@ -80,7 +91,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         jawabanJson = directAnswers[us.soal.id] ?? ""
       }
 
-      await prisma.jawabanUjian.upsert({
+      return prisma.jawabanUjian.upsert({
         where: {
           ujianId_siswaId_soalId: {
             ujianId: id,
@@ -100,7 +111,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           raguRagu: parentRagu(us.soal.id),
         },
       })
-    }
+    })
+
+    if (ops.length > 0) await prisma.$transaction(ops as never)
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -86,41 +86,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     // Build JSON arrays for sub-question parents and store JawabanUjian
+    const ops: ReturnType<typeof prisma.jawabanUjian.upsert>[] = []
     for (const us of ujian.ujianSoal) {
       const subs = subSoalItem(us.soal.subSoal)
+      let jawabanStr: string
       if (subs.length > 0 && subBuckets[us.soal.id]) {
         const arr: string[] = []
         const bucket = subBuckets[us.soal.id]
         for (let i = 0; i < subs.length; i++) {
           arr.push(bucket[i] || "")
         }
-        const jawabanJson = JSON.stringify(arr)
-        regrouped[us.soal.id] = jawabanJson
-
-        await prisma.jawabanUjian.upsert({
-          where: {
-            ujianId_siswaId_soalId: {
-              ujianId: id,
-              siswaId: siswa.id,
-              soalId: us.soal.id,
-            },
-          },
-          update: {
-            jawaban: jawabanJson,
-            raguRagu: parentRagu(us.soal.id),
-          },
-          create: {
-            ujianId: id,
-            siswaId: siswa.id,
-            soalId: us.soal.id,
-            jawaban: jawabanJson,
-            raguRagu: parentRagu(us.soal.id),
-          },
-        })
+        jawabanStr = JSON.stringify(arr)
+        regrouped[us.soal.id] = jawabanStr
       } else {
-        const jawabanStr = regrouped[us.soal.id] ?? ""
+        jawabanStr = regrouped[us.soal.id] ?? ""
+      }
 
-        await prisma.jawabanUjian.upsert({
+      ops.push(
+        prisma.jawabanUjian.upsert({
           where: {
             ujianId_siswaId_soalId: {
               ujianId: id,
@@ -140,8 +123,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             raguRagu: parentRagu(us.soal.id),
           },
         })
-      }
+      )
     }
+    if (ops.length > 0) await prisma.$transaction(ops as never)
 
     // Grade and produce flattened hasilSoal (one entry per sub-question)
     let flatNomor = 0
@@ -222,30 +206,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const nilaiAkhir = totalPoin > 0 ? Math.round((perolehPoin / totalPoin) * 100) : 0
     const jumlahBenar = hasilSoal.filter((h) => h.isCorrect).length
 
-    const nilaiExists = await prisma.nilai.findFirst({
-      where: { siswaId: siswa.id, ujianId: ujian.id },
+    await prisma.nilai.upsert({
+      where: { siswaId_ujianId: { siswaId: siswa.id, ujianId: ujian.id } },
+      update: {
+        nilai: nilaiAkhir,
+        keterangan: `Nilai ${ujian.nama}`,
+      },
+      create: {
+        siswaId: siswa.id,
+        ujianId: ujian.id,
+        mataPelajaranId: ujian.mataPelajaranId,
+        semesterId: ujian.semesterId,
+        nilai: nilaiAkhir,
+        jenis: ujian.isLatihan ? "LATIHAN" : "UJIAN",
+        keterangan: `Nilai ${ujian.nama}`,
+      },
     })
-    if (nilaiExists) {
-      await prisma.nilai.update({
-        where: { id: nilaiExists.id },
-        data: {
-          nilai: nilaiAkhir,
-          keterangan: `Nilai ${ujian.nama}`,
-        },
-      })
-    } else {
-      await prisma.nilai.create({
-        data: {
-          siswaId: siswa.id,
-          ujianId: ujian.id,
-          mataPelajaranId: ujian.mataPelajaranId,
-          semesterId: ujian.semesterId,
-          nilai: nilaiAkhir,
-          jenis: ujian.isLatihan ? "LATIHAN" : "UJIAN",
-          keterangan: `Nilai ${ujian.nama}`,
-        },
-      })
-    }
 
     if (jawabanDataForMastery.length > 0) {
       updatePenguasaanAfterUjian(siswa.id, id, jawabanDataForMastery).catch(() => {})

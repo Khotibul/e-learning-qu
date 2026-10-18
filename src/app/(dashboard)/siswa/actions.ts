@@ -9,6 +9,7 @@ import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
 import { trackMateriOpened, trackMateriCompleted, trackAssessmentDimulai, trackAssessmentSelesai } from "@/lib/agents/learning-analytics"
 import { getKebijakanHarian, ajukanAbsensiManual } from "@/lib/absensi-harian"
+import { isAssessmentLocked } from "@/lib/assessment-guard"
 
 export async function getCurrentSiswa() {
   const session = await auth()
@@ -140,6 +141,11 @@ export async function getUjianDetail(ujianId: string) {
   const session = await auth()
   if (!session?.user?.id) redirect("/login")
 
+  const siswa = await prisma.siswa.findUnique({
+    where: { userId: session.user.id },
+  })
+  if (!siswa) redirect("/login")
+
   const ujian = await prisma.ujian.findUnique({
     where: { id: ujianId },
     include: {
@@ -154,6 +160,7 @@ export async function getUjianDetail(ujianId: string) {
   })
 
   if (!ujian) throw new Error("Ujian not found")
+  if (ujian.kelasId !== siswa.kelasId) throw new Error("Ujian not found")
 
   return {
     id: ujian.id,
@@ -191,14 +198,6 @@ export async function startUjian(ujianId: string) {
 
   if (!siswa) redirect("/login")
 
-  const existing = await prisma.jawabanUjian.findFirst({
-    where: { ujianId, siswaId: siswa.id },
-  })
-
-  if (existing) {
-    return { alreadyStarted: true }
-  }
-
   const ujian = await prisma.ujian.findUnique({
     where: { id: ujianId },
     include: {
@@ -209,6 +208,23 @@ export async function startUjian(ujianId: string) {
   })
 
   if (!ujian) throw new Error("Ujian not found")
+  if (ujian.kelasId !== siswa.kelasId) throw new Error("Ujian not found")
+
+  if (ujian.status !== "AKTIF") {
+    return { error: "Ujian tidak aktif" }
+  }
+
+  if (await isAssessmentLocked(ujianId, siswa.id)) {
+    return { error: "Ujian ini sudah dinilai" }
+  }
+
+  const existing = await prisma.jawabanUjian.findFirst({
+    where: { ujianId, siswaId: siswa.id },
+  })
+
+  if (existing) {
+    return { alreadyStarted: true }
+  }
 
   await prisma.jawabanUjian.createMany({
     data: ujian.ujianSoal.map((us) => ({
@@ -216,6 +232,7 @@ export async function startUjian(ujianId: string) {
       siswaId: siswa.id,
       soalId: us.soalId,
     })),
+    skipDuplicates: true,
   })
 
   revalidatePath(`/siswa/ujian/${ujianId}`)
@@ -236,20 +253,34 @@ export async function autoSaveJawaban(
 
   if (!siswa) redirect("/login")
 
-  const entries = Object.entries(answers)
+  if (await isAssessmentLocked(ujianId, siswa.id)) {
+    return { success: false as const, error: "Ujian ini sudah dinilai" }
+  }
+
+  const allowedSoal = await prisma.ujianSoal.findMany({
+    where: { ujianId },
+    select: { soalId: true },
+  })
+  const allowedIds = new Set(allowedSoal.map((a) => a.soalId))
+
+  const entries = Object.entries(answers).filter(([key]) => {
+    const parentId = key.split("::sub::")[0]
+    return allowedIds.has(parentId)
+  })
   if (entries.length > 0) {
     await prisma.$transaction(
-      entries.map(([soalId, jawaban]) =>
-        prisma.jawabanUjian.upsert({
-          where: { ujianId_siswaId_soalId: { ujianId, siswaId: siswa.id, soalId } },
+      entries.map(([soalId, jawaban]) => {
+        const parentId = soalId.split("::sub::")[0]
+        return prisma.jawabanUjian.upsert({
+          where: { ujianId_siswaId_soalId: { ujianId, siswaId: siswa.id, soalId: parentId } },
           update: { jawaban, raguRagu: raguRagu.includes(soalId) },
-          create: { ujianId, siswaId: siswa.id, soalId, jawaban, raguRagu: raguRagu.includes(soalId) },
+          create: { ujianId, siswaId: siswa.id, soalId: parentId, jawaban, raguRagu: raguRagu.includes(soalId) },
         })
-      )
+      })
     )
   }
 
-  return { success: true }
+  return { success: true as const }
 }
 
 export async function submitUjian(ujianId: string) {
@@ -272,6 +303,11 @@ export async function submitUjian(ujianId: string) {
   })
 
   if (!ujian) throw new Error("Ujian not found")
+  if (ujian.kelasId !== siswa.kelasId) throw new Error("Ujian not found")
+
+  if (await isAssessmentLocked(ujianId, siswa.id)) {
+    return { error: "Ujian ini sudah dinilai dan tidak dapat dikerjakan ulang" }
+  }
 
   const jawabans = await prisma.jawabanUjian.findMany({
     where: { ujianId, siswaId: siswa.id },
@@ -316,8 +352,13 @@ export async function submitUjian(ujianId: string) {
 
   const nilaiAkhir = totalPoin > 0 ? Math.round((perolehPoin / totalPoin) * 100) : 0
 
-  await prisma.nilai.create({
-    data: {
+  await prisma.nilai.upsert({
+    where: { siswaId_ujianId: { siswaId: siswa.id, ujianId: ujian.id } },
+    update: {
+      nilai: nilaiAkhir,
+      keterangan: `Nilai ${ujian.nama}`,
+    },
+    create: {
       siswaId: siswa.id,
       ujianId: ujian.id,
       mataPelajaranId: ujian.mataPelajaranId,
