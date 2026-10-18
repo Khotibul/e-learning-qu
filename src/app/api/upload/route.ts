@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { extractTextFromFile } from "@/lib/agents/extract"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 const MAX_SIZE = 20 * 1024 * 1024
 const IMAGE_MIME = /^image\//
@@ -11,6 +12,11 @@ export async function POST(req: Request) {
   const session = await auth()
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const rl = rateLimit(`upload:${getClientIp(req)}:${session.user.id}`, 30, 60000)
+  if (!rl.success) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } })
   }
 
   try {

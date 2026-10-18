@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { signMobileToken, ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } from "@/lib/mobile-jwt"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 /**
  * Mobile Login — LANGSUNG KE DATABASE (1 DB dengan website)
@@ -43,6 +45,16 @@ export async function POST(req: Request) {
     }
     if (!["SISWA", "GURU", "KEPALA_PONDOK", "PENGURUS_PONDOK", "USTADZ_PONDOK"].includes(role)) {
       return NextResponse.json({ error: "Role hanya SISWA, GURU, atau Pengelola Pondok (Admin khusus website)" }, { status: 400, headers: corsHeaders })
+    }
+
+    const ip = getClientIp(req)
+    const rlAkun = rateLimit(`login:${ip}:${email.toLowerCase()}`, 8, 600000)
+    if (!rlAkun.success) {
+      return NextResponse.json({ error: "Terlalu banyak percobaan login, coba lagi nanti" }, { status: 429, headers: { ...corsHeaders, "Retry-After": "600" } })
+    }
+    const rlIp = rateLimit(`login-ip:${ip}`, 30, 600000)
+    if (!rlIp.success) {
+      return NextResponse.json({ error: "Terlalu banyak percobaan login, coba lagi nanti" }, { status: 429, headers: { ...corsHeaders, "Retry-After": "600" } })
     }
 
     // === 1 DATABASE — query SAMA dengan src/lib/auth.ts authorize() ===
@@ -89,16 +101,20 @@ export async function POST(req: Request) {
       extra = { pondokTugas: assignments.map((a) => a.tipe), pondokAssignments: assignments }
     }
 
-    // Untuk mobile, kita kembalikan user langsung (tanpa cookie NextAuth)
-    // Token sederhana: base64(userId:role) — untuk demo, bisa diganti JWT dengan AUTH_SECRET
-    const token = Buffer.from(`${user.id}:${user.role}:${Date.now()}`).toString("base64")
+    // Token ditandatangani JWT (JWT) — base64 murni lama sudah dihapus karena bisa dipalsukan
+    const accessToken = await signMobileToken(user.id, user.role, "access")
+    const refreshToken = await signMobileToken(user.id, user.role, "refresh")
 
     return NextResponse.json(
       {
         success: true,
         message: "Login berhasil — terhubung ke 1 database (PostgreSQL) yang sama dengan website",
         user: { id: user.id, email: user.email, name: user.name, image: user.image, role: user.role },
-        token,
+        token: accessToken,
+        accessToken,
+        refreshToken,
+        expiresIn: ACCESS_TOKEN_TTL_SECONDS,
+        refreshExpiresIn: REFRESH_TOKEN_TTL_SECONDS,
         extra,
       },
       { headers: corsHeaders }

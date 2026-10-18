@@ -1,6 +1,7 @@
 import { getMobileUser } from "@/lib/mobile-auth"
 import { simpanFotoProfil, hapusFotoProfil } from "@/lib/biodata"
 import { createAuditLog } from "@/lib/audit"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 import { options, ok, fail } from "../../admin/_lib"
 
 export { options }
@@ -15,6 +16,8 @@ export { options }
 export async function POST(req: Request) {
   const user = await getMobileUser(req)
   if (!user) return fail("Unauthorized", 401)
+  const rl = rateLimit(`foto-profil:${getClientIp(req)}:${user.id}`, 20, 60000)
+  if (!rl.success) return fail("Too many requests", 429)
   try {
     const form = await req.formData()
     const file = form.get("file")

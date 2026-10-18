@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { signMobileToken, ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } from "@/lib/mobile-jwt"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 /**
  * Login desktop (C#/.NET WPF) — JWT signed + refresh.
@@ -44,6 +45,17 @@ export async function POST(req: Request) {
     if (!email || !password) {
       return NextResponse.json({ error: "Email dan password wajib diisi" }, { status: 400, headers: corsHeaders })
     }
+
+    const ip = getClientIp(req)
+    const rlAkun = rateLimit(`login:${ip}:${email.toLowerCase()}`, 8, 600000)
+    if (!rlAkun.success) {
+      return NextResponse.json({ error: "Terlalu banyak percobaan login, coba lagi nanti" }, { status: 429, headers: { ...corsHeaders, "Retry-After": "600" } })
+    }
+    const rlIp = rateLimit(`login-ip:${ip}`, 30, 600000)
+    if (!rlIp.success) {
+      return NextResponse.json({ error: "Terlalu banyak percobaan login, coba lagi nanti" }, { status: 429, headers: { ...corsHeaders, "Retry-After": "600" } })
+    }
+
     if (role && !DESKTOP_ROLES.includes(role)) {
       return NextResponse.json({ error: "Role desktop tidak didukung" }, { status: 400, headers: corsHeaders })
     }

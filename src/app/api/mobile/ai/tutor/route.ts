@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server"; import { getMobileUser } from "@/lib/mobile-auth"; import { prisma } from "@/lib/prisma"; import { runTutorAgent } from "@/lib/agents/tutor"; import { buildConversationHistory } from "@/lib/agents/orchestrator";
+﻿import { NextResponse } from "next/server"; import { getMobileUser } from "@/lib/mobile-auth"; import { prisma } from "@/lib/prisma"; import { runTutorAgent } from "@/lib/agents/tutor"; import { buildConversationHistory } from "@/lib/agents/orchestrator"; import { rateLimit, getClientIp } from "@/lib/rate-limit";
 const corsHeaders = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET, POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type, Authorization"};
 
 async function ambilSiswa(req: Request) {
@@ -45,6 +45,8 @@ export async function POST(req: Request) {
     const siswa = await ambilSiswa(req);
     if (!siswa) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     if ("forbidden" in siswa) return NextResponse.json({ error: "Bukan siswa" }, { status: 403, headers: corsHeaders });
+    const rl = rateLimit(`ai-tutor:${getClientIp(req)}:${siswa.id}`, 20, 60000);
+    if (!rl.success) return NextResponse.json({ error: "Terlalu banyak permintaan AI" }, { status: 429, headers: { ...corsHeaders, "Retry-After": "60" } });
     const body = await req.json().catch(() => ({}) as any);
     const pesan = String(body.message || "").trim();
     if (!pesan) return NextResponse.json({ error: "Pesan kosong" }, { status: 400, headers: corsHeaders });

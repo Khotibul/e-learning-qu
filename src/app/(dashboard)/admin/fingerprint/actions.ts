@@ -5,6 +5,7 @@ import { ymd } from "@/lib/utils"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { randomBytes } from "crypto"
 import { buatApiKey, hashApiKey, putuskanAbsensiManual, koreksiAbsensiHarian, getKebijakanHarian, hariTanggal, audit } from "@/lib/absensi-harian"
 
 async function requireAdmin() {
@@ -55,11 +56,23 @@ export async function buatPerangkat(input: { nama: string; lokasi?: string }) {
   const nama = String(input.nama ?? "").trim()
   if (nama.length < 3) throw new Error("Nama perangkat wajib (min. 3 karakter)")
 
-  const kode = "FP-" + Math.random().toString(36).slice(2, 8).toUpperCase()
   const apiKey = buatApiKey()
-  const row = await prisma.perangkatFingerprint.create({
-    data: { kode, nama, lokasi: input.lokasi?.trim() || null, apiKeyHash: hashApiKey(apiKey) },
-  })
+  // crypto random + retry P2002 — kode @unique tidak boleh bikin 500 saat tabrakan
+  let row: { id: string } | null = null
+  let kode = ""
+  for (let i = 0; i < 5; i++) {
+    kode = "FP-" + randomBytes(4).toString("hex").toUpperCase()
+    try {
+      row = await prisma.perangkatFingerprint.create({
+        data: { kode, nama, lokasi: input.lokasi?.trim() || null, apiKeyHash: hashApiKey(apiKey) },
+      })
+      break
+    } catch (err) {
+      if ((err as { code?: string })?.code === "P2002" && i < 4) continue
+      throw err
+    }
+  }
+  if (!row) throw new Error("Gagal membuat kode perangkat unik, coba lagi")
   await audit(admin.id, "BUAT_PERANGKAT_FINGERPRINT", "PerangkatFingerprint", row.id, { kode, nama })
   revalidatePath("/admin/fingerprint")
   return { id: row.id, kode, apiKey } // apiKey hanya dikembalikan sekali

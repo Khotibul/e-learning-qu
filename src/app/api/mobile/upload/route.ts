@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getMobileUser } from "@/lib/mobile-auth"
 import { prisma } from "@/lib/prisma"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +20,11 @@ export async function POST(req: Request) {
   try {
     const user = await getMobileUser(req)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders })
+
+    const rl = rateLimit(`upload:${getClientIp(req)}:${user.id}`, 30, 60000)
+    if (!rl.success) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { ...corsHeaders, "Retry-After": "60" } })
+    }
 
     const formData = await req.formData()
     const file = formData.get("file") as File | null

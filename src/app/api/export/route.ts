@@ -8,6 +8,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const role = session.user.role
   const { searchParams } = new URL(req.url)
   const type = searchParams.get("type")
   const format = (searchParams.get("format") || "excel").toLowerCase()
@@ -15,13 +16,42 @@ export async function GET(req: Request) {
   try {
     switch (type) {
       case "guru":
-        return await exportGuru(format)
-      case "murid":
-        return await exportMurid(format)
-      case "nilai":
-        return await exportNilai(format, searchParams.get("ujianId"))
-      case "soal":
-        return await exportSoal(format, searchParams.get("guruId"))
+      case "murid": {
+        // Data kepegawaian/peserta didik → hanya ADMIN
+        if (role !== "ADMIN") {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+        }
+        return type === "guru" ? await exportGuru(format) : await exportMurid(format)
+      }
+      case "nilai": {
+        if (role !== "ADMIN" && role !== "GURU") {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+        }
+        const ujianId = searchParams.get("ujianId")
+        if (role === "GURU") {
+          // Guru hanya boleh ekspor nilai ujian miliknya sendiri
+          const ujian = await prisma.ujian.findUnique({
+            where: { id: ujianId || "" },
+            select: { guruId: true },
+          })
+          const own = await getOwnGuruId(session.user.id)
+          if (!own || !ujian || ujian.guruId !== own) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+          }
+        }
+        return await exportNilai(format, ujianId)
+      }
+      case "soal": {
+        if (role !== "ADMIN" && role !== "GURU") {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+        }
+        // Guru dipaksa hanya ke bank soalnya sendiri; guruId param hanya untuk ADMIN
+        const scopedId = role === "GURU" ? await getOwnGuruId(session.user.id) : searchParams.get("guruId")
+        if (role === "GURU" && !scopedId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+        }
+        return await exportSoal(format, scopedId)
+      }
       default:
         return NextResponse.json({ error: "Invalid export type" }, { status: 400 })
     }
@@ -29,6 +59,14 @@ export async function GET(req: Request) {
     console.error("Export error:", error)
     return NextResponse.json({ error: "Export failed" }, { status: 500 })
   }
+}
+
+async function getOwnGuruId(userId: string): Promise<string | null> {
+  const guru = await prisma.guru.findFirst({
+    where: { user: { id: userId }, deletedAt: null },
+    select: { id: true },
+  })
+  return guru?.id ?? null
 }
 
 interface Row {
@@ -227,6 +265,7 @@ async function exportGuru(format: string) {
     where: { deletedAt: null },
     orderBy: { nama: "asc" },
     select: { nip: true, nuptk: true, nama: true, noTelp: true, createdAt: true },
+    take: 10000,
   })
 
   const headers = ["NIP", "NUPTK", "Nama", "No Telp", "Terdaftar"]
@@ -253,6 +292,7 @@ async function exportMurid(format: string) {
     where: { deletedAt: null },
     orderBy: { nama: "asc" },
     include: { kelas: { select: { nama: true } } },
+    take: 10000,
   })
 
   const headers = ["NIS", "NISN", "Nama", "Kelas", "No Telp"]
@@ -293,6 +333,7 @@ async function exportNilai(format: string, ujianId: string | null) {
   const jawabans = await prisma.jawabanUjian.findMany({
     where: { ujianId },
     orderBy: [{ siswa: { nama: "asc" } }, { createdAt: "asc" }],
+    take: 100000,
     include: {
       siswa: { select: { id: true, nama: true, nis: true } },
       soal: { select: { id: true, jenisSoal: true, pertanyaan: true, poin: true, jawaban: true } },
@@ -303,6 +344,7 @@ async function exportNilai(format: string, ujianId: string | null) {
   const nilaiRecords = await prisma.nilai.findMany({
     where: { ujianId, deletedAt: null },
     select: { siswaId: true, nilai: true },
+    take: 10000,
   })
   const nilaiMap: Record<string, number> = Object.fromEntries(nilaiRecords.map((n) => [n.siswaId, n.nilai]))
 
@@ -381,6 +423,7 @@ async function exportSoal(format: string, guruId: string | null) {
     where,
     orderBy: { createdAt: "desc" },
     include: { mataPelajaran: { select: { nama: true } } },
+    take: 10000,
   })
 
   const headers = ["Pertanyaan", "Jenis", "Tingkat", "Mapel", "Jawaban", "Poin", "Bab"]

@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 export async function POST(req: Request) {
   const session = await auth()
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const rl = rateLimit(`ocr:${getClientIp(req)}:${session.user.id}`, 10, 60000)
+  if (!rl.success) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } })
   }
 
   try {

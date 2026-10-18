@@ -43,6 +43,11 @@ export function rateLimit(key: string, limit: number = 60, windowMs: number = 60
 
 export function getClientIp(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for")
-  if (fwd) return fwd.split(",")[0]?.trim() || "unknown"
+  if (fwd) {
+    const hops = fwd.split(",").map((s) => s.trim()).filter(Boolean)
+    // Hop terakhir = IP penghubung asli (proxy/platform menambahkannya di akhir;
+    // hop pertama bisa dipalsukan client untuk melewati rate limit)
+    if (hops.length > 0) return hops[hops.length - 1]
+  }
   return req.headers.get("x-real-ip")?.trim() || "unknown"
 }

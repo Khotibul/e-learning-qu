@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server"; import { prisma } from "@/lib/prisma"; import { getMobileUser } from "@/lib/mobile-auth";
-import { chunkText, estimateTokens } from "@/lib/agents/chunker"; import { embedText, geminiEnabled } from "@/lib/agents/gemini";
+import { chunkText, estimateTokens } from "@/lib/agents/chunker"; import { embedText, geminiEnabled } from "@/lib/agents/gemini"; import { rateLimit, getClientIp } from "@/lib/rate-limit";
 const corsHeaders = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET, POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type, Authorization"};
 
 async function ambilGuru(req: Request) {
@@ -30,6 +30,8 @@ export async function POST(req: Request) {
     const guru = await ambilGuru(req);
     if (!guru) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     if ("forbidden" in guru) return NextResponse.json({ error: "Bukan guru" }, { status: 403, headers: corsHeaders });
+    const rl = rateLimit(`ai-embed:${getClientIp(req)}:${guru.id}`, 10, 60000);
+    if (!rl.success) return NextResponse.json({ error: "Terlalu banyak permintaan AI" }, { status: 429, headers: { ...corsHeaders, "Retry-After": "60" } });
     const body = await req.json().catch(() => ({}) as any);
     const op = String(body.op || "");
     const materiId = String(body.materiId || "");

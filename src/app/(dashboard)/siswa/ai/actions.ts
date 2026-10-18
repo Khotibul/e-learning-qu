@@ -16,6 +16,7 @@ import { explainRecommendation, explainMastery, explainEarlyWarning } from "@/li
 import { recordPretestPosttest, getNGainForMapel, submitSUSSurvey, getSUSResults, getAIEvaluationSummary } from "@/lib/agents/evaluation"
 import { trackAiChat, trackLatihanDimulai, trackLatihanSelesai, trackPretest, trackPosttest } from "@/lib/agents/learning-analytics"
 import { submitFeedback, computeQualityMetrics, getRecentFeedback, getMessageFeedback } from "@/lib/agents/feedback"
+import { rateLimit } from "@/lib/rate-limit"
 
 async function logAgent(siswaId: string, data: {
   agent: string
@@ -66,6 +67,8 @@ async function requireRole(...roles: string[]) {
 export async function aiChat(input: { sessionId?: string | null; mapelId?: string | null; pesan: string }) {
   const siswa = await getCurrentSiswa()
   if (!siswa) redirect("/login")
+  const rl = rateLimit(`ai-chat:${siswa.id}`, 20, 60000)
+  if (!rl.success) throw new Error("Terlalu banyak permintaan AI, coba lagi dalam satu menit")
   const start = Date.now()
   // Phase 17 Observability: traceId untuk melacak satu siklus orchestration
   const traceId = crypto.randomUUID().slice(0, 8)

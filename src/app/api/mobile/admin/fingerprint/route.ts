@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { ymd } from "@/lib/utils"
+import { randomBytes } from "crypto"
 import { options, requireAdmin, ok, fail } from "../_lib"
 import { buatApiKey, hashApiKey, hariTanggal, audit, putuskanAbsensiManual } from "@/lib/absensi-harian"
 
@@ -284,11 +285,27 @@ export async function POST(req: Request) {
     if (op === "buatPerangkat") {
       const nama = String(body.nama ?? "").trim()
       if (nama.length < 3) return fail("Nama perangkat wajib (min. 3 karakter)", 400)
-      const kode = "FP-" + Math.random().toString(36).slice(2, 8).toUpperCase()
       const apiKey = buatApiKey()
-      const row = await prisma.perangkatFingerprint.create({
-        data: { kode, nama, lokasi: String(body.lokasi ?? "").trim() || null, apiKeyHash: hashApiKey(apiKey) },
-      })
+      let row: { id: string } | null = null
+      let kode = ""
+      for (let i = 0; i < 5; i++) {
+        kode = "FP-" + randomBytes(4).toString("hex").toUpperCase()
+        try {
+          row = await prisma.perangkatFingerprint.create({
+            data: { kode, nama, lokasi: String(body.lokasi ?? "").trim() || null, apiKeyHash: hashApiKey(apiKey) },
+          })
+          break
+        } catch (err) {
+          const code = (err as { code?: string })?.code
+          if (code === "P2002") {
+            if (i < 4) continue
+            return fail("Kode perangkat bentrok, coba lagi", 409)
+          }
+          console.error("buatPerangkat error:", err)
+          return fail("Gagal membuat perangkat", 500)
+        }
+      }
+      if (!row) return fail("Gagal membuat kode perangkat unik, coba lagi", 409)
       await audit(auth.user.id, "BUAT_PERANGKAT_FINGERPRINT", "PerangkatFingerprint", row.id, { kode, nama })
       return ok({ id: row.id, kode, apiKey })
     }
@@ -340,7 +357,15 @@ export async function POST(req: Request) {
         select: { perangkatUserId: true, siswaId: true },
       })
       if (dup) return fail(dup.perangkatUserId === uid ? "UID sudah terdaftar di perangkat ini" : "Siswa sudah terpetakan di perangkat ini", 409)
-      await prisma.pemetaanFingerprint.create({ data: { perangkatId, siswaId, perangkatUserId: uid } })
+      try {
+        await prisma.pemetaanFingerprint.create({ data: { perangkatId, siswaId, perangkatUserId: uid } })
+      } catch (err) {
+        // Race dua tambah pemetaan bersamaan → unique constraint (cek-then-create tidak cukup)
+        if ((err as { code?: string })?.code === "P2002") {
+          return fail("UID atau siswa sudah terpetakan", 409)
+        }
+        throw err
+      }
       await audit(auth.user.id, "TAMBAH_PEMETAAN_FINGERPRINT", "PemetaanFingerprint", perangkatId, { siswaId, uid })
       return ok({ success: true })
     }
@@ -366,7 +391,14 @@ export async function POST(req: Request) {
         select: { perangkatUserId: true, userId: true },
       })
       if (dup) return fail(dup.perangkatUserId === uid ? "UID sudah terdaftar di perangkat ini" : "User sudah terpetakan di perangkat ini", 409)
-      await prisma.pemetaanFingerprint.create({ data: { perangkatId, userId, siswaId: null, perangkatUserId: uid } })
+      try {
+        await prisma.pemetaanFingerprint.create({ data: { perangkatId, userId, siswaId: null, perangkatUserId: uid } })
+      } catch (err) {
+        if ((err as { code?: string })?.code === "P2002") {
+          return fail("UID atau user sudah terpetakan", 409)
+        }
+        throw err
+      }
       await audit(auth.user.id, "TAMBAH_PEMETAAN_FINGERPRINT_USER", "PemetaanFingerprint", perangkatId, { userId, uid })
       return ok({ success: true })
     }

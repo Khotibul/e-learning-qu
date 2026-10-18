@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { signMobileToken, ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS } from "@/lib/mobile-jwt"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,6 +28,11 @@ export async function POST(req: Request) {
 
     if (!idToken) {
       return NextResponse.json({ error: "idToken wajib" }, { status: 400, headers: corsHeaders })
+    }
+
+    const rlIp = rateLimit(`login-ip:${getClientIp(req)}`, 30, 600000)
+    if (!rlIp.success) {
+      return NextResponse.json({ error: "Terlalu banyak percobaan login, coba lagi nanti" }, { status: 429, headers: { ...corsHeaders, "Retry-After": "600" } })
     }
 
     // Verifikasi idToken ke Google
@@ -62,17 +69,31 @@ export async function POST(req: Request) {
     let isNewUser = false
     if (!user) {
       // Buat user baru — role sesuai pilihan di Android (default SISWA)
-      user = await prisma.user.create({
-        data: {
-          email,
-          name,
-          image,
-          role: requestedRole as never,
-          emailVerified: new Date(),
-        },
-        select: { id: true, email: true, name: true, image: true, role: true, isActive: true },
-      })
-      isNewUser = true
+      try {
+        user = await prisma.user.create({
+          data: {
+            email,
+            name,
+            image,
+            role: requestedRole as never,
+            emailVerified: new Date(),
+          },
+          select: { id: true, email: true, name: true, image: true, role: true, isActive: true },
+        })
+        isNewUser = true
+      } catch (err) {
+        // Race dua request login Google bersamaan → unique constraint, pakai user yang baru dibuat
+        if ((err as { code?: string })?.code === "P2002") {
+          const existing = await prisma.user.findUnique({
+            where: { email },
+            select: { id: true, email: true, name: true, image: true, role: true, isActive: true },
+          })
+          if (!existing) throw err
+          user = existing
+        } else {
+          throw err
+        }
+      }
       // Buat Account link untuk Google — agar konsisten dengan PrismaAdapter website
       await prisma.account.create({
         data: {
@@ -145,14 +166,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Role Admin hanya via website" }, { status: 403, headers: corsHeaders })
     }
 
-    const token = Buffer.from(`${user.id}:${user.role}:${Date.now()}`).toString("base64")
+    const accessToken = await signMobileToken(user.id, user.role, "access")
+    const refreshToken = await signMobileToken(user.id, user.role, "refresh")
 
     return NextResponse.json(
       {
         success: true,
         message: isNewUser ? "Akun Google berhasil dibuat — 1 DB dengan website" : "Login Google berhasil — 1 DB",
         user: { id: user.id, email: user.email, name: user.name, image: user.image, role: user.role },
-        token,
+        token: accessToken,
+        accessToken,
+        refreshToken,
+        expiresIn: ACCESS_TOKEN_TTL_SECONDS,
+        refreshExpiresIn: REFRESH_TOKEN_TTL_SECONDS,
         extra: { siswaId, guruId, isNewUser, needRoleSelection },
       },
       { headers: corsHeaders }

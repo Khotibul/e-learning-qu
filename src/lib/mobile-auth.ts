@@ -3,9 +3,9 @@ import { verifyMobileToken } from "./mobile-jwt"
 
 /**
  * Verifikasi token mobile — 1 DB.
- * Dua format didukung di header yang SAMA:
- * 1. JWT signed (HS256/AUTH_SECRET) — client desktop C# (access token, /api/mobile/auth/desktop/login).
- * 2. base64 userId:role:timestamp — Flutter lama (/api/mobile/auth/login). Perilaku TIDAK berubah.
+ * Hanya JWT signed (HS256/AUTH_SECRET) yang diterima.
+ * Token base64 murni lama (userId:role:timestamp) sudah DIHAPUS —
+ * format itu bisa dipalsukan siapa pun tanpa login.
  */
 
 type MobileUser = { id: string; email: string; name: string | null; role: string; isActive: boolean }
@@ -26,25 +26,10 @@ async function loadVerifiedUser(userId: string, roleFromToken: string | null): P
 }
 
 async function verifyBearerToken(token: string): Promise<MobileUser | null> {
-  if (looksLikeJwt(token)) {
-    const payload = await verifyMobileToken(token, "access")
-    if (!payload) return null
-    return await loadVerifiedUser(payload.sub, payload.role)
-  }
-
-  try {
-    const decoded = Buffer.from(token, "base64").toString("utf-8")
-    const [userId, role] = decoded.split(":")
-    if (!userId || !role) return null
-
-    // Cek expiry 7 hari
-    const ts = Number(decoded.split(":")[2])
-    if (ts && Date.now() - ts > 7 * 24 * 60 * 60 * 1000) return null
-
-    return await loadVerifiedUser(userId, role)
-  } catch {
-    return null
-  }
+  if (!looksLikeJwt(token)) return null
+  const payload = await verifyMobileToken(token, "access")
+  if (!payload) return null
+  return await loadVerifiedUser(payload.sub, payload.role)
 }
 
 export async function getMobileUser(req: Request) {

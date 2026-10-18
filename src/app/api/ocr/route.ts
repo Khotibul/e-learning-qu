@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { rateLimit } from "@/lib/rate-limit"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 export async function POST(req: Request) {
   const session = await auth()
@@ -8,10 +8,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown"
-  const { success } = rateLimit(`ocr_${ip}`, 10, 60000)
+  const { success } = rateLimit(`ocr_${getClientIp(req)}:${session.user.id}`, 10, 60000)
   if (!success) {
-    return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+    return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } })
   }
 
   try {

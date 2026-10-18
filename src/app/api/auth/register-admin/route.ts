@@ -26,16 +26,25 @@ export const POST = auth(async (req) => {
 
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        name,
-        password: hashedPassword,
-        role: "ADMIN",
-        isActive: true,
-      },
-      select: { id: true, email: true, name: true, role: true },
-    })
+    let user: { id: string; email: string; name: string | null; role: string }
+    try {
+      user = await prisma.user.create({
+        data: {
+          email,
+          name,
+          password: hashedPassword,
+          role: "ADMIN",
+          isActive: true,
+        },
+        select: { id: true, email: true, name: true, role: true },
+      })
+    } catch (error) {
+      // Race dua request email sama → unique constraint, bukan 500
+      if ((error as { code?: string })?.code === "P2002") {
+        return NextResponse.json({ error: "Email sudah terdaftar" }, { status: 400 })
+      }
+      throw error
+    }
 
     return NextResponse.json({ success: true, user })
   } catch (error) {
