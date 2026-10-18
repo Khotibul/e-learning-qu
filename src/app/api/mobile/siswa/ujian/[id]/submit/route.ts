@@ -95,6 +95,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     let perolehPoin = 0
     const hasilSoal: { nomor: number; jawaban: string | null; jawabanBenar: string; isCorrect: boolean; poin: number }[] = []
     const jawabanDataForMastery: { kompetensiId?: string | null; isCorrect: boolean }[] = []
+    const perSoal: Record<string, { earned: number; allCorrect: boolean }> = {}
 
     for (const us of ujian.ujianSoal) {
       const jawab = regrouped[us.soal.id] ?? ""
@@ -102,6 +103,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       if (subs.length > 0) {
         let subUser: string[] = []
         try { const p = JSON.parse(jawab); if (Array.isArray(p)) subUser = p } catch { subUser = [] }
+        const acc = { earned: 0, allCorrect: true }
         for (let i = 0; i < subs.length; i++) {
           flatNomor++
           const item = subs[i] as { jenis?: string; jawaban?: string; poin?: number }
@@ -111,9 +113,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           const isCorrect = userAns === jawabanBenar.toLowerCase().trim()
           totalPoin += poin
           if (isCorrect) perolehPoin += poin
+          if (isCorrect) acc.earned += poin
+          if (!isCorrect) acc.allCorrect = false
           hasilSoal.push({ nomor: flatNomor, jawaban: subUser[i] || null, jawabanBenar, isCorrect, poin: isCorrect ? poin : 0 })
           jawabanDataForMastery.push({ kompetensiId: us.soal.kompetensiId, isCorrect })
         }
+        perSoal[us.soal.id] = acc
       } else {
         flatNomor++
         const jawabanBenar = us.soal.jawaban
@@ -128,10 +133,29 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           isCorrect = jawab.trim() === jawabanBenar.trim()
         }
         if (isCorrect) perolehPoin += poin
+        perSoal[us.soal.id] = { earned: isCorrect ? poin : 0, allCorrect: isCorrect }
         hasilSoal.push({ nomor: flatNomor, jawaban: jawab || null, jawabanBenar, isCorrect, poin: isCorrect ? poin : 0 })
         jawabanDataForMastery.push({ kompetensiId: us.soal.kompetensiId, isCorrect })
       }
     }
+
+    // Persist hasil koreksi ke baris jawaban (dipakai review guru, export, analitik)
+    const jawabanRows = await prisma.jawabanUjian.findMany({
+      where: { ujianId: id, siswaId: siswa.id },
+      select: { id: true, soalId: true },
+    })
+    const gradeOps: ReturnType<typeof prisma.jawabanUjian.update>[] = []
+    for (const row of jawabanRows) {
+      const g = perSoal[row.soalId]
+      if (!g) continue
+      gradeOps.push(
+        prisma.jawabanUjian.update({
+          where: { id: row.id },
+          data: { isCorrect: g.allCorrect, poin: g.earned },
+        })
+      )
+    }
+    if (gradeOps.length > 0) await prisma.$transaction(gradeOps as never)
 
     const nilaiAkhir = totalPoin > 0 ? Math.round((perolehPoin / totalPoin) * 100) : 0
     const jumlahBenar = hasilSoal.filter((h) => h.isCorrect).length
