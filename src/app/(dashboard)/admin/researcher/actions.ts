@@ -1,5 +1,6 @@
 "use server"
 
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
 function daysAgo(n: number) {
@@ -12,7 +13,14 @@ function toKey(d: Date) {
   return d.toISOString().split("T")[0]!
 }
 
+async function requireAdmin() {
+  const session = await auth()
+  if (!session?.user?.id || session.user.role !== "ADMIN") throw new Error("Akses ditolak")
+  return session.user
+}
+
 export async function getResearcherOverview() {
+  await requireAdmin()
   const thirtyDaysAgo = daysAgo(30)
 
   const [totalStudents, totalExams, totalQuestions, avgScore, totalActivities, activeStudents] =
@@ -55,6 +63,7 @@ export async function getResearcherOverview() {
 }
 
 export async function getScoreDistribution() {
+  await requireAdmin()
   const ranges = [
     { label: "0-20", min: 0, max: 20 },
     { label: "21-40", min: 21, max: 40 },
@@ -79,6 +88,7 @@ export async function getScoreDistribution() {
 }
 
 export async function getMasteryByMapel() {
+  await requireAdmin()
   const mastery = await prisma.penguasaanKompetensi.groupBy({
     by: ["kompetensiId"],
     _avg: { skor: true },
@@ -107,6 +117,7 @@ export async function getMasteryByMapel() {
 }
 
 export async function getLearningTrend() {
+  await requireAdmin()
   const thirtyDaysAgo = daysAgo(30)
 
   const activities = await prisma.learningActivity.findMany({
@@ -131,6 +142,7 @@ export async function getLearningTrend() {
 }
 
 export async function getAgentPerformance() {
+  await requireAdmin()
   const logs = await prisma.agentLog.groupBy({
     by: ["agent"],
     _count: { id: true },
@@ -156,6 +168,7 @@ export async function getAgentPerformance() {
 }
 
 export async function getWarningStats() {
+  await requireAdmin()
   const warnings = await prisma.earlyWarning.groupBy({
     by: ["severity", "tipe"],
     _count: { id: true },
@@ -180,6 +193,7 @@ export async function getWarningStats() {
 }
 
 export async function getDropoutRisk() {
+  await requireAdmin()
   const atRisk = await prisma.earlyWarning.groupBy({
     by: ["siswaId"],
     where: {

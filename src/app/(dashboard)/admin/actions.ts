@@ -1,12 +1,20 @@
 "use server"
 
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
 
 // ─── DASHBOARD ───────────────────────────────────────────
 
+async function requireAdmin() {
+  const session = await auth()
+  if (!session?.user?.id || session.user.role !== "ADMIN") throw new Error("Akses ditolak")
+  return session.user
+}
+
 export async function getDashboardStats() {
+  await requireAdmin()
   const [totalGuru, totalSiswa, totalSoal, totalUjian, totalKelas, totalMapel, totalNilai] =
     await Promise.all([
       prisma.guru.count({ where: { deletedAt: null } }),
@@ -28,6 +36,7 @@ export async function getGurus(params: {
   limit?: number
   includeDeleted?: boolean
 }) {
+  await requireAdmin()
   const { search, page = 1, limit = 10, includeDeleted = false } = params
   const where: Record<string, unknown> = {}
   if (!includeDeleted) where.deletedAt = null
@@ -53,6 +62,7 @@ export async function getGurus(params: {
 }
 
 export async function getGuru(id: string) {
+  await requireAdmin()
   return prisma.guru.findUnique({ where: { id }, include: { user: true } })
 }
 
@@ -66,6 +76,7 @@ export async function createGuru(data: {
   email: string
   password?: string
 }) {
+  await requireAdmin()
   const existing = await prisma.user.findUnique({ where: { email: data.email } })
   if (existing) throw new Error("Email sudah terdaftar")
   const hashedPassword = data.password ? await bcrypt.hash(data.password, 12) : null
@@ -94,6 +105,7 @@ export async function updateGuru(
   id: string,
   data: { nama?: string; jabatan?: string; nip?: string; nuptk?: string; alamat?: string; noTelp?: string }
 ) {
+  await requireAdmin()
   const guru = await prisma.$transaction(async (tx) => {
     const updated = await tx.guru.update({
       where: { id },
@@ -120,16 +132,19 @@ export async function updateGuru(
 }
 
 export async function deleteGuru(id: string) {
+  await requireAdmin()
   await prisma.guru.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/guru")
 }
 
 export async function restoreGuru(id: string) {
+  await requireAdmin()
   await prisma.guru.update({ where: { id }, data: { deletedAt: null } })
   revalidatePath("/(dashboard)/admin/guru")
 }
 
 export async function resetGuruPassword(id: string) {
+  await requireAdmin()
   const guru = await prisma.guru.findUnique({ where: { id }, select: { userId: true } })
   if (!guru) throw new Error("Guru tidak ditemukan")
   const hashed = await bcrypt.hash("guru123!", 12)
@@ -147,6 +162,7 @@ export async function getMurids(params: {
   includeDeleted?: boolean
   kelasId?: string
 }) {
+  await requireAdmin()
   const { search, page = 1, limit = 10, includeDeleted = false, kelasId } = params
   const where: Record<string, unknown> = {}
   if (!includeDeleted) where.deletedAt = null
@@ -186,6 +202,7 @@ export async function createMurid(data: {
   email: string
   password?: string
 }) {
+  await requireAdmin()
   const existing = await prisma.user.findUnique({ where: { email: data.email } })
   if (existing) throw new Error("Email sudah terdaftar")
   const hashedPassword = data.password ? await bcrypt.hash(data.password, 12) : null
@@ -215,6 +232,7 @@ export async function updateMurid(
   id: string,
   data: { nama?: string; nis?: string; nisn?: string; alamat?: string; noTelp?: string; kelasId?: string; jabatan?: string }
 ) {
+  await requireAdmin()
   const siswa = await prisma.$transaction(async (tx) => {
     const updated = await tx.siswa.update({ where: { id }, data, include: { user: true } })
     if (data.nama) {
@@ -230,16 +248,19 @@ export async function updateMurid(
 }
 
 export async function deleteMurid(id: string) {
+  await requireAdmin()
   await prisma.siswa.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/murid")
 }
 
 export async function restoreMurid(id: string) {
+  await requireAdmin()
   await prisma.siswa.update({ where: { id }, data: { deletedAt: null } })
   revalidatePath("/(dashboard)/admin/murid")
 }
 
 export async function resetMuridPassword(id: string) {
+  await requireAdmin()
   const siswa = await prisma.siswa.findUnique({ where: { id }, include: { user: true } })
   if (!siswa) throw new Error("Siswa tidak ditemukan")
   const hashedPassword = await bcrypt.hash("siswa123", 12)
@@ -254,6 +275,7 @@ export async function resetMuridPassword(id: string) {
 // ─── KELAS ───────────────────────────────────────────────
 
 export async function getKelass(params: { search?: string; page?: number; limit?: number }) {
+  await requireAdmin()
   const { search, page = 1, limit = 10 } = params
   const where: Record<string, unknown> = { deletedAt: null }
   if (search) where.OR = [{ nama: { contains: search, mode: "insensitive" } }]
@@ -271,18 +293,21 @@ export async function getKelass(params: { search?: string; page?: number; limit?
 }
 
 export async function createKelas(data: { nama: string; tingkat: number; guruId?: string }) {
+  await requireAdmin()
   const kelas = await prisma.kelas.create({ data: { ...data, guruId: data.guruId || null } })
   revalidatePath("/(dashboard)/admin/kelas")
   return kelas
 }
 
 export async function updateKelas(id: string, data: { nama?: string; tingkat?: number; guruId?: string }) {
+  await requireAdmin()
   const kelas = await prisma.kelas.update({ where: { id }, data })
   revalidatePath("/(dashboard)/admin/kelas")
   return kelas
 }
 
 export async function deleteKelas(id: string) {
+  await requireAdmin()
   await prisma.kelas.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/kelas")
 }
@@ -290,6 +315,7 @@ export async function deleteKelas(id: string) {
 // ─── MAPEL ───────────────────────────────────────────────
 
 export async function getMapels(params: { search?: string; page?: number; limit?: number }) {
+  await requireAdmin()
   const { search, page = 1, limit = 10 } = params
   const where: Record<string, unknown> = { deletedAt: null }
   if (search) {
@@ -329,6 +355,7 @@ export async function createMapel(data: {
   kelasIds: string[]
   semesterId: string
 }) {
+  await requireAdmin()
   const mapel = await prisma.mataPelajaran.create({
     data: {
       kode: data.kode,
@@ -351,12 +378,14 @@ export async function updateMapel(
   id: string,
   data: { kode?: string; nama?: string; deskripsi?: string; semesterId?: string }
 ) {
+  await requireAdmin()
   const mapel = await prisma.mataPelajaran.update({ where: { id }, data })
   revalidatePath("/(dashboard)/admin/mapel")
   return mapel
 }
 
 export async function addPengajaran(mataPelajaranId: string, guruId: string, kelasId: string) {
+  await requireAdmin()
   await prisma.pengajaran.upsert({
     where: { mataPelajaranId_guruId_kelasId: { mataPelajaranId, guruId, kelasId } },
     update: { deletedAt: null },
@@ -366,11 +395,13 @@ export async function addPengajaran(mataPelajaranId: string, guruId: string, kel
 }
 
 export async function removePengajaran(id: string) {
+  await requireAdmin()
   await prisma.pengajaran.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/mapel")
 }
 
 export async function deleteMapel(id: string) {
+  await requireAdmin()
   await prisma.mataPelajaran.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/mapel")
 }
@@ -378,6 +409,7 @@ export async function deleteMapel(id: string) {
 // ─── TAHUN AJARAN ────────────────────────────────────────
 
 export async function getTahunAjarans(params: { search?: string; page?: number; limit?: number }) {
+  await requireAdmin()
   const { search, page = 1, limit = 10 } = params
   const where: Record<string, unknown> = { deletedAt: null }
   if (search) where.nama = { contains: search, mode: "insensitive" }
@@ -399,6 +431,7 @@ export async function createTahunAjaran(data: {
   tahunSelesai: number
   isAktif?: boolean
 }) {
+  await requireAdmin()
   if (data.isAktif) {
     await prisma.tahunAjaran.updateMany({ where: { isAktif: true }, data: { isAktif: false } })
   }
@@ -411,6 +444,7 @@ export async function updateTahunAjaran(
   id: string,
   data: { nama?: string; tahunMulai?: number; tahunSelesai?: number; isAktif?: boolean }
 ) {
+  await requireAdmin()
   if (data.isAktif) {
     await prisma.tahunAjaran.updateMany({
       where: { isAktif: true, id: { not: id } },
@@ -423,11 +457,13 @@ export async function updateTahunAjaran(
 }
 
 export async function deleteTahunAjaran(id: string) {
+  await requireAdmin()
   await prisma.tahunAjaran.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/tahun-ajaran")
 }
 
 export async function setActiveTahunAjaran(id: string) {
+  await requireAdmin()
   await prisma.tahunAjaran.updateMany({ where: { isAktif: true }, data: { isAktif: false } })
   await prisma.tahunAjaran.update({ where: { id }, data: { isAktif: true } })
   revalidatePath("/(dashboard)/admin/tahun-ajaran")
@@ -441,6 +477,7 @@ export async function getSemesters(params: {
   limit?: number
   tahunAjaranId?: string
 }) {
+  await requireAdmin()
   const { search, page = 1, limit = 10, tahunAjaranId } = params
   const where: Record<string, unknown> = { deletedAt: null }
   if (tahunAjaranId) where.tahunAjaranId = tahunAjaranId
@@ -463,6 +500,7 @@ export async function createSemester(data: {
   tahunAjaranId: string
   isAktif?: boolean
 }) {
+  await requireAdmin()
   if (data.isAktif) {
     await prisma.semester.updateMany({ where: { isAktif: true }, data: { isAktif: false } })
   }
@@ -477,6 +515,7 @@ export async function updateSemester(
   id: string,
   data: { nama?: string; tahunAjaranId?: string; isAktif?: boolean }
 ) {
+  await requireAdmin()
   if (data.isAktif) {
     await prisma.semester.updateMany({
       where: { isAktif: true, id: { not: id } },
@@ -489,11 +528,13 @@ export async function updateSemester(
 }
 
 export async function deleteSemester(id: string) {
+  await requireAdmin()
   await prisma.semester.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/semester")
 }
 
 export async function setActiveSemester(id: string) {
+  await requireAdmin()
   await prisma.semester.updateMany({ where: { isAktif: true }, data: { isAktif: false } })
   await prisma.semester.update({ where: { id }, data: { isAktif: true } })
   revalidatePath("/(dashboard)/admin/semester")
@@ -502,6 +543,7 @@ export async function setActiveSemester(id: string) {
 // ─── PENGUMUMAN ──────────────────────────────────────────
 
 export async function getPengumumen(params: { page?: number; limit?: number }) {
+  await requireAdmin()
   const { page = 1, limit = 10 } = params
   const where = { deletedAt: null }
   const [data, total] = await Promise.all([
@@ -529,6 +571,7 @@ export async function createPengumuman(data: {
   userId: string
   kelasId?: string
 }) {
+  await requireAdmin()
   const pengumuman = await prisma.pengumuman.create({
     data: {
       judul: data.judul,
@@ -545,6 +588,7 @@ export async function createPengumuman(data: {
 }
 
 export async function deletePengumuman(id: string) {
+  await requireAdmin()
   await prisma.pengumuman.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/pengumuman")
 }
@@ -558,6 +602,7 @@ export async function getNilais(params: {
   page?: number
   limit?: number
 }) {
+  await requireAdmin()
   const { kelasId, mapelId, semesterId, page = 1, limit = 20 } = params
   const where: Record<string, unknown> = { deletedAt: null }
   if (kelasId) where.kelasId = kelasId
@@ -586,6 +631,7 @@ export async function getNilais(params: {
 // ─── STATISTIK ───────────────────────────────────────────
 
 export async function getStatistikGuruMurid() {
+  await requireAdmin()
   const [guru, murid] = await Promise.all([
     prisma.guru.count({ where: { deletedAt: null } }),
     prisma.siswa.count({ where: { deletedAt: null } }),
@@ -594,6 +640,7 @@ export async function getStatistikGuruMurid() {
 }
 
 export async function getStatistikPerKelas() {
+  await requireAdmin()
   const kelas = await prisma.kelas.findMany({
     where: { deletedAt: null },
     include: { _count: { select: { siswas: true } } },
@@ -603,6 +650,7 @@ export async function getStatistikPerKelas() {
 }
 
 export async function getStatistikPerMapel() {
+  await requireAdmin()
   const mapels = await prisma.mataPelajaran.findMany({
     where: { deletedAt: null },
     include: { _count: { select: { soals: true, nilai: true } } },
@@ -614,6 +662,7 @@ export async function getStatistikPerMapel() {
 // ─── REFS ────────────────────────────────────────────────
 
 export async function getGuruRefs() {
+  await requireAdmin()
   return prisma.guru.findMany({
     where: { deletedAt: null },
     select: { id: true, nama: true },
@@ -622,6 +671,7 @@ export async function getGuruRefs() {
 }
 
 export async function getKelasRefs() {
+  await requireAdmin()
   return prisma.kelas.findMany({
     where: { deletedAt: null },
     select: { id: true, nama: true, tingkat: true },
@@ -630,6 +680,7 @@ export async function getKelasRefs() {
 }
 
 export async function getSemesterRefs() {
+  await requireAdmin()
   return prisma.semester.findMany({
     where: { deletedAt: null },
     select: { id: true, nama: true, tahunAjaran: { select: { nama: true } } },
@@ -638,6 +689,7 @@ export async function getSemesterRefs() {
 }
 
 export async function getTahunAjaranRefs() {
+  await requireAdmin()
   return prisma.tahunAjaran.findMany({
     where: { deletedAt: null },
     select: { id: true, nama: true },
@@ -646,6 +698,7 @@ export async function getTahunAjaranRefs() {
 }
 
 export async function getMapelRefs() {
+  await requireAdmin()
   return prisma.mataPelajaran.findMany({
     where: { deletedAt: null },
     select: { id: true, nama: true, kode: true },
@@ -656,6 +709,7 @@ export async function getMapelRefs() {
 // ─── JURUSAN ──────────────────────────────────────────────
 
 export async function getJurussans(params: { search?: string; page?: number; limit?: number }) {
+  await requireAdmin()
   const { search, page = 1, limit = 10 } = params
   const where: Record<string, unknown> = { deletedAt: null }
   if (search) {
@@ -678,6 +732,7 @@ export async function getJurussans(params: { search?: string; page?: number; lim
 }
 
 export async function getJurusanRefs() {
+  await requireAdmin()
   return prisma.jurusan.findMany({
     where: { deletedAt: null },
     select: { id: true, nama: true, kode: true },
@@ -686,6 +741,7 @@ export async function getJurusanRefs() {
 }
 
 export async function createJurusan(data: { kode: string; nama: string; deskripsi?: string }) {
+  await requireAdmin()
   const jurusan = await prisma.jurusan.create({
     data: {
       kode: data.kode,
@@ -701,17 +757,20 @@ export async function updateJurusan(
   id: string,
   data: { kode?: string; nama?: string; deskripsi?: string }
 ) {
+  await requireAdmin()
   const jurusan = await prisma.jurusan.update({ where: { id }, data })
   revalidatePath("/(dashboard)/admin/jurusan")
   return jurusan
 }
 
 export async function deleteJurusan(id: string) {
+  await requireAdmin()
   await prisma.jurusan.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/jurusan")
 }
 
 export async function assignSiswaToJurusan(jurusanId: string, siswaIds: string[]) {
+  await requireAdmin()
   await prisma.$transaction(async (tx) => {
     await tx.siswa.updateMany({
       where: { jurusanId },
@@ -728,6 +787,7 @@ export async function assignSiswaToJurusan(jurusanId: string, siswaIds: string[]
 }
 
 export async function getJurusanSiswa(jurusanId: string) {
+  await requireAdmin()
   return prisma.siswa.findMany({
     where: { jurusanId, deletedAt: null },
     select: { id: true, nama: true, nis: true },
@@ -744,6 +804,7 @@ export async function getKompetensis(params: {
   jurusanId?: string
   mapelId?: string
 }) {
+  await requireAdmin()
   const { search, page = 1, limit = 10, jurusanId, mapelId } = params
   const where: Record<string, unknown> = { deletedAt: null }
   if (jurusanId) where.jurusanId = jurusanId
@@ -780,6 +841,7 @@ export async function createKompetensi(data: {
   tingkat?: number
   urutan?: number
 }) {
+  await requireAdmin()
   const kompetensi = await prisma.kompetensi.create({
     data: {
       kode: data.kode,
@@ -807,12 +869,14 @@ export async function updateKompetensi(
     urutan?: number
   }
 ) {
+  await requireAdmin()
   const kompetensi = await prisma.kompetensi.update({ where: { id }, data })
   revalidatePath("/(dashboard)/admin/kompetensi")
   return kompetensi
 }
 
 export async function deleteKompetensi(id: string) {
+  await requireAdmin()
   await prisma.kompetensi.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/kompetensi")
 }

@@ -1,9 +1,17 @@
 "use server"
 
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 
+async function requireAdmin() {
+  const session = await auth()
+  if (!session?.user?.id || session.user.role !== "ADMIN") throw new Error("Akses ditolak")
+  return session.user
+}
+
 export async function getCourses(params: { search?: string; page?: number; limit?: number }) {
+  await requireAdmin()
   const { search, page = 1, limit = 10 } = params
   const where: Record<string, unknown> = { deletedAt: null }
   if (search) {
@@ -27,6 +35,7 @@ export async function getCourses(params: { search?: string; page?: number; limit
 }
 
 export async function getCourseDetail(id: string) {
+  await requireAdmin()
   return prisma.course.findUnique({
     where: { id },
     include: {
@@ -50,6 +59,7 @@ export async function getCourseDetail(id: string) {
 }
 
 export async function createCourse(data: { title: string; description?: string; mapelId: string; guruId: string }) {
+  await requireAdmin()
   const course = await prisma.course.create({
     data: { title: data.title, description: data.description || null, mapelId: data.mapelId, guruId: data.guruId },
   })
@@ -61,17 +71,20 @@ export async function updateCourse(
   id: string,
   data: { title?: string; description?: string; isPublished?: boolean }
 ) {
+  await requireAdmin()
   const course = await prisma.course.update({ where: { id }, data })
   revalidatePath("/(dashboard)/admin/courses")
   return course
 }
 
 export async function deleteCourse(id: string) {
+  await requireAdmin()
   await prisma.course.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/courses")
 }
 
 export async function createModule(data: { courseId: string; title: string; description?: string }) {
+  await requireAdmin()
   const last = await prisma.courseModule.findFirst({
     where: { courseId: data.courseId, deletedAt: null },
     orderBy: { sortOrder: "desc" },
@@ -89,17 +102,20 @@ export async function createModule(data: { courseId: string; title: string; desc
 }
 
 export async function updateModule(id: string, data: { title?: string; description?: string; isPublished?: boolean; sortOrder?: number }) {
+  await requireAdmin()
   const module_ = await prisma.courseModule.update({ where: { id }, data })
   revalidatePath("/(dashboard)/admin/courses")
   return module_
 }
 
 export async function deleteModule(id: string) {
+  await requireAdmin()
   await prisma.courseModule.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/courses")
 }
 
 export async function createLesson(data: { moduleId: string; title: string; description?: string; content?: string }) {
+  await requireAdmin()
   const last = await prisma.courseLesson.findFirst({
     where: { moduleId: data.moduleId, deletedAt: null },
     orderBy: { sortOrder: "desc" },
@@ -118,17 +134,20 @@ export async function createLesson(data: { moduleId: string; title: string; desc
 }
 
 export async function updateLesson(id: string, data: { title?: string; description?: string; content?: string; isPublished?: boolean; sortOrder?: number }) {
+  await requireAdmin()
   const lesson = await prisma.courseLesson.update({ where: { id }, data })
   revalidatePath("/(dashboard)/admin/courses")
   return lesson
 }
 
 export async function deleteLesson(id: string) {
+  await requireAdmin()
   await prisma.courseLesson.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/courses")
 }
 
 export async function createMaterial(data: { lessonId: string; title: string; content?: string; fileUrl?: string; fileType?: string }) {
+  await requireAdmin()
   const last = await prisma.courseMaterial.findFirst({
     where: { lessonId: data.lessonId, deletedAt: null },
     orderBy: { sortOrder: "desc" },
@@ -148,17 +167,20 @@ export async function createMaterial(data: { lessonId: string; title: string; co
 }
 
 export async function updateMaterial(id: string, data: { title?: string; content?: string; fileUrl?: string; fileType?: string; sortOrder?: number }) {
+  await requireAdmin()
   const material = await prisma.courseMaterial.update({ where: { id }, data })
   revalidatePath("/(dashboard)/admin/courses")
   return material
 }
 
 export async function deleteMaterial(id: string) {
+  await requireAdmin()
   await prisma.courseMaterial.update({ where: { id }, data: { deletedAt: new Date() } })
   revalidatePath("/(dashboard)/admin/courses")
 }
 
 export async function getCourseRefs() {
+  await requireAdmin()
   return prisma.course.findMany({
     where: { deletedAt: null },
     select: { id: true, title: true, mapel: { select: { nama: true } } },
