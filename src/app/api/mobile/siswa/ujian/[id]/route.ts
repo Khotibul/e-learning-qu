@@ -19,6 +19,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     const { id } = await params
 
+    const siswa = await prisma.siswa.findUnique({ where: { userId: user.id } })
+    if (!siswa) return NextResponse.json({ error: "Siswa not found" }, { status: 404, headers: corsHeaders })
+
     const ujian = await prisma.ujian.findUnique({
       where: { id },
       include: {
@@ -27,17 +30,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       },
     })
 
-    if (!ujian) return NextResponse.json({ error: "Ujian not found" }, { status: 404, headers: corsHeaders })
+    if (!ujian || ujian.kelasId !== siswa.kelasId) return NextResponse.json({ error: "Ujian not found" }, { status: 404, headers: corsHeaders })
 
     if (ujian.mode === "otomatis") {
       const now = new Date()
       if (ujian.status === "DRAFT" && now >= new Date(ujian.jamMulai)) {
-        await prisma.ujian.update({ where: { id: ujian.id }, data: { status: "AKTIF" } })
-        ujian.status = "AKTIF" as never
+        const tr = await prisma.ujian.updateMany({ where: { id: ujian.id, status: "DRAFT" }, data: { status: "AKTIF" } })
+        if (tr.count > 0) ujian.status = "AKTIF" as never
+        else {
+          const fresh = await prisma.ujian.findUnique({ where: { id: ujian.id }, select: { status: true } })
+          if (fresh) ujian.status = fresh.status as never
+        }
       }
       if (ujian.status === "AKTIF" && now >= new Date(ujian.jamSelesai)) {
-        await prisma.ujian.update({ where: { id: ujian.id }, data: { status: "SELESAI" } })
-        ujian.status = "SELESAI" as never
+        const tr = await prisma.ujian.updateMany({ where: { id: ujian.id, status: "AKTIF" }, data: { status: "SELESAI" } })
+        if (tr.count > 0) ujian.status = "SELESAI" as never
+        else {
+          const fresh = await prisma.ujian.findUnique({ where: { id: ujian.id }, select: { status: true } })
+          if (fresh) ujian.status = fresh.status as never
+        }
       }
     }
 

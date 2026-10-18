@@ -44,7 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       })
     )
 
-    if (!ujian) {
+    if (!ujian || ujian.kelasId !== siswa.kelasId) {
       return NextResponse.json({ error: "Ujian not found" }, { status: 404 })
     }
 

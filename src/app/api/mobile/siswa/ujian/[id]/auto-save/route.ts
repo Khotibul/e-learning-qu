@@ -52,7 +52,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     const ujian = await prisma.ujian.findUnique({ where: { id }, include: { ujianSoal: { include: { soal: true } } } })
-    if (!ujian) return NextResponse.json({ error: "Ujian not found" }, { status: 404, headers: corsHeaders })
+    if (!ujian || ujian.kelasId !== siswa.kelasId) return NextResponse.json({ error: "Ujian not found" }, { status: 404, headers: corsHeaders })
 
     if (await isAssessmentLocked(id, siswa.id)) {
       return NextResponse.json({ error: "Ujian ini sudah dinilai dan tidak dapat diubah" }, { status: 403, headers: corsHeaders })

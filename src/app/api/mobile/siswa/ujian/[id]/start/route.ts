@@ -33,7 +33,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     const ujian = await withRetry(() => prisma.ujian.findUnique({ where: { id }, include: { ujianSoal: { orderBy: { nomor: "asc" } } } }))
-    if (!ujian) return NextResponse.json({ error: "Ujian not found" }, { status: 404, headers: corsHeaders })
+    if (!ujian || ujian.kelasId !== siswa.kelasId) return NextResponse.json({ error: "Ujian not found" }, { status: 404, headers: corsHeaders })
 
     const now = new Date()
     if (ujian.mode === "otomatis") {
