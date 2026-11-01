@@ -31,16 +31,32 @@ class AuthProvider extends ChangeNotifier {
     final session = await ApiService.signIn(email, password, roleToString(role));
     final u = session["user"];
     if (u == null) throw Exception("Session kosong");
-    _user = User.fromJson(Map<String, dynamic>.from(u as Map));
+    // Gabungkan extra (jabatan/kelas/guruId/siswaId) agar gating fitur sama dengan website.
+    final merged = Map<String, dynamic>.from(u as Map);
+    final extra = session["extra"];
+    if (extra is Map) {
+      for (final key in ["jabatan", "kelas", "guruId", "siswaId"]) {
+        final v = extra[key];
+        if (v != null) merged[key] = v;
+      }
+    }
+    _user = User.fromJson(merged);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString("auth_user", jsonEncode(u));
+    await prefs.setString("auth_user", jsonEncode(merged));
     notifyListeners();
   }
 
-  Future<void> signInWithGoogleUser(Map<String, dynamic> userJson) async {
-    _user = User.fromJson(Map<String, dynamic>.from(userJson));
+  Future<void> signInWithGoogleUser(Map<String, dynamic> userJson, {Map<String, dynamic>? extra}) async {
+    final merged = Map<String, dynamic>.from(userJson);
+    if (extra != null) {
+      for (final key in ["jabatan", "kelas", "guruId", "siswaId"]) {
+        final v = extra[key];
+        if (v != null) merged[key] = v;
+      }
+    }
+    _user = User.fromJson(merged);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString("auth_user", jsonEncode(userJson));
+    await prefs.setString("auth_user", jsonEncode(merged));
     notifyListeners();
   }
 
@@ -54,7 +70,10 @@ class AuthProvider extends ChangeNotifier {
 
   void refreshName(String name) {
     if (_user == null) return;
-    _user = User(id: _user!.id, email: _user!.email, name: name, image: _user!.image, role: _user!.role);
+    _user = User(
+      id: _user!.id, email: _user!.email, name: name, image: _user!.image, role: _user!.role,
+      jabatan: _user!.jabatan, kelas: _user!.kelas, guruId: _user!.guruId, siswaId: _user!.siswaId,
+    );
     SharedPreferences.getInstance().then((prefs) => prefs.setString("auth_user", jsonEncode(_user!.toJson())));
     notifyListeners();
   }

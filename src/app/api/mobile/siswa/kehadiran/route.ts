@@ -33,7 +33,7 @@ export async function GET(req: Request) {
     const end = new Date(y, m, 0, 23, 59, 59, 999)
     const tgl = hariTanggal(new Date())
 
-    const [kebijakan, hariIni, rows, hariLibur, permintaan] = await Promise.all([
+    const [kebijakan, hariIni, rows, hariLibur, permintaan, pelajaranRows] = await Promise.all([
       getKebijakanHarian(),
       prisma.absensiHarianSiswa.findUnique({ where: { siswaId_tanggal: { siswaId: siswa.id, tanggal: tgl } } }),
       prisma.absensiHarianSiswa.findMany({
@@ -47,6 +47,20 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         take: 10,
         select: { id: true, tanggal: true, tipe: true, alasan: true, status: true, catatanAdmin: true, createdAt: true },
+      }),
+      // Absensi per mata pelajaran (tab "Absensi Per Pelajaran" di website)
+      prisma.absensi.findMany({
+        where: {
+          tanggal: { gte: start, lte: end },
+          ...(siswa.kelasId ? { kelasId: siswa.kelasId } : {}),
+          siswa: { some: { siswaId: siswa.id } },
+        },
+        include: {
+          mataPelajaran: { select: { nama: true } },
+          siswa: { where: { siswaId: siswa.id }, select: { status: true, keterangan: true } },
+        },
+        orderBy: { tanggal: "desc" },
+        take: 120,
       }),
     ])
 
@@ -65,8 +79,25 @@ export async function GET(req: Request) {
         pulangAwal: rows.filter((r) => r.statusPulang === "AWAL").length,
         persenKehadiran: Math.round((hadir / hariSekolah) * 100),
       },
-      rows,
+      // Bentuk baris disamakan dengan website getRiwayatKehadiranSaya()
+      rows: rows.map((r) => ({
+        tanggal: ymd(r.tanggal),
+        jamMasuk: r.jamMasuk,
+        jamPulang: r.jamPulang,
+        statusMasuk: r.statusMasuk,
+        statusPulang: r.statusPulang,
+        terlambatMenit: r.terlambatMenit,
+        sumber: [r.sumberMasuk, r.sumberPulang].filter(Boolean).join("/") || null,
+      })),
       permintaan: permintaan.map((p) => ({ ...p, tanggal: ymd(p.tanggal), createdAt: p.createdAt.toISOString() })),
+      pelajaran: pelajaranRows
+        .filter((r) => r.siswa.length > 0)
+        .map((r) => ({
+          tanggal: ymd(r.tanggal),
+          mataPelajaran: r.mataPelajaran.nama,
+          status: r.siswa[0].status,
+          keterangan: r.siswa[0].keterangan,
+        })),
     }, { headers: corsHeaders })
   } catch (e) {
     console.error("Mobile kehadiran GET error:", e)

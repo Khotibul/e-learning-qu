@@ -159,8 +159,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       final res = await ApiService.signInWithGoogle(idToken, roleToString(_role));
                       if (!mounted) return;
                       final user = res["user"] as Map<String, dynamic>;
+                      final extra = res["extra"] is Map ? Map<String, dynamic>.from(res["extra"] as Map) : null;
                       // ignore: use_build_context_synchronously
-                      await context.read<AuthProvider>().signInWithGoogleUser(user);
+                      await context.read<AuthProvider>().signInWithGoogleUser(user, extra: extra);
                       if (res["extra"]?["needRoleSelection"] == true && mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Akun Google baru — lengkapi profil di website jika perlu")));
                       }

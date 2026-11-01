@@ -25,18 +25,36 @@ class User {
   final String? name;
   final String? image;
   final Role role;
+  final String? jabatan;
+  final String? kelas;
+  final String? guruId;
+  final String? siswaId;
 
-  User({required this.id, required this.email, this.name, this.image, required this.role});
+  User({
+    required this.id, required this.email, this.name, this.image, required this.role,
+    this.jabatan, this.kelas, this.guruId, this.siswaId,
+  });
 
-  factory User.fromJson(Map<String, dynamic> j) => User(
-    id: j["id"] as String,
-    email: j["email"] as String,
-    name: j["name"] as String?,
-    image: j["image"] as String?,
-    role: roleFromString(j["role"] as String? ?? "SISWA"),
-  );
+  factory User.fromJson(Map<String, dynamic> j) {
+    final kelasRaw = j["kelas"];
+    return User(
+      id: j["id"] as String,
+      email: j["email"] as String,
+      name: j["name"] as String?,
+      image: j["image"] as String?,
+      role: roleFromString(j["role"] as String? ?? "SISWA"),
+      jabatan: j["jabatan"] as String?,
+      kelas: kelasRaw is Map ? kelasRaw["nama"] as String? : kelasRaw as String?,
+      guruId: j["guruId"] as String?,
+      siswaId: j["siswaId"] as String?,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     "id": id, "email": email, "name": name, "image": image, "role": roleToString(role),
+    if (jabatan != null) "jabatan": jabatan,
+    if (kelas != null) "kelas": kelas,
+    if (guruId != null) "guruId": guruId,
+    if (siswaId != null) "siswaId": siswaId,
   };
 }

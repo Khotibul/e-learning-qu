@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getMobileUser } from "@/lib/mobile-auth"
-import { getIzinSaya, ajukanIzinSantri, simpanDraftIzin, batalkanIzinSantri, JENIS_IZIN_LABEL, STATUS_IZIN_LABEL, KEBERADAAN_LABEL } from "@/lib/izin-santri"
+import { prisma } from "@/lib/prisma"
+import { getIzinSaya, ajukanIzinSantri, simpanDraftIzin, batalkanIzinSantri, konfirmasiPerjalanan, JENIS_IZIN_LABEL, STATUS_IZIN_LABEL, KEBERADAAN_LABEL } from "@/lib/izin-santri"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,8 +18,15 @@ export async function GET(req: Request) {
     const user = await getMobileUser(req)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders })
     const result = await getIzinSaya(user.id)
+    // Sama dengan getJenisIzinOpts() website: hanya jenis yang diaktifkan Admin,
+    // bila pengaturan belum ada semua jenis dianggap aktif.
+    const pengaturan = await prisma.izinPengaturan.findMany({ where: { aktif: true }, select: { jenis: true } })
+    const aktif = new Set(pengaturan.map((p) => p.jenis))
+    const semuaJenis = Object.entries(JENIS_IZIN_LABEL) as [keyof typeof JENIS_IZIN_LABEL, string][]
+    const jenisOpts = (pengaturan.length === 0 ? semuaJenis : semuaJenis.filter(([v]) => aktif.has(v)))
+      .map(([value, label]) => ({ value, label }))
     return NextResponse.json(
-      { ...result, jenisLabel: JENIS_IZIN_LABEL, statusLabel: STATUS_IZIN_LABEL, keberadaanLabel: KEBERADAAN_LABEL },
+      { ...result, jenisOpts, jenisLabel: JENIS_IZIN_LABEL, statusLabel: STATUS_IZIN_LABEL, keberadaanLabel: KEBERADAAN_LABEL },
       { headers: corsHeaders },
     )
   } catch (e) {
@@ -69,6 +77,12 @@ export async function POST(req: Request) {
     if (op === "batal") {
       if (!body.izinId) return NextResponse.json({ error: "izinId wajib" }, { status: 400, headers: corsHeaders })
       await batalkanIzinSantri(user.id, body.izinId, body.alasan)
+      return NextResponse.json({ success: true }, { headers: corsHeaders })
+    }
+
+    if (op === "konfirmasi") {
+      if (!body.izinId) return NextResponse.json({ error: "izinId wajib" }, { status: 400, headers: corsHeaders })
+      await konfirmasiPerjalanan(body.izinId, user.id)
       return NextResponse.json({ success: true }, { headers: corsHeaders })
     }
 

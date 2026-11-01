@@ -66,3 +66,9 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Theme.AppCompat dipakai LaunchTheme/NormalTheme agar plugin local_auth
+    // (sidik jari/wajah perangkat) tidak crash pada Android 8 ke bawah.
+    implementation("androidx.appcompat:appcompat:1.7.0")
+}

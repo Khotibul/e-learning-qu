@@ -6,7 +6,6 @@ import {
   checkoutIzin,
   checkinIzin,
   perbaruiIzinTerlambat,
-  verifikasiTokenIzin,
 } from "@/lib/izin-santri"
 import { requireGerbang, ok, fail, options } from "../_lib"
 
@@ -82,58 +81,27 @@ export async function GET(req: Request) {
     }
 
     if (q) {
-      let tokenResult: Awaited<ReturnType<typeof verifikasiTokenIzin>> | null = null
-      if (q.length >= 16) {
-        tokenResult = await verifikasiTokenIzin(q).catch(() => null)
-      }
-      if (tokenResult) {
-        return ok({ mode: "token", izin: tokenResult, statusLabel: STATUS_IZIN_LABEL, jenisLabel: JENIS_IZIN_LABEL })
-      }
-      const rows = await prisma.santri.findMany({
+      // Sama dengan cariIzinAktifAction() website: token QR, nomor surat, NIS, atau nama.
+      const rows = await prisma.izinSantri.findMany({
         where: {
-          status: "AKTIF",
-          deletedAt: null,
-          OR: [{ nama: { contains: q, mode: "insensitive" } }, { nisNo: { contains: q, mode: "insensitive" } }],
+          status: { in: ["DISETUJUI", "SELESAI"] },
+          OR: [
+            { suratToken: q },
+            { suratNomor: q },
+            { santri: { OR: [{ nisNo: { contains: q, mode: "insensitive" } }, { nama: { contains: q, mode: "insensitive" } }] } },
+          ],
         },
-        take: 20,
-        select: {
-          id: true,
-          nama: true,
-          nisNo: true,
-          keberadaan: true,
-          asrama: { select: { nama: true } },
-          kamar: { select: { nama: true } },
-          izins: {
-            where: { status: { in: ["DISETUJUI", "MENUNGGU_KEPALA", "MENUNGGU_ADMIN"] } },
-            take: 1,
-            orderBy: { createdAt: "desc" },
-            select: { id: true, suratNomor: true, jenis: true, rencanaKembali: true, checkoutAt: true, status: true },
-          },
+        include: {
+          santri: { select: { id: true, nama: true, nisNo: true, keberadaan: true, asrama: { select: { nama: true } }, kamar: { select: { nama: true } } } },
         },
+        orderBy: { createdAt: "desc" },
+        take: 10,
       })
       return ok({
         mode: "cari",
-        rows: rows.map((r) => ({
-          id: r.id,
-          nama: r.nama,
-          nisNo: r.nisNo,
-          keberadaan: r.keberadaan,
-          keberadaanLabel: KEBERADAAN_LABEL[r.keberadaan as keyof typeof KEBERADAAN_LABEL] ?? r.keberadaan,
-          asrama: r.asrama?.nama ?? null,
-          kamar: r.kamar?.nama ?? null,
-          izin: r.izins[0]
-            ? {
-                id: r.izins[0].id,
-                suratNomor: r.izins[0].suratNomor,
-                jenis: r.izins[0].jenis,
-                jenisLabel: JENIS_IZIN_LABEL[r.izins[0].jenis],
-                rencanaKembali: r.izins[0].rencanaKembali,
-                checkoutAt: r.izins[0].checkoutAt,
-                status: r.izins[0].status,
-              }
-            : null,
-        })),
+        rows,
         keberadaanLabel: KEBERADAAN_LABEL,
+        statusLabel: STATUS_IZIN_LABEL,
         jenisLabel: JENIS_IZIN_LABEL,
       })
     }
@@ -145,29 +113,37 @@ export async function GET(req: Request) {
       take: limit,
       select: {
         id: true,
+        status: true,
         suratNomor: true,
+        suratExpiresAt: true,
         jenis: true,
         rencanaKeluar: true,
         rencanaKembali: true,
+        checkoutAt: true,
+        checkinAt: true,
         namaPenjemput: true,
         hubunganPenjemput: true,
         noTelpPenjemput: true,
         penjemputVerifiedAt: true,
         alamatTujuan: true,
-        santri: { select: { id: true, nama: true, nisNo: true, asrama: { select: { nama: true } }, kamar: { select: { nama: true } } } },
+        santri: { select: { id: true, nama: true, nisNo: true, keberadaan: true, asrama: { select: { nama: true } }, kamar: { select: { nama: true } } } },
       },
     })
     const total = await prisma.izinSantri.count({ where: { status: "DISETUJUI", checkoutAt: null } })
     return ok({
       rows: rows.map((r) => ({
         id: r.id,
+        status: r.status,
         suratNomor: r.suratNomor,
+        suratExpiresAt: r.suratExpiresAt,
+        checkoutAt: r.checkoutAt,
+        checkinAt: r.checkinAt,
         jenis: r.jenis,
         jenisLabel: JENIS_IZIN_LABEL[r.jenis],
         rencanaKeluar: r.rencanaKeluar,
         rencanaKembali: r.rencanaKembali,
-        penjemputNama: r.namaPenjemput,
-        penjemputHubungan: r.hubunganPenjemput,
+        namaPenjemput: r.namaPenjemput,
+        hubunganPenjemput: r.hubunganPenjemput,
         noTelpPenjemput: r.noTelpPenjemput,
         penjemputVerifiedAt: r.penjemputVerifiedAt,
         alamatTujuan: r.alamatTujuan,
@@ -175,6 +151,7 @@ export async function GET(req: Request) {
           id: r.santri.id,
           nama: r.santri.nama,
           nisNo: r.santri.nisNo,
+          keberadaan: r.santri.keberadaan,
           asrama: r.santri.asrama?.nama ?? null,
           kamar: r.santri.kamar?.nama ?? null,
         },
@@ -184,6 +161,7 @@ export async function GET(req: Request) {
       limit,
       totalPages: Math.max(1, Math.ceil(total / limit)),
       jenisLabel: JENIS_IZIN_LABEL,
+      statusLabel: STATUS_IZIN_LABEL,
     })
   } catch (e) {
     console.error(e)

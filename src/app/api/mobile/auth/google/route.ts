@@ -137,30 +137,36 @@ export async function POST(req: Request) {
     let guruId: string | null = null
     let needRoleSelection = false
 
+    let jabatan: string | null = null
+    let kelas: { id: string; nama: string } | null = null
+
     if (user.role === "SISWA") {
-      let siswa = await prisma.siswa.findUnique({ where: { userId: user.id }, select: { id: true } })
+      let siswa = await prisma.siswa.findUnique({ where: { userId: user.id }, select: { id: true, jabatan: true, kelas: { select: { id: true, nama: true } } } })
       if (!siswa) {
         // Buatkan profil siswa minimal — seperti website setelah pilih role SISWA di /register
         try {
           siswa = await prisma.siswa.create({
             data: { userId: user.id, nama: user.name ?? name, kelasId: null },
-            select: { id: true },
+            select: { id: true, jabatan: true, kelas: { select: { id: true, nama: true } } },
           })
         } catch {}
       }
       siswaId = siswa?.id ?? null
+      jabatan = siswa?.jabatan ?? null
+      kelas = siswa?.kelas ?? null
       if (!siswaId) needRoleSelection = true
     } else if (user.role === "GURU") {
-      let guru = await prisma.guru.findFirst({ where: { userId: user.id, deletedAt: null }, select: { id: true } })
+      let guru = await prisma.guru.findFirst({ where: { userId: user.id, deletedAt: null }, select: { id: true, jabatan: true } })
       if (!guru) {
         try {
           guru = await prisma.guru.create({
             data: { userId: user.id, nama: user.name ?? name },
-            select: { id: true },
+            select: { id: true, jabatan: true },
           })
         } catch {}
       }
       guruId = guru?.id ?? null
+      jabatan = guru?.jabatan ?? null
       if (!guruId) needRoleSelection = true
     } else if (user.role === "ADMIN" || user.role === "RESEARCHER") {
       return NextResponse.json({ error: "Role Admin hanya via website" }, { status: 403, headers: corsHeaders })
@@ -179,7 +185,7 @@ export async function POST(req: Request) {
         refreshToken,
         expiresIn: ACCESS_TOKEN_TTL_SECONDS,
         refreshExpiresIn: REFRESH_TOKEN_TTL_SECONDS,
-        extra: { siswaId, guruId, isNewUser, needRoleSelection },
+        extra: { siswaId, guruId, jabatan, kelas, isNewUser, needRoleSelection },
       },
       { headers: corsHeaders }
     )

@@ -3,6 +3,9 @@ import '../../services/api_service.dart';
 import 'ujian.dart';
 import 'materi.dart';
 import 'absensi_harian.dart';
+import 'kehadiran.dart';
+import 'izin.dart';
+import 'dompet.dart';
 import 'nilai.dart';
 import 'ranking.dart';
 import 'jadwal.dart';
@@ -122,6 +125,7 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                 _MenuCard(icon: Icons.quiz_outlined, label: "Ujian", color: const Color(0xFF4F46E5), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaUjian()))),
                 _MenuCard(icon: Icons.menu_book_outlined, label: "Materi", color: const Color(0xFF06B6D4), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaMateri()))),
                 _MenuCard(icon: Icons.fact_check_outlined, label: "Absensi", color: const Color(0xFF10B981), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
+                _MenuCard(icon: Icons.fingerprint, label: "Kehadiran", color: const Color(0xFF0EA5E9), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaKehadiran()))),
                 _MenuCard(icon: Icons.grade_outlined, label: "Nilai", color: const Color(0xFFF59E0B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaNilai()))),
                 _MenuCard(icon: Icons.leaderboard_outlined, label: "Ranking", color: const Color(0xFFEF4444), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaRanking()))),
                 _MenuCard(icon: Icons.smart_toy_outlined, label: "AI Tutor", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAiTutor()))),
@@ -168,6 +172,8 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                   color: const Color(0xFF64748B),
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaPengaturanNew())),
                 ),
+                _MenuCard(icon: Icons.assignment_outlined, label: "Izin", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaIzin()))),
+                _MenuCard(icon: Icons.account_balance_wallet_outlined, label: "Dompet", color: const Color(0xFF10B981), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaDompet()))),
                 _MenuCard(
                   icon: Icons.assignment_turned_in_outlined,
                   label: "Evaluasi SUS",

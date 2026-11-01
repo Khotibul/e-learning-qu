@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../widgets/verifikasi_widget.dart';
+import 'absensi_siswa_page.dart';
 
 class GuruAbsensi extends StatefulWidget {
   const GuruAbsensi({super.key});
@@ -27,11 +28,22 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
   bool guruSaved = false;
   bool savingGuru = false;
 
-  // status verifikasi per sesi (foto/GPS/sidik jari) — parent sebagai pemilik state
+  // status verifikasi per sesi & fase (foto/GPS/sidik jari) — parent sebagai pemilik state
   final Map<String, VerifState> _verif = {};
+  // status pengajuan pengecualian hari ini: jenis → MENUNGGU | DISETUJUI | DITOLAK
+  final Map<String, String> _pengecualianStatus = {};
 
-  VerifState _verifSesi(String jadwalId) =>
-      _verif.putIfAbsent(jadwalId, () => VerifState());
+  VerifState _verifSesi(String jadwalId, String fase) =>
+      _verif.putIfAbsent("$jadwalId:$fase", () => VerifState());
+
+  bool _gpsWajib() {
+    final lokasi = kebijakan["lokasi"];
+    return lokasi is Map && lokasi["gpsWajib"] == true;
+  }
+
+  bool _butuhGps(String metode) => butuhGps(metode) || _gpsWajib();
+
+  bool _dikecualikan(String jenis) => _pengecualianStatus[jenis] == "DISETUJUI";
 
   // riwayat
   String bulan = DateTime.now().toIso8601String().substring(0, 7);
@@ -43,6 +55,7 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
     super.initState();
     searchCtrl.addListener(_filter);
     _load();
+    _loadRiwayat();
     _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _load(silent: true));
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
@@ -66,12 +79,13 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
   Future<void> _load({bool silent = false}) async {
     if (!silent && mounted) setState(() => loading = true);
     try {
-      final v = await ApiService.get("/api/mobile/guru/absensi-sesi?tanggal=$tanggal");
-      final gAbs = await ApiService.get("/api/mobile/guru/absensi?tanggal=$tanggal").catchError((_) => null);
+      final v = await ApiService.get("/api/mobile/guru/absensi-sesi?tanggal=$tanggal", useCache: false);
+      final gAbs = await ApiService.get("/api/mobile/guru/absensi?tanggal=$tanggal", useCache: false).catchError((_) => null);
+      await _loadPengecualian();
       if (mounted) {
         setState(() {
-          sesi = (v is Map ? (v["sesi"] as List? ?? []) : []) as List;
-          kebijakan = (v is Map ? (v["kebijakan"] as Map? ?? {}) : {}) as Map<String, dynamic>;
+          sesi = v is Map ? (v["sesi"] as List? ?? <dynamic>[]) : <dynamic>[];
+          kebijakan = v is Map ? Map<String, dynamic>.from(v["kebijakan"] as Map? ?? {}) : <String, dynamic>{};
           filteredSesi = sesi;
           if (gAbs is Map && gAbs["status"] != null) {
             guruStatus = gAbs["status"];
@@ -88,13 +102,37 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
     }
   }
 
+  Future<void> _loadPengecualian() async {
+    try {
+      final v = await ApiService.get("/api/mobile/guru/pengecualian?tanggal=$tanggal", useCache: false);
+      final rows = v is Map ? (v["rows"] as List? ?? []) : <dynamic>[];
+      final status = <String, String>{};
+      // DISETUJUI menang atas MENUNGGU agar pengecualian lama yang sudah disetujui tetap berlaku.
+      for (final r in rows) {
+        if (r is! Map) continue;
+        final jenis = (r["jenis"] ?? "").toString();
+        final st = (r["status"] ?? "").toString();
+        if (jenis.isEmpty) continue;
+        if (status[jenis] == "DISETUJUI") continue;
+        if (st == "DISETUJUI" || !status.containsKey(jenis)) status[jenis] = st;
+      }
+      if (mounted) {
+        setState(() {
+          _pengecualianStatus
+            ..clear()
+            ..addAll(status);
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _loadRiwayat() async {
     try {
-      final v = await ApiService.get("/api/mobile/guru/absensi-sesi?view=rekap&bulan=$bulan");
+      final v = await ApiService.get("/api/mobile/guru/absensi-sesi?view=rekap&bulan=$bulan", useCache: false);
       if (mounted && v is Map) {
         setState(() {
-          riwayat = (v["riwayat"] as List? ?? []) as List;
-          rekap = (v["rekap"] as Map? ?? {}) as Map<String, dynamic>;
+          riwayat = v["riwayat"] as List? ?? <dynamic>[];
+          rekap = Map<String, dynamic>.from(v["rekap"] as Map? ?? {});
         });
       }
     } catch (_) {}
@@ -119,13 +157,14 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
   }
 
   /// Verifikasi lengkap sesuai metode & fase? (foto hanya saat masuk, GPS+sidik dua fase)
+  /// Pengecualian yang sudah DISETUJUI Admin menggantikan syarat yang tidak tersedia.
   bool _verifLengkap(Map s, String fase) {
     final m = _metodeSesi(s);
     if (m == "TANPA") return true;
-    final v = _verifSesi((s["jadwalId"] ?? "").toString());
-    if (butuhFoto(m, fase) && fase == "MASUK" && v.fotoUrl == null) return false;
-    if (butuhGps(m) && v.jarakMeter == null) return false;
-    if (butuhSidik(m) && !v.sidikOk) return false;
+    final v = _verifSesi((s["jadwalId"] ?? "").toString(), fase);
+    if (butuhFoto(m, fase) && v.fotoUrl == null && !_dikecualikan("FOTO")) return false;
+    if (_butuhGps(m) && v.gpsValid != true && !_dikecualikan("LOKASI")) return false;
+    if (butuhSidik(m) && !v.sidikOk && !_dikecualikan("BIOMETRIK")) return false;
     return true;
   }
 
@@ -138,7 +177,10 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
         "tanggal": tanggal,
         if (keterangan != null) "keterangan": keterangan,
         if (action == "masuk" || action == "selesai")
-          "verifikasi": _verifSesi((s["jadwalId"] ?? "").toString()).toJson(),
+          "verifikasi": _verifSesi(
+            (s["jadwalId"] ?? "").toString(),
+            action == "masuk" ? "MASUK" : "SELESAI",
+          ).toJson(),
       });
       if (mounted) {
         final pesan = action == "masuk"
@@ -149,6 +191,7 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(pesan)));
       }
       await _load(silent: true);
+      if (action == "masuk" || action == "selesai") _loadRiwayat();
     } catch (e) {
       final msg = e.toString().replaceFirst("Exception: ", "");
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -158,14 +201,15 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
   }
 
   Future<void> _ajukanPengecualian(Map s) async {
-    final v = _verifSesi((s["jadwalId"] ?? "").toString());
-    String jenis = v.jarakMeter == null && !v.sidikOk
+    final id = (s["jadwalId"] ?? "").toString();
+    final sudahMasuk = s["jamMasuk"] != null;
+    final v = _verifSesi(id, sudahMasuk ? "SELESAI" : "MASUK");
+    final m = _metodeSesi(s);
+    String jenis = _butuhGps(m) && v.gpsValid != true
         ? "LOKASI"
-        : v.jarakMeter == null
-            ? "LOKASI"
-            : !v.sidikOk
-                ? "BIOMETRIK"
-                : "FOTO";
+        : butuhSidik(m) && !v.sidikOk
+            ? "BIOMETRIK"
+            : "FOTO";
     final alasanCtrl = TextEditingController();
 
     final ok = await showDialog<bool>(
@@ -221,6 +265,7 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Pengecualian diajukan — menunggu persetujuan Admin")));
       }
+      await _loadPengecualian();
     } catch (e) {
       final msg = e.toString().replaceFirst("Exception: ", "");
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -389,11 +434,20 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
       );
 
   Widget _sesiTab() {
-    final summary = <String, int>{"Hadir": 0, "Terlambat": 0, "Belum": 0, "Tidak Hadir": 0};
+    final summary = <String, int>{
+      "Hadir": 0,
+      "Terlambat": 0,
+      "Izin": 0,
+      "Sakit": 0,
+      "Belum": 0,
+      "Tidak Hadir": 0,
+    };
     for (final s in sesi) {
       final st = (s["status"] ?? "BELUM_ABSEN").toString();
       if (st == "HADIR") summary["Hadir"] = (summary["Hadir"] ?? 0) + 1;
       if (st == "TERLAMBAT") summary["Terlambat"] = (summary["Terlambat"] ?? 0) + 1;
+      if (st == "IZIN") summary["Izin"] = (summary["Izin"] ?? 0) + 1;
+      if (st == "SAKIT") summary["Sakit"] = (summary["Sakit"] ?? 0) + 1;
       if (st == "BELUM_ABSEN") summary["Belum"] = (summary["Belum"] ?? 0) + 1;
       if (st == "TIDAK_HADIR") summary["Tidak Hadir"] = (summary["Tidak Hadir"] ?? 0) + 1;
     }
@@ -429,6 +483,8 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
             _chip("Sesi: ${sesi.length}", const Color(0xFF64748B)),
             _chip("Hadir ${summary["Hadir"]}", const Color(0xFF10B981)),
             _chip("Terlambat ${summary["Terlambat"]}", const Color(0xFFF59E0B)),
+            _chip("Izin ${summary["Izin"]}", const Color(0xFF0EA5E9)),
+            _chip("Sakit ${summary["Sakit"]}", const Color(0xFF8B5CF6)),
             _chip("Belum ${summary["Belum"]}", const Color(0xFF64748B)),
             _chip("Tidak Hadir ${summary["Tidak Hadir"]}", const Color(0xFFEF4444)),
           ]),
@@ -487,23 +543,62 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
             if ((s["terlambatMenit"] ?? 0) > 0) _meta(Icons.warning_amber, "Terlambat ${s["terlambatMenit"]} menit"),
             if (s["penggantiNama"] != null) _meta(Icons.swap_horiz, "Pengganti: ${s["penggantiNama"]}"),
           ]),
+          // Bukti verifikasi yang tersimpan (mirror website)
+          if (sudahMasuk) ...[
+            const SizedBox(height: 6),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              _chip(
+                s["fotoUrl"] != null ? "Foto wajah ✓" : "Foto —",
+                s["fotoUrl"] != null ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+              ),
+              _chip(
+                s["gps"] is Map
+                    ? "GPS ${(s["gps"] as Map)["jarakMeter"] ?? "-"}m ${(s["gps"] as Map)["valid"] == true ? "✓" : "✗"}${(s["gps"] as Map)["mock"] == true ? " mock?" : ""}"
+                    : "GPS —",
+                s["gps"] is Map && (s["gps"] as Map)["valid"] == true
+                    ? const Color(0xFF10B981)
+                    : s["gps"] is Map
+                        ? const Color(0xFFEF4444)
+                        : const Color(0xFF94A3B8),
+              ),
+              _chip(
+                s["sidikJariVerified"] == true ? "Sidik jari ✓" : "Sidik jari —",
+                s["sidikJariVerified"] == true ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+              ),
+              if (s["verifikasiCatatan"] != null)
+                _chip("${s["verifikasiCatatan"]}", const Color(0xFFF59E0B)),
+            ]),
+          ],
           if (s["koreksiAlasan"] != null) ...[
             const SizedBox(height: 4),
             Text("Koreksi Admin: ${s["koreksiAlasan"]}", style: const TextStyle(fontSize: 11, color: Color(0xFFF59E0B))),
           ],
-          if (fase != "SEBELUM" && status == "BELUM_ABSEN")
+          if (fase != "SEBELUM" && status == "BELUM_ABSEN" && !sudahMasuk)
             VerifikasiWidget(
               metode: _metodeSesi(s),
               kebijakan: kebijakan,
-              fase: sudahMasuk ? "SELESAI" : "MASUK",
-              state: _verifSesi((s["jadwalId"] ?? "").toString()),
+              fase: "MASUK",
+              state: _verifSesi((s["jadwalId"] ?? "").toString(), "MASUK"),
               onChange: (_) => setState(() {}),
               busy: busy,
               onAjukanPengecualian: () => _ajukanPengecualian(s),
+              pengecualianStatus: _pengecualianStatus,
+            ),
+          // Verifikasi ulang saat menutup sesi (GPS + sidik jari), sama seperti website.
+          if (fase != "SEBELUM" && sudahMasuk && !sudahSelesai)
+            VerifikasiWidget(
+              metode: _metodeSesi(s),
+              kebijakan: kebijakan,
+              fase: "SELESAI",
+              state: _verifSesi((s["jadwalId"] ?? "").toString(), "SELESAI"),
+              onChange: (_) => setState(() {}),
+              busy: busy,
+              onAjukanPengecualian: () => _ajukanPengecualian(s),
+              pengecualianStatus: _pengecualianStatus,
             ),
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
-            if (!sudahSelesai)
+            if (!sudahMasuk && !sudahSelesai)
               FilledButton.icon(
                 onPressed: busy || !bisaAbsen || !_verifLengkap(s, "MASUK")
                     ? null
@@ -559,6 +654,7 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
       itemCount: jadwal.length,
       itemBuilder: (_, i) {
         final j = jadwal[i] as Map;
+        final guruSudahMasuk = j["jamMasuk"] != null;
         return Card(
           child: ListTile(
             leading: Container(
@@ -567,17 +663,28 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
               child: const Icon(Icons.class_outlined, size: 16, color: Color(0xFF4F46E5)),
             ),
             title: Text(j["mataPelajaranNama"] ?? "-", style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-            subtitle: Text("${j["kelasNama"]} • ${j["jamMulai"]}-${j["jamSelesai"]}", style: const TextStyle(fontSize: 11, color: Colors.black54)),
-            trailing: const Icon(Icons.chevron_right, size: 16, color: Color(0xFF94A3B8)),
+            subtitle: Text(
+              "${j["kelasNama"]} • ${j["jamMulai"]}-${j["jamSelesai"]}${guruSudahMasuk ? "" : " • absen masuk dulu"}",
+              style: const TextStyle(fontSize: 11, color: Colors.black54),
+            ),
+            trailing: Icon(
+              guruSudahMasuk ? Icons.chevron_right : Icons.lock_outline,
+              size: 16,
+              color: guruSudahMasuk ? const Color(0xFF94A3B8) : const Color(0xFFF59E0B),
+            ),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => _MuridAbsensiPage(
+                builder: (_) => MuridAbsensiPage(
                   kelasId: j["kelasId"],
                   kelasNama: j["kelasNama"],
                   mataPelajaranId: j["mataPelajaranId"],
                   mataPelajaranNama: j["mataPelajaranNama"],
                   tanggal: tanggal,
+                  jadwalId: (j["jadwalId"] ?? "").toString(),
+                  jamMulai: (j["jamMulai"] ?? "").toString(),
+                  jamSelesai: (j["jamSelesai"] ?? "").toString(),
+                  guruSudahMasuk: guruSudahMasuk,
                 ),
               ),
             ),
@@ -670,183 +777,4 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
     );
   }
 
-}
-
-// ─── ABSENSI SISWA PER KELOMPOK MAPEL ─────────────────────────────
-class _MuridAbsensiPage extends StatefulWidget {
-  final String kelasId;
-  final String kelasNama;
-  final String mataPelajaranId;
-  final String mataPelajaranNama;
-  final String tanggal;
-  const _MuridAbsensiPage({
-    required this.kelasId,
-    required this.kelasNama,
-    required this.mataPelajaranId,
-    required this.mataPelajaranNama,
-    required this.tanggal,
-  });
-  @override
-  State<_MuridAbsensiPage> createState() => _MuridAbsensiPageState();
-}
-
-class _MuridAbsensiPageState extends State<_MuridAbsensiPage> {
-  List<dynamic> siswas = [];
-  List<dynamic> filtered = [];
-  Map<String, String> statusMap = {};
-  bool loading = true;
-  bool saving = false;
-  bool saved = false;
-  final searchCtrl = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    searchCtrl.addListener(_filter);
-    _load();
-  }
-
-  @override
-  void dispose() {
-    searchCtrl.dispose();
-    super.dispose();
-  }
-
-  void _filter() {
-    final q = searchCtrl.text.toLowerCase();
-    setState(() {
-      filtered = q.isEmpty
-          ? siswas
-          : siswas.where((s) => (s["nama"] ?? "").toString().toLowerCase().contains(q) || (s["nis"] ?? "").toString().toLowerCase().contains(q)).toList();
-    });
-  }
-
-  Future<void> _load() async {
-    try {
-      final data = await ApiService.get(
-          "/api/mobile/guru/absensi/siswa?kelasId=${widget.kelasId}&mataPelajaranId=${widget.mataPelajaranId}&tanggal=${widget.tanggal}");
-      if (mounted) {
-        setState(() {
-          siswas = (data["siswas"] as List? ?? []) as List;
-          filtered = siswas;
-          for (var s in siswas) {
-            statusMap[s["siswaId"] ?? s["id"]] = s["status"] ?? "HADIR";
-          }
-          saved = data["absensi"] != null;
-          loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => loading = false);
-    }
-  }
-
-  Future<void> _save() async {
-    setState(() => saving = true);
-    try {
-      final siswaStatus = statusMap.entries.map((e) => {"siswaId": e.key, "status": e.value}).toList();
-      await ApiService.post("/api/mobile/guru/absensi/siswa", {
-        "kelasId": widget.kelasId,
-        "mataPelajaranId": widget.mataPelajaranId,
-        "tanggal": widget.tanggal,
-        "siswaStatus": siswaStatus,
-      });
-      if (mounted) {
-        setState(() => saved = true);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Absensi siswa tersimpan — 1x per mapel per hari")));
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal: $e")));
-    } finally {
-      if (mounted) setState(() => saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: Text("${widget.kelasNama} • ${widget.mataPelajaranNama}", style: const TextStyle(fontSize: 15)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(children: [
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: TextField(
-                  controller: searchCtrl,
-                  decoration: InputDecoration(
-                    hintText: "Cari siswa (nama/NIS)...",
-                    prefixIcon: const Icon(Icons.search, size: 18),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: saved
-                          ? null
-                          : () => setState(() {
-                                for (var s in siswas) {
-                                  statusMap[s["siswaId"] ?? s["id"]] = "HADIR";
-                                }
-                              }),
-                      child: const Text("Semua Hadir", style: TextStyle(fontSize: 12)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: saving ? null : _save,
-                      style: FilledButton.styleFrom(backgroundColor: saved ? const Color(0xFF10B981) : const Color(0xFF4F46E5)),
-                      child: saving
-                          ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : Text(saved ? "Tersimpan (bisa ubah)" : "Simpan", style: const TextStyle(fontSize: 12)),
-                    ),
-                  ),
-                ]),
-              ),
-              const SizedBox(height: 4),
-              Text("${filtered.length} siswa ditampilkan", style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-              Expanded(
-                child: filtered.isEmpty
-                    ? const Center(child: Text("Tidak ada siswa", style: TextStyle(color: Colors.black54)))
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: filtered.length,
-                        itemBuilder: (_, i) {
-                          final s = filtered[i];
-                          final id = s["siswaId"] ?? s["id"];
-                          return Card(
-                            child: ListTile(
-                              dense: true,
-                              title: Text(s["nama"] ?? "-", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                              subtitle: Text(s["nis"] ?? "", style: const TextStyle(fontSize: 11)),
-                              trailing: DropdownButton<String>(
-                                value: statusMap[id] ?? "HADIR",
-                                items: ["HADIR", "SAKIT", "IZIN", "ALPA"]
-                                    .map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(fontSize: 12))))
-                                    .toList(),
-                                onChanged: (v) => setState(() {
-                                  statusMap[id] = v!;
-                                  saved = false;
-                                }),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ]),
-    );
-  }
 }

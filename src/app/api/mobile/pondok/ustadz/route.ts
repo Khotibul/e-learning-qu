@@ -6,6 +6,7 @@ import {
   rekomendasikanIzin,
 } from "@/lib/izin-santri"
 import { requirePondok, scopeFilter, ok, fail, options } from "../_lib"
+import { createAuditLog } from "@/lib/audit"
 
 export { options }
 
@@ -342,6 +343,105 @@ export async function POST(req: Request) {
       if (scope.santriIdIn && !scope.santriIdIn.includes(izin.santriId)) return fail("Santri di luar cakupan binaan Anda", 403)
       const hasil = await rekomendasikanIzin(izinId, auth.user.id, rekomendasi, String(catatan || "").trim())
       return ok({ success: true, hasil })
+    } catch (e) {
+      return fail(e instanceof Error ? e.message : "Gagal", 400)
+    }
+  }
+
+  if (op === "simpanAbsensiDiniyah") {
+    const auth = await requirePondok(req, "pondok.absensi.create")
+    if (auth.error) return auth.error
+    const { kelasId, tanggal, rows } = body
+    if (!Array.isArray(rows) || rows.length === 0) return fail("Data absensi kosong", 400)
+    try {
+      const akses = await prisma.kelasDiniyah.findFirst({
+        where: { id: kelasId, OR: [{ pengampuId: auth.user.id }, { assignments: { some: { userId: auth.user.id, aktif: true } } }] },
+        select: { id: true },
+      })
+      if (!akses) return fail("Anda tidak mengampu kelas ini", 403)
+      const tgl = new Date(tanggal)
+      tgl.setHours(0, 0, 0, 0)
+      await prisma.$transaction(async (tx) => {
+        for (const r of rows) {
+          const punya = await tx.santri.findFirst({ where: { id: r.santriId, kelasDiniyahId: kelasId }, select: { id: true } })
+          if (!punya) throw new Error("Santri tidak termasuk kelas ini")
+          await tx.absensiDiniyah.upsert({
+            where: { kelasDiniyahId_tanggal_santriId: { kelasDiniyahId: kelasId, tanggal: tgl, santriId: r.santriId } },
+            create: { kelasDiniyahId: kelasId, tanggal: tgl, santriId: r.santriId, status: r.status, keterangan: r.keterangan || null, pencatatId: auth.user.id },
+            update: { status: r.status, keterangan: r.keterangan || null },
+          })
+        }
+      })
+      await createAuditLog({ userId: auth.user.id, action: "ABSENSI_DINIYAH_DISIMPAN", entity: "AbsensiDiniyah", entityId: kelasId, detail: { jumlah: rows.length } })
+      return ok({ success: true, jumlah: rows.length })
+    } catch (e) {
+      return fail(e instanceof Error ? e.message : "Gagal", 400)
+    }
+  }
+
+  if (op === "createKelasDiniyah") {
+    const auth = await requirePondok(req, "pondok.diniyah.manage")
+    if (auth.error) return auth.error
+    if (String(body.nama || "").trim().length < 3) return fail("Nama kelas minimal 3 karakter", 400)
+    try {
+      const row = await prisma.kelasDiniyah.create({
+        data: {
+          nama: String(body.nama).trim(),
+          tingkat: body.tingkat || null,
+          hari: body.hari || null,
+          jam: body.jam || null,
+          pengampuId: auth.user.id,
+        },
+      })
+      await prisma.pondokStaffAssignment.create({ data: { userId: auth.user.id, tipe: "USTADZ_DINIYAH", kelasDiniyahId: row.id, createdBy: auth.user.id } })
+      await createAuditLog({ userId: auth.user.id, action: "KELAS_DINIYAH_DIBUAT", entity: "KelasDiniyah", entityId: row.id, detail: { nama: row.nama } })
+      return ok(row)
+    } catch (e) {
+      return fail(e instanceof Error ? e.message : "Gagal", 400)
+    }
+  }
+
+  if (op === "createHalaqah") {
+    const auth = await requirePondok(req, "pondok.tahfidz.manage")
+    if (auth.error) return auth.error
+    if (String(body.nama || "").trim().length < 2) return fail("Nama halaqah minimal 2 karakter", 400)
+    try {
+      const row = await prisma.halaqah.create({
+        data: {
+          nama: String(body.nama).trim(),
+          tingkat: body.tingkat || null,
+          targetSurah: body.targetSurah || null,
+          pengampuId: auth.user.id,
+        },
+      })
+      await prisma.pondokStaffAssignment.create({ data: { userId: auth.user.id, tipe: "USTADZ_TAHFIDZ", halaqahId: row.id, createdBy: auth.user.id } })
+      await createAuditLog({ userId: auth.user.id, action: "HALAQAH_DIBUAT", entity: "Halaqah", entityId: row.id, detail: { nama: row.nama } })
+      return ok(row)
+    } catch (e) {
+      return fail(e instanceof Error ? e.message : "Gagal", 400)
+    }
+  }
+
+  if (op === "createPembinaan") {
+    const auth = await requirePondok(req, "pondok.pembinaan.manage")
+    if (auth.error) return auth.error
+    if (String(body.judul || "").trim().length < 3) return fail("Judul minimal 3 karakter", 400)
+    try {
+      const scope = await scopeFilter(auth.user.id)
+      if (scope.santriIdIn && !scope.santriIdIn.includes(body.santriId)) return fail("Santri di luar cakupan binaan Anda", 403)
+      const tipe = ["PRESTASI", "PELANGGARAN", "CATATAN"].includes(String(body.tipe)) ? String(body.tipe) : "CATATAN"
+      const row = await prisma.pembinaanSantri.create({
+        data: {
+          santriId: body.santriId,
+          tipe,
+          judul: String(body.judul).trim(),
+          deskripsi: body.deskripsi || null,
+          petugasId: auth.user.id,
+          status: "SELESAI",
+        },
+      })
+      await createAuditLog({ userId: auth.user.id, action: "PEMBINAAN_USTADZ_DICATAT", entity: "PembinaanSantri", entityId: row.id, detail: { tipe } })
+      return ok(row)
     } catch (e) {
       return fail(e instanceof Error ? e.message : "Gagal", 400)
     }

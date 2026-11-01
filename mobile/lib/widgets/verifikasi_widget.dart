@@ -58,6 +58,8 @@ class VerifikasiWidget extends StatefulWidget {
   final bool busy;
   final VoidCallback? onAjukanPengecualian;
   final bool disabled;
+  /// Status pengajuan pengecualian hari ini per jenis: LOKASI/BIOMETRIK/FOTO → MENUNGGU|DISETUJUI|DITOLAK.
+  final Map<String, String> pengecualianStatus;
 
   const VerifikasiWidget({
     super.key,
@@ -69,6 +71,7 @@ class VerifikasiWidget extends StatefulWidget {
     this.busy = false,
     this.onAjukanPengecualian,
     this.disabled = false,
+    this.pengecualianStatus = const {},
   });
 
   @override
@@ -92,11 +95,17 @@ class _VerifikasiWidgetState extends State<VerifikasiWidget> {
     setState(() => proses = true);
     try {
       final picker = ImagePicker();
-      final XFile? file = await picker.pickImage(source: ImageSource.camera, imageQuality: 55, maxWidth: 900);
+      // FOTO = verifikasi wajah: gunakan kamera depan (selfie), bukan kamera belakang.
+      final XFile? file = await picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+        imageQuality: 55,
+        maxWidth: 900,
+      );
       if (file == null) return;
       final url = await ApiService.uploadFile("/api/mobile/upload", file.path);
       _set((s) => s.fotoUrl = url);
-      _toast("Foto bukti tersimpan");
+      _toast("Foto selfie wajah tersimpan");
     } catch (e) {
       _toast(e.toString().replaceFirst("Exception: ", ""));
     } finally {
@@ -138,11 +147,12 @@ class _VerifikasiWidgetState extends State<VerifikasiWidget> {
         s.mock = pos.isMocked;
       });
       if (jarak == null) {
-        _toast("Lokasi tercatat (titik absen belum diatur Admin)");
+        _toast("Lokasi tercatat, tetapi titik absensi belum diatur Admin");
       } else if (valid == true) {
-        _toast("Di dalam radius ($jarak m)");
+        _toast("Lokasi valid — ${jarak}m dari titik absensi (radius $radius m)");
       } else {
-        _toast("Di luar radius ($jarak m) — minta pengecualian Admin");
+        final akurasi = pos.accuracy.round();
+        _toast("Di luar radius/akurasi ($jarak m, akurasi $akurasi m) — ajukan pengecualian ke Admin");
       }
     } catch (e) {
       _toast("Gagal mengambil lokasi: $e");
@@ -192,15 +202,16 @@ class _VerifikasiWidgetState extends State<VerifikasiWidget> {
     if (m == "TANPA" || m.isEmpty) return const SizedBox.shrink();
     final fase = widget.fase;
     final fFoto = butuhFoto(m, fase);
-    final fGps = butuhGps(m);
+    final fGps = butuhGps(m) || _lokasi["gpsWajib"] == true;
     final fSidik = butuhSidik(m);
     final s = widget.state;
     final busy = proses || widget.busy;
+    final peng = widget.pengecualianStatus;
 
-    // Sudah lengkap?
-    final fotoOk = !fFoto || (s.fotoUrl != null || fase == "SELESAI");
-    final gpsOk = !fGps || s.jarakMeter != null;
-    final sidikOk = !fSidik || s.sidikOk;
+    // Sudah lengkap? Pengecualian yang DISETUJUI Admin menggantikan syarat yang tidak tersedia.
+    final fotoOk = !fFoto || s.fotoUrl != null || peng["FOTO"] == "DISETUJUI";
+    final gpsOk = !fGps || s.gpsValid == true || peng["LOKASI"] == "DISETUJUI";
+    final sidikOk = !fSidik || s.sidikOk || peng["BIOMETRIK"] == "DISETUJUI";
     final lengkap = fotoOk && gpsOk && sidikOk;
 
     final lok = _lokasi;
@@ -232,39 +243,58 @@ class _VerifikasiWidgetState extends State<VerifikasiWidget> {
         Wrap(spacing: 6, runSpacing: 6, children: [
           if (fFoto)
             _chip(
-              s.fotoUrl != null ? "Foto ✓" : "Foto belum",
-              s.fotoUrl != null ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-              icon: Icons.photo_camera_outlined,
+              s.fotoUrl != null
+                  ? "Foto wajah ✓"
+                  : peng["FOTO"] == "DISETUJUI"
+                      ? "Foto wajah (dikecualikan)"
+                      : "Foto wajah belum",
+              s.fotoUrl != null || peng["FOTO"] == "DISETUJUI" ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+              icon: Icons.face_retouching_natural,
             ),
           if (fGps)
             _chip(
-              s.jarakMeter != null
-                  ? "GPS ${s.jarakMeter}m${s.gpsValid == false ? " (luar!)" : s.mock == true ? " (mock?)" : " ✓"}"
-                  : "GPS belum",
-              s.jarakMeter == null
-                  ? const Color(0xFFF59E0B)
-                  : s.gpsValid == true
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFFEF4444),
+              s.gpsValid == true
+                  ? "GPS ${s.jarakMeter}m ✓${s.mock == true ? " (mock?)" : ""}"
+                  : s.jarakMeter != null
+                      ? "GPS ${s.jarakMeter}m (luar radius)${s.mock == true ? " mock?" : ""}"
+                      : peng["LOKASI"] == "DISETUJUI"
+                          ? "GPS (dikecualikan)"
+                          : "GPS belum",
+              s.gpsValid == true || peng["LOKASI"] == "DISETUJUI"
+                  ? const Color(0xFF10B981)
+                  : s.jarakMeter != null
+                      ? const Color(0xFFEF4444)
+                      : const Color(0xFFF59E0B),
               icon: Icons.location_on_outlined,
             ),
           if (fSidik)
             _chip(
-              s.sidikOk ? "Sidik jari ✓" : "Sidik jari belum",
-              s.sidikOk ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+              s.sidikOk
+                  ? "Sidik jari ✓"
+                  : peng["BIOMETRIK"] == "DISETUJUI"
+                      ? "Sidik jari (dikecualikan)"
+                      : "Sidik jari belum",
+              s.sidikOk || peng["BIOMETRIK"] == "DISETUJUI" ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
               icon: Icons.fingerprint,
             ),
-          if (fGps && namaLok.isNotEmpty)
-            _chip("Radius $radius m • $namaLok", const Color(0xFF64748B), icon: Icons.radio_button_checked),
+          if (fGps && (namaLok.isNotEmpty || (lok["lat"] != null && lok["lng"] != null)))
+            _chip(
+              "Radius $radius m${namaLok.isNotEmpty ? " • $namaLok" : ""}",
+              const Color(0xFF64748B),
+              icon: Icons.radio_button_checked,
+            ),
+          for (final jenis in ["FOTO", "LOKASI", "BIOMETRIK"])
+            if (peng[jenis] == "MENUNGGU")
+              _chip("$jenis: menunggu Admin", const Color(0xFFF59E0B), icon: Icons.hourglass_top),
         ]),
         const SizedBox(height: 8),
         Wrap(spacing: 6, runSpacing: 6, children: [
           if (fFoto && s.fotoUrl == null)
-            _btn(Icons.photo_camera_outlined, "Ambil Foto", _ambilFoto, busy || widget.disabled),
-          if (fGps && s.jarakMeter == null)
-            _btn(Icons.my_location, "Ambil Lokasi", _ambilLokasi, busy || widget.disabled),
+            _btn(Icons.face_retouching_natural, "Ambil Selfie Wajah", _ambilFoto, busy || widget.disabled),
+          if (fGps && s.gpsValid != true)
+            _btn(Icons.my_location, s.jarakMeter == null ? "Ambil Lokasi" : "Ulangi Cek Lokasi", _ambilLokasi, busy || widget.disabled),
           if (fSidik && !s.sidikOk)
-            _btn(Icons.fingerprint, "Sidik Jari", _sidikJari, busy || widget.disabled),
+            _btn(Icons.fingerprint, "Verifikasi Sidik Jari", _sidikJari, busy || widget.disabled),
           if (widget.onAjukanPengecualian != null)
             TextButton.icon(
               onPressed: busy || widget.disabled ? null : widget.onAjukanPengecualian,
@@ -277,9 +307,9 @@ class _VerifikasiWidgetState extends State<VerifikasiWidget> {
             padding: const EdgeInsets.only(top: 6),
             child: Text(
               [
-                if (fFoto && fase == "MASUK" && s.fotoUrl == null) "foto wajib saat absen masuk",
-                if (fGps && s.jarakMeter == null) "lokasi wajib di dalam radius sekolah",
-                if (fSidik && !s.sidikOk) "sidik jari/wajah perangkat wajib",
+                if (fFoto && s.fotoUrl == null && peng["FOTO"] != "DISETUJUI") "selfie wajah wajib saat absen masuk",
+                if (fGps && s.gpsValid != true && peng["LOKASI"] != "DISETUJUI") "lokasi wajib di dalam radius yang ditentukan Admin",
+                if (fSidik && !s.sidikOk && peng["BIOMETRIK"] != "DISETUJUI") "sidik jari perangkat wajib",
               ].join(" • "),
               style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
             ),

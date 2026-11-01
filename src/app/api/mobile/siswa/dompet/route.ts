@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getMobileUser } from "@/lib/mobile-auth"
-import { getOrCreateDompet } from "@/lib/keuangan/wallet"
+import { getOrCreateDompet, cekLimitHarian, verifikasiKonsistensiSaldo } from "@/lib/keuangan/wallet"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,6 +43,10 @@ export async function GET(req: Request) {
     }
 
     const dompet = await getOrCreateDompet(user.id)
+    const [limit, konsistensi] = await Promise.all([
+      cekLimitHarian(dompet.id),
+      verifikasiKonsistensiSaldo(dompet.id),
+    ])
     const riwayat = await prisma.walletLedger.findMany({
       where: { accountId: dompet.id },
       orderBy: { createdAt: "desc" },
@@ -54,7 +58,12 @@ export async function GET(req: Request) {
       select: { name: true, siswa: { select: { nama: true } }, santri: { select: { nama: true } } },
     })
     const nama = profile?.santri?.nama ?? profile?.siswa?.nama ?? profile?.name ?? "-"
-    return NextResponse.json({ dompet: { ...dompet, nama }, riwayat }, { headers: corsHeaders })
+    return NextResponse.json({
+      dompet: { ...dompet, nama },
+      limitHarian: { sisa: limit.sisa, ok: limit.ok },
+      konsistensiSaldo: konsistensi.konsisten,
+      riwayat,
+    }, { headers: corsHeaders })
   } catch (e) {
     console.error(e)
     return NextResponse.json({ error: "Gagal memuat dompet" }, { status: 500, headers: corsHeaders })

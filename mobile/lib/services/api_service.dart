@@ -32,6 +32,15 @@ class ApiService {
     throw Exception("Retry gagal");
   }
 
+  /// Ambil pesan error dari body JSON server agar bisa ditampilkan langsung ke pengguna.
+  static String _pesanError(http.Response res, String method, String path) {
+    try {
+      final body = jsonDecode(res.body);
+      if (body is Map && body["error"] is String) return body["error"] as String;
+    } catch (_) {}
+    return "$method $path gagal (${res.statusCode})";
+  }
+
   static Future<dynamic> get(String path, {bool useCache = true}) async {
     if (useCache) {
       final prefs = await SharedPreferences.getInstance();
@@ -44,7 +53,7 @@ class ApiService {
     }
     final headers = await _headers();
     final res = await _withRetry(() => _client.get(Uri.parse("${ApiConfig.baseUrl}$path"), headers: headers).timeout(const Duration(seconds: 15)));
-    if (res.statusCode >= 400) throw Exception("GET $path: ${res.statusCode} ${res.body}");
+    if (res.statusCode >= 400) throw Exception(_pesanError(res, "GET", path));
     final data = jsonDecode(res.body);
     if (useCache) {
       final prefs = await SharedPreferences.getInstance();
@@ -58,14 +67,14 @@ class ApiService {
   static Future<dynamic> post(String path, Map<String, dynamic> body) async {
     final headers = await _headers();
     final res = await _withRetry(() => _client.post(Uri.parse("${ApiConfig.baseUrl}$path"), headers: headers, body: jsonEncode(body)).timeout(const Duration(seconds: 15)));
-    if (res.statusCode >= 400) throw Exception("POST $path: ${res.statusCode} ${res.body}");
+    if (res.statusCode >= 400) throw Exception(_pesanError(res, "POST", path));
     return jsonDecode(res.body);
   }
 
   static Future<dynamic> delete(String path) async {
     final headers = await _headers();
     final res = await _withRetry(() => _client.delete(Uri.parse("${ApiConfig.baseUrl}$path"), headers: headers).timeout(const Duration(seconds: 15)));
-    if (res.statusCode >= 400) throw Exception("DELETE $path: ${res.statusCode} ${res.body}");
+    if (res.statusCode >= 400) throw Exception(_pesanError(res, "DELETE", path));
     return res.body.isEmpty ? null : jsonDecode(res.body);
   }
 
@@ -78,7 +87,7 @@ class ApiService {
       ..files.add(await http.MultipartFile.fromPath(fieldName, filePath));
     final streamed = await _withRetry(() => req.send().timeout(const Duration(seconds: 30)));
     final res = await http.Response.fromStream(streamed);
-    if (res.statusCode >= 400) throw Exception("UPLOAD ${res.statusCode}: ${res.body}");
+    if (res.statusCode >= 400) throw Exception(_pesanError(res, "UPLOAD", path));
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final url = body["url"];
     if (url is! String) throw Exception("Upload gagal");
