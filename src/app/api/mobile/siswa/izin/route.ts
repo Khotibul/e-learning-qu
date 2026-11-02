@@ -18,6 +18,13 @@ export async function GET(req: Request) {
     const user = await getMobileUser(req)
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders })
     const result = await getIzinSaya(user.id)
+    // URL verifikasi QR, sama dengan yang dicetak di PDF surat website:
+    // `${base}/api/izin/verifikasi?token=...`
+    const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    const rows = result.rows.map((r) => ({
+      ...r,
+      verifyUrl: r.suratToken ? `${base}/api/izin/verifikasi?token=${r.suratToken}` : null,
+    }))
     // Sama dengan getJenisIzinOpts() website: hanya jenis yang diaktifkan Admin,
     // bila pengaturan belum ada semua jenis dianggap aktif.
     const pengaturan = await prisma.izinPengaturan.findMany({ where: { aktif: true }, select: { jenis: true } })
@@ -26,7 +33,7 @@ export async function GET(req: Request) {
     const jenisOpts = (pengaturan.length === 0 ? semuaJenis : semuaJenis.filter(([v]) => aktif.has(v)))
       .map(([value, label]) => ({ value, label }))
     return NextResponse.json(
-      { ...result, jenisOpts, jenisLabel: JENIS_IZIN_LABEL, statusLabel: STATUS_IZIN_LABEL, keberadaanLabel: KEBERADAAN_LABEL },
+      { ...result, rows, jenisOpts, jenisLabel: JENIS_IZIN_LABEL, statusLabel: STATUS_IZIN_LABEL, keberadaanLabel: KEBERADAAN_LABEL },
       { headers: corsHeaders },
     )
   } catch (e) {

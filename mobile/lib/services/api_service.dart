@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
@@ -62,6 +63,14 @@ class ApiService {
       await prefs.setInt("${key}_ts", DateTime.now().millisecondsSinceEpoch);
     }
     return data;
+  }
+
+  /// Ambil berkas biner (mis. PDF surat izin) dengan auth Bearer.
+  static Future<Uint8List> getBytes(String path) async {
+    final headers = await _headers();
+    final res = await _withRetry(() => _client.get(Uri.parse("${ApiConfig.baseUrl}$path"), headers: headers).timeout(const Duration(seconds: 30)));
+    if (res.statusCode >= 400) throw Exception(_pesanError(res, "GET", path));
+    return res.bodyBytes;
   }
 
   static Future<dynamic> post(String path, Map<String, dynamic> body) async {

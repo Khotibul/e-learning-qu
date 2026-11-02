@@ -1,6 +1,9 @@
 import "package:flutter/material.dart";
 import "package:intl/intl.dart";
 import "../../services/api_service.dart";
+import "surat_izin_page.dart";
+import "daftar_surat_izin_page.dart";
+import "../verifikasi_surat_page.dart";
 
 /// Perizinan santri — mirror web /santri/izin.
 /// Ajukan izin, simpan draft, batalkan, konfirmasi tiba di tujuan.
@@ -54,6 +57,8 @@ class _SiswaIzinState extends State<SiswaIzin> {
   void _snack(String msg, {Color color = const Color(0xFF10B981)}) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
+
+  int get _jumlahSurat => rows.where((r) => r is Map && ("${r["suratNomor"] ?? ""}".trim().isNotEmpty || "${r["suratToken"] ?? ""}".trim().isNotEmpty)).length;
 
   bool get _adaIzinAktif => rows.any((r) => const [
     "DIAJUKU", "MENUNGGU_WALI", "MENUNGGU_PENGURUS", "MENUNGGU_MUSYRIF", "MENUNGGU_KEPALA", "MENUNGGU_ADMIN", "DISETUJUI",
@@ -126,7 +131,14 @@ class _SiswaIzinState extends State<SiswaIzin> {
         title: const Text("Perizinan Santri"),
         backgroundColor: Colors.white,
         elevation: 0,
-        actions: [IconButton(onPressed: loading ? null : _load, icon: const Icon(Icons.refresh, size: 20))],
+        actions: [
+          IconButton(
+            tooltip: "Cek keaslian surat (QR)",
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VerifikasiSuratPage())),
+            icon: const Icon(Icons.verified_user_outlined, size: 20),
+          ),
+          IconButton(onPressed: loading ? null : _load, icon: const Icon(Icons.refresh, size: 20)),
+        ],
         bottom: const TabBar(
           labelColor: Color(0xFF4F46E5),
           unselectedLabelColor: Color(0xFF64748B),
@@ -170,12 +182,45 @@ class _SiswaIzinState extends State<SiswaIzin> {
           ),
         ),
         const SizedBox(height: 10),
+        Card(
+          child: ListTile(
+            dense: true,
+            leading: const Icon(Icons.description_outlined, size: 20, color: Color(0xFF4F46E5)),
+            title: const Text("Surat Izin Terbit", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+            subtitle: Text(
+              _jumlahSurat == 0 ? "Belum ada surat yang terbit" : "$_jumlahSurat surat — lihat daftar & status QR",
+              style: const TextStyle(fontSize: 10.5),
+            ),
+            trailing: const Icon(Icons.chevron_right, size: 18),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DaftarSuratIzinPage(
+                  rows: rows,
+                  santri: santri,
+                  jenisLabel: jenisLabel,
+                  statusLabel: statusLabel,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
         if (rows.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Center(child: Text("Belum ada riwayat izin.", style: TextStyle(color: Colors.black54)))),
         ...rows.cast<Map>().map((r) {
           final status = "${r["status"]}";
           final color = status == "DISETUJUI" ? const Color(0xFF10B981) : status == "DITOLAK" || status == "DIBATALKAN" || status == "KEDALUWARSA" ? const Color(0xFFEF4444) : const Color(0xFFF59E0B);
           final bisaBatal = const ["DRAFT", "DIAJUKU", "MENUNGGU_WALI", "MENUNGGU_PENGURUS", "MENUNGGU_MUSYRIF", "MENUNGGU_KEPALA", "MENUNGGU_ADMIN", "DISETUJUI"].contains(status) && r["checkoutAt"] == null;
           final bisaKonfirmasi = status == "DISETUJUI" && r["checkoutAt"] != null && r["checkinAt"] == null && r["perjalananConfirmedAt"] == null;
+          final bisaSurat = const ["DISETUJUI", "SELESAI"].contains(status) && r["suratToken"] != null;
+          void bukaSurat() => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => SuratIzinPage(
+              row: r,
+              santri: santri,
+              jenisLabel: jenisLabel,
+              statusLabel: statusLabel,
+            ),
+          ));
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -194,9 +239,14 @@ class _SiswaIzinState extends State<SiswaIzin> {
                 if (r["alasanKeputusan"] != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text("Alasan keputusan: ${r["alasanKeputusan"]}", style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444)))),
                 if (r["suratNomor"] != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text("Surat: ${r["suratNomor"]}", style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
                 if (r["checkoutAt"] != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text("Check-out: ${_fmt(r["checkoutAt"])}${r["checkinAt"] != null ? " • Check-in: ${_fmt(r["checkinAt"])}" : ""}", style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
-                if (bisaBatal || bisaKonfirmasi) Padding(
+                if (bisaBatal || bisaKonfirmasi || bisaSurat) Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Wrap(spacing: 8, children: [
+                    if (bisaSurat) FilledButton.icon(
+                      onPressed: () => bukaSurat(),
+                      icon: const Icon(Icons.qr_code_2, size: 15),
+                      label: const Text("Lihat Surat & QR", style: TextStyle(fontSize: 11)),
+                    ),
                     if (bisaKonfirmasi) OutlinedButton(onPressed: busy ? null : () => _konfirmasi("${r["id"]}"), child: const Text("Konfirmasi Tiba di Tujuan", style: TextStyle(fontSize: 11))),
                     if (bisaBatal) TextButton.icon(
                       onPressed: busy ? null : () => _batalkan("${r["id"]}"),

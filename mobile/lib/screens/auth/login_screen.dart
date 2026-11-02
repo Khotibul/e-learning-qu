@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/user.dart';
 import '../../services/api_service.dart';
+import '../verifikasi_surat_page.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -182,7 +183,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     backgroundColor: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
+                TextButton.icon(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VerifikasiSuratPage())),
+                  icon: const Icon(Icons.verified_user_outlined, size: 16),
+                  label: const Text("Cek keaslian surat izin (QR)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(height: 6),
                 Row(children: [
                   Expanded(child: Divider(color: Color(0xFFE2E8F0))),
                   Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text("Aman & Terpercaya", style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)))),
