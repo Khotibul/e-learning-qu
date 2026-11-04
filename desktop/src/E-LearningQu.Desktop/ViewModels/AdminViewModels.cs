@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -184,26 +185,176 @@ public abstract partial class AdminPagedViewModel<TDto> : ObservableObject
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
 public partial class AdminDashboardViewModel : ObservableObject
 {
+    private static readonly CultureInfo Indonesia = CultureInfo.GetCultureInfo("id-ID");
+
     private readonly IAdminService _admin;
 
     [ObservableProperty] private bool isLoading;
     [ObservableProperty] private string? errorMessage;
     [ObservableProperty] private AdminDashboardStatsDto stats = new();
-    [ObservableProperty] private string statusMessage = "";
 
-    public AdminDashboardViewModel(IAdminService admin) => _admin = admin;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SantriHadirInfo))]
+    [NotifyPropertyChangedFor(nameof(SantriTotalMax))]
+    [NotifyPropertyChangedFor(nameof(IzinMenungguInfo))]
+    [NotifyPropertyChangedFor(nameof(TerlambatInfo))]
+    [NotifyPropertyChangedFor(nameof(KehadiranSantriPersen))]
+    private IzinStatistikDto izin = new();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GuruHadirInfo))]
+    [NotifyPropertyChangedFor(nameof(GuruTotalMax))]
+    [NotifyPropertyChangedFor(nameof(BelumAbsenInfo))]
+    [NotifyPropertyChangedFor(nameof(KehadiranGuruPersen))]
+    private AbsensiGuruRingkasanDto absensiGuru = new();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SaldoDompetRupiah))]
+    [NotifyPropertyChangedFor(nameof(PendapatanKantinRupiah))]
+    private KeuanganDashboardDto keuangan = new();
+
+    [ObservableProperty] private string absensiTanggal = "";
+    [ObservableProperty] private int totalPengumuman;
+    [ObservableProperty] private string statusMessage = "";
+    [ObservableProperty] private string semesterAktif = "Belum ada semester aktif";
+    [ObservableProperty] private string tahunAjaranAktif = "—";
+    [ObservableProperty] private string hariIni = "";
+    [ObservableProperty] private int maxPerKelas = 1;
+    [ObservableProperty] private int maxPerMapel = 1;
+
+    public ObservableCollection<StatistikBarDto> PerKelas { get; } = new();
+    public ObservableCollection<StatistikBarDto> PerMapel { get; } = new();
+    public ObservableCollection<PengumumanDto> PengumumanTerbaru { get; } = new();
+
+    // ── Angka turunan (format Indonesia, tanpa perlu converter di XAML) ──
+    public int KehadiranSantriPersen => Izin.TotalSantri <= 0
+        ? 0 : (int)Math.Round(Izin.DiPondok * 100.0 / Izin.TotalSantri);
+    public int SantriTotalMax => Math.Max(1, Izin.TotalSantri);
+    public string SantriHadirInfo => $"{Izin.DiPondok} dari {Izin.TotalSantri} santri di pondok";
+    public string IzinMenungguInfo => $"{Izin.Menunggu} menunggu persetujuan";
+    public string TerlambatInfo => $"{Izin.Terlambat} belum kembali";
+
+    public int KehadiranGuruPersen => AbsensiGuru.Total <= 0
+        ? 0 : (int)Math.Round((AbsensiGuru.Hadir + AbsensiGuru.Terlambat) * 100.0 / AbsensiGuru.Total);
+    public int GuruTotalMax => Math.Max(1, AbsensiGuru.Total);
+    public string GuruHadirInfo => $"{AbsensiGuru.Hadir + AbsensiGuru.Terlambat} dari {AbsensiGuru.Total} sesi sudah absen";
+    public string BelumAbsenInfo => $"{AbsensiGuru.BelumAbsen} sesi belum absen";
+
+    public string SaldoDompetRupiah => FormatRupiah(Keuangan.TotalSaldoDompet);
+    public string PendapatanKantinRupiah => FormatRupiah(Keuangan.PendapatanKantin);
+
+    public AdminDashboardViewModel(IAdminService admin)
+    {
+        _admin = admin;
+        HariIni = DateTime.Now.ToString("dddd, d MMMM yyyy", Indonesia);
+    }
 
     [RelayCommand]
     public async Task LoadAsync(CancellationToken ct = default)
     {
+        if (IsLoading) return;
         IsLoading = true; ErrorMessage = null;
         try
         {
-            Stats = await _admin.GetDashboardStatsAsync(ct);
-            StatusMessage = "Statistik sistem";
+            HariIni = DateTime.Now.ToString("dddd, d MMMM yyyy", Indonesia);
+
+            // Ringkasan lengkap: semua sumber dimuat paralel dan saling lepas —
+            // satu endpoint gagal tidak meruntuhkan ringkasan lainnya.
+            var statsTask = Safe("stats", () => _admin.GetDashboardStatsAsync(ct));
+            var izinTask = Safe("izin", () => _admin.GetIzinStatistikAsync(ct));
+            var absensiTask = Safe("absensi-guru", () => _admin.GetAbsensiGuruMonitoringAsync(null, null, ct));
+            var pengumumanTask = Safe("pengumuman", () => _admin.GetPengumumenAsync(1, 5, ct));
+            var keuanganTask = Safe("keuangan", () => _admin.GetKeuanganDashboardAsync(ct));
+            var perKelasTask = Safe("statistik/per-kelas", () => _admin.GetStatistikPerKelasAsync(ct));
+            var perMapelTask = Safe("statistik/per-mapel", () => _admin.GetStatistikPerMapelAsync(ct));
+            var semesterTask = Safe("semester", () => _admin.GetSemestersAsync(null, 1, 100, null, ct));
+            await Task.WhenAll(statsTask, izinTask, absensiTask, pengumumanTask,
+                               keuanganTask, perKelasTask, perMapelTask, semesterTask);
+
+            var stats = await statsTask;
+            var izin = await izinTask;
+            var absensi = await absensiTask;
+            var pengumuman = await pengumumanTask;
+            var keuangan = await keuanganTask;
+            var perKelas = await perKelasTask;
+            var perMapel = await perMapelTask;
+            var semester = await semesterTask;
+
+            var gagal = new object?[] { stats, izin, absensi, pengumuman, keuangan, perKelas, perMapel, semester }
+                .Count(x => x is null);
+
+            Stats = stats ?? new AdminDashboardStatsDto();
+            Izin = izin ?? new IzinStatistikDto();
+            Keuangan = keuangan ?? new KeuanganDashboardDto();
+
+            AbsensiGuru = absensi?.Summary ?? new AbsensiGuruRingkasanDto();
+            AbsensiTanggal = absensi is null ? "" : $"{absensi.Hari}, {absensi.Tanggal}";
+
+            TotalPengumuman = pengumuman?.Total ?? 0;
+            PengumumanTerbaru.Clear();
+            if (pengumuman is not null)
+                foreach (var item in pengumuman.Data.Take(5)) PengumumanTerbaru.Add(item);
+
+            var aktif = semester?.Data.FirstOrDefault(s => s.IsAktif);
+            SemesterAktif = aktif?.Nama ?? "Belum ada semester aktif";
+            TahunAjaranAktif = aktif?.TahunAjaran?.Nama ?? "—";
+
+            PerKelas.Clear();
+            foreach (var k in (perKelas ?? new List<StatistikBarDto>())
+                         .OrderByDescending(x => x.Nilai).Take(6))
+                PerKelas.Add(k);
+            MaxPerKelas = Math.Max(1, PerKelas.Count == 0 ? 1 : PerKelas.Max(x => x.Nilai));
+
+            PerMapel.Clear();
+            foreach (var m in (perMapel ?? new List<StatistikBarDto>())
+                         .OrderByDescending(x => x.Nilai).Take(6))
+                PerMapel.Add(m);
+            MaxPerMapel = Math.Max(1, PerMapel.Count == 0 ? 1 : PerMapel.Max(x => x.Nilai));
+
+            if (gagal == 8)
+            {
+                ErrorMessage = "Ringkasan tidak dapat dimuat. Periksa koneksi/server lalu muat ulang.";
+                StatusMessage = "Gagal memuat";
+                return;
+            }
+
+            var adaData = Stats.TotalGuru + Stats.TotalSiswa + Stats.TotalKelas > 0
+                          || Izin.TotalSantri > 0
+                          || AbsensiGuru.Total > 0;
+            StatusMessage = adaData
+                ? $"Diperbarui {DateTime.Now:HH:mm}"
+                : "Belum ada data ringkasan";
+
+            if (gagal > 0)
+                DesktopLog.Log($"Dashboard admin dimuat sebagian: {gagal}/8 sumber gagal");
         }
-        catch (Exception ex) { ErrorMessage = ex.Message; }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            DesktopLog.Log($"Dashboard admin gagal: {ex.Message}");
+            ErrorMessage = ex.Message;
+        }
         finally { IsLoading = false; }
+    }
+
+    /// <summary>Satu endpoint gagal → kembalikan default, ringkasan lain tetap tampil (dicatat ke log).</summary>
+    private static async Task<T?> Safe<T>(string sumber, Func<Task<T>> load)
+    {
+        try { return await load(); }
+        catch (Exception ex)
+        {
+            DesktopLog.Log($"Dashboard admin: {sumber} gagal — {ex.Message}");
+            return default;
+        }
+    }
+
+    private static string FormatRupiah(int value) => "Rp " + value.ToString("N0", Indonesia.NumberFormat);
+
+    /// <summary>Satu endpoint gagal → kembalikan default, ringkasan lain tetap tampil.</summary>
+    private static async Task<T?> Safe<T>(Func<Task<T>> load)
+    {
+        try { return await load(); }
+        catch { return default; }
     }
 }
 

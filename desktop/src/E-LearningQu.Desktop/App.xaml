@@ -2,6 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             xmlns:local="clr-namespace:E_LearningQu.Desktop.Controls"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
         <ResourceDictionary>
@@ -10,6 +12,9 @@
                 <ResourceDictionary Source="Themes/PaletteLight.xaml" />
                 <ResourceDictionary Source="Themes/GridStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+        <!-- Ikon tombol aksi baris: tampil hanya bila Tag berisi glyph (Segoe MDL2) -->
+        <conv:NullToVisibilityConverter x:Key="TagGlyphVisibility" />
 
         <!-- ================= Design Tokens: Spacing (skala 4) ================= -->
         <Thickness x:Key="SpacingXs" Left="4" Top="4" Right="4" Bottom="4" />
@@ -21,6 +26,7 @@
 
         <!-- ================= Design Tokens: Radius ================= -->
         <CornerRadius x:Key="RadiusSm" TopLeft="6" TopRight="6" BottomLeft="6" BottomRight="6" />
+        <CornerRadius x:Key="RadiusChip" TopLeft="8" TopRight="8" BottomLeft="8" BottomRight="8" />
         <CornerRadius x:Key="RadiusMd" TopLeft="10" TopRight="10" BottomLeft="10" BottomRight="10" />
         <CornerRadius x:Key="RadiusLg" TopLeft="16" TopRight="16" BottomLeft="16" BottomRight="16" />
         <CornerRadius x:Key="RadiusFull" TopLeft="999" TopRight="999" BottomLeft="999" BottomRight="999" />
@@ -203,35 +209,40 @@
             </Setter>
         </Style>
 
-        <!-- Aksi baris tabel: teks ringkas tanpa border (Edit/Lihat/Reset/Pulihkan/dll) -->
-        <Style TargetType="Button" x:Key="ButtonRow">
+        <!-- Navigasi halaman tabel: tombol bulat 30px, outline halus -->
+        <Style TargetType="Button" x:Key="ButtonPager">
             <Setter Property="FontFamily" Value="{StaticResource FontBody}" />
-            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="9,5" />
+            <Setter Property="Background" Value="{StaticResource BrushSurface}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="{StaticResource RadiusSm}" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}" />
+                                CornerRadius="{StaticResource RadiusChip}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushSurfaceAlt}" />
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushInfoBg}" />
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource BrushPrimaryLight}" />
                                 <Setter Property="Foreground" Value="{StaticResource BrushPrimary}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushBorder}" />
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushRowSelected}" />
+                                <Setter Property="Foreground" Value="{StaticResource BrushPrimaryDark}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.5" />
+                                <Setter TargetName="bd" Property="Opacity" Value="0.4" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -239,7 +250,54 @@
             </Setter>
         </Style>
 
-        <!-- Aksi berbahaya baris tabel (Hapus) -->
+        <!-- Aksi baris tabel: chip ringkas dengan isian lembut saat hover
+             (Edit/Lihat/Reset/Pulihkan/dll) -->
+        <Style TargetType="Button" x:Key="ButtonRow">
+            <Setter Property="FontFamily" Value="{StaticResource FontBody}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="11,4" />
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{StaticResource RadiusChip}" Padding="{TemplateBinding Padding}">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                           FontFamily="Segoe MDL2 Assets" FontSize="11.5"
+                                           Foreground="{TemplateBinding Foreground}"
+                                           VerticalAlignment="Center" Margin="0,0,6,0"
+                                           Visibility="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource TagGlyphVisibility}}" />
+                                <ContentPresenter VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}" />
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushInfoBg}" />
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource BrushInfoBg}" />
+                                <Setter Property="Foreground" Value="{StaticResource BrushPrimary}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushRowSelected}" />
+                                <Setter Property="Foreground" Value="{StaticResource BrushPrimaryDark}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Aksi berbahaya baris tabel (Hapus): merah lembut, solid saat ditekan -->
         <Style TargetType="Button" x:Key="ButtonRowDanger">
             <Setter Property="FontFamily" Value="{StaticResource FontBody}" />
             <Setter Property="FontSize" Value="12" />
@@ -247,27 +305,36 @@
             <Setter Property="Foreground" Value="{StaticResource BrushError}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="9,5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="11,4" />
+            <Setter Property="MinHeight" Value="26" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="{StaticResource RadiusSm}" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}" />
+                                CornerRadius="{StaticResource RadiusChip}" Padding="{TemplateBinding Padding}">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                           FontFamily="Segoe MDL2 Assets" FontSize="11.5"
+                                           Foreground="{TemplateBinding Foreground}"
+                                           VerticalAlignment="Center" Margin="0,0,6,0"
+                                           Visibility="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource TagGlyphVisibility}}" />
+                                <ContentPresenter VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}" />
+                            </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushErrorBg}" />
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource BrushErrorBg}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushError}" />
                                 <Setter Property="Foreground" Value="White" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.5" />
+                                <Setter TargetName="bd" Property="Opacity" Value="0.45" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -606,6 +673,35 @@
             <Setter Property="Padding" Value="20" />
         </Style>
 
+        <!-- Kartu tabel: sudut membulat, garis tipis, dan bayangan halus.
+             Dipakai bersama RoundedClipBorder supaya isi tabel ikut terpotong rapi di sudut. -->
+        <Style TargetType="{x:Type local:RoundedClipBorder}" x:Key="TableCard">
+            <Setter Property="Background" Value="{StaticResource BrushSurface}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Margin" Value="0,2,0,10" />
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#330F5132" BlurRadius="24" ShadowDepth="3"
+                                      Direction="270" Opacity="1" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Kelompok tombol aksi baris: latar halus muncul saat baris disorot -->
+        <Style TargetType="Border" x:Key="ActionGroup">
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="5,1" />
+            <Setter Property="Background" Value="Transparent" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=DataGridRow}}"
+                             Value="True">
+                    <Setter Property="Background" Value="{StaticResource BrushRowHover}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- ================= ProgressBar (pakai template default, warna tema) ================= -->
         <Style TargetType="ProgressBar">
             <Setter Property="Height" Value="9" />
@@ -617,19 +713,28 @@
         <!-- ================= ListBox (sidebar menu) ================= -->
         <Style TargetType="ListBoxItem" x:Key="SidebarItem">
             <Setter Property="Foreground" Value="{StaticResource BrushTextOnDarkMuted}" />
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="bd" Background="Transparent" CornerRadius="{StaticResource RadiusMd}"
-                                Margin="10,2" Padding="12,10">
-                            <ContentPresenter />
+                                Margin="10,2" Padding="12,9">
+                            <Grid>
+                                <!-- penanda menu aktif: bar emas tipis -->
+                                <Border x:Name="Accent" Width="3" Height="18" CornerRadius="2"
+                                        HorizontalAlignment="Left" VerticalAlignment="Center"
+                                        Background="{StaticResource BrushAccent}" Opacity="0" />
+                                <ContentPresenter VerticalAlignment="Center" />
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushSidebarHover}" />
+                                <Setter Property="Foreground" Value="{StaticResource BrushTextOnDark}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushSidebarActive}" />
+                                <Setter TargetName="Accent" Property="Opacity" Value="1" />
                                 <Setter Property="Foreground" Value="{StaticResource BrushTextOnDark}" />
                             </Trigger>
                         </ControlTemplate.Triggers>

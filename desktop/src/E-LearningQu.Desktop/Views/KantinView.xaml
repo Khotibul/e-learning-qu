@@ -59,7 +59,7 @@
                                   SelectedValue="{Binding SelectedOutletId}" Style="{StaticResource InputCombo}" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" VerticalAlignment="Bottom">
-                        <Button Content="Pilih" Style="{StaticResource ButtonRow}" Command="{Binding PilihOutletCommand}" />
+                        <Button Content="Pilih" Tag="&#xE73E;" Style="{StaticResource ButtonRow}" Command="{Binding PilihOutletCommand}" />
                     </StackPanel>
                     <StackPanel Grid.Column="4">
                         <TextBlock Text="Saldo Awal Shift" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
@@ -68,7 +68,7 @@
                     <StackPanel Grid.Column="6" VerticalAlignment="Bottom">
                         <StackPanel Orientation="Horizontal">
                             <Button Content="Buka Shift" Style="{StaticResource ButtonPrimary}" Command="{Binding BukaShiftCommand}" Margin="0,0,8,0" />
-                            <Button Content="Tutup Shift" Style="{StaticResource ButtonRow}" Command="{Binding TutupShiftCommand}" />
+                            <Button Content="Tutup Shift" Tag="&#xE711;" Style="{StaticResource ButtonRow}" Command="{Binding TutupShiftCommand}" />
                         </StackPanel>
                     </StackPanel>
                 </Grid>
@@ -80,6 +80,14 @@
                           AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                           Visibility="{Binding Produk.Count, Converter={StaticResource CountToVisibility}}"
                           EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                    <DataGrid.Resources>
+                        <!-- Sel data: satu baris + elipsis agar kolom tetap rapi (teks panjang tidak terpotong di tengah kata). -->
+                        <Style TargetType="TextBlock">
+                            <Setter Property="TextWrapping" Value="NoWrap" />
+                            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                            <Setter Property="VerticalAlignment" Value="Center" />
+                        </Style>
+                    </DataGrid.Resources>
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Nama" Binding="{Binding Nama}" Width="2*" />
                         <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="*" />

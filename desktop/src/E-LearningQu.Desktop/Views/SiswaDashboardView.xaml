@@ -1,6 +1,7 @@
 <UserControl x:Class="E_LearningQu.Desktop.Views.SiswaDashboardView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:E_LearningQu.Desktop.Controls"
              xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
              xmlns:views="clr-namespace:E_LearningQu.Desktop.Views">
     <UserControl.Resources>

@@ -79,6 +79,14 @@
                               AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                               Visibility="{Binding Antrean.Count, Converter={StaticResource CountToVisibility}}"
                               EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                        <DataGrid.Resources>
+                            <!-- Sel data: satu baris + elipsis agar kolom tetap rapi (teks panjang tidak terpotong di tengah kata). -->
+                            <Style TargetType="TextBlock">
+                                <Setter Property="TextWrapping" Value="NoWrap" />
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                            </Style>
+                        </DataGrid.Resources>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Santri" Binding="{Binding Santri.Nama}" Width="2*" />
                             <DataGridTextColumn Header="Asrama" Binding="{Binding Santri.Asrama.Nama}" Width="*" />
@@ -127,7 +135,7 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                                     <Button Content="Check-out" Style="{StaticResource ButtonPrimary}" Padding="12,5" Margin="0,0,8,0"
                                             Command="{Binding CheckoutTokenCommand}" />
-                                    <Button Content="Check-in" Style="{StaticResource ButtonRow}" Padding="12,5"
+                                    <Button Content="Check-in" Tag="&#xE73E;" Style="{StaticResource ButtonRow}" Padding="12,5"
                                             Command="{Binding LoadCommand}" />
                                 </StackPanel>
                             </StackPanel>
@@ -138,6 +146,14 @@
                                   AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                                   Visibility="{Binding HasilCari.Count, Converter={StaticResource CountToVisibility}}"
                                   EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Resources>
+                                <!-- Sel data: satu baris + elipsis agar kolom tetap rapi (teks panjang tidak terpotong di tengah kata). -->
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextWrapping" Value="NoWrap" />
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                </Style>
+                            </DataGrid.Resources>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Nama" Binding="{Binding Nama}" Width="2*" />
                                 <DataGridTextColumn Header="NIS" Binding="{Binding NisNo}" Width="*" />
@@ -151,6 +167,14 @@
                                   AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                                   Visibility="{Binding Riwayat.Count, Converter={StaticResource CountToVisibility}}"
                                   EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Resources>
+                                <!-- Sel data: satu baris + elipsis agar kolom tetap rapi (teks panjang tidak terpotong di tengah kata). -->
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextWrapping" Value="NoWrap" />
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                </Style>
+                            </DataGrid.Resources>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Santri" Binding="{Binding Santri.Nama}" Width="2*" />
                                 <DataGridTextColumn Header="Jenis" Binding="{Binding JenisLabel}" Width="*" />

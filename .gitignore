@@ -53,3 +53,8 @@ scripts/logs/
 [Oo]bj/
 *.user
 .vs/
+
+# desktop installer: payload & output build setup bootstrap
+/desktop/installer/setup/payload.zip
+/desktop/installer/setup/bin/
+/desktop/installer/setup/obj/

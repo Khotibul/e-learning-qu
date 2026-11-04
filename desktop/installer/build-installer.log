@@ -1,0 +1,26 @@
+[1/4] dotnet publish (Release/win-x64, self-contained)...
+  Determining projects to restore...
+  Restored F:\Website Js\E-Learning-qu\desktop\src\E-LearningQu.Contracts\E-LearningQu.Contracts.csproj (in 2,03 sec).
+  Restored F:\Website Js\E-Learning-qu\desktop\src\E-LearningQu.Application\E-LearningQu.Application.csproj (in 2,22 sec).
+  Restored F:\Website Js\E-Learning-qu\desktop\src\E-LearningQu.Infrastructure\E-LearningQu.Infrastructure.csproj (in 2,21 sec).
+  Restored F:\Website Js\E-Learning-qu\desktop\src\E-LearningQu.Desktop\E-LearningQu.Desktop.csproj (in 2,56 sec).
+  Restored F:\Website Js\E-Learning-qu\desktop\src\E-LearningQu.Domain\E-LearningQu.Domain.csproj (in 560 ms).
+  E-LearningQu.Domain -> F:\Website Js\E-Learning-qu\desktop\src\E-LearningQu.Domain\bin\Release\net10.0\E-LearningQu.Domain.dll
+  E-LearningQu.Contracts -> F:\Website Js\E-Learning-qu\desktop\src\E-LearningQu.Contracts\bin\Release\net10.0\E-LearningQu.Contracts.dll
+  E-LearningQu.Application -> F:\Website Js\E-Learning-qu\desktop\src\E-LearningQu.Application\bin\Release\net10.0\E-LearningQu.Application.dll
+  E-LearningQu.Infrastructure -> F:\Website Js\E-Learning-qu\desktop\src\E-LearningQu.Infrastructure\bin\Release\net10.0\E-LearningQu.Infrastructure.dll
+  E-LearningQu.Desktop -> F:\Website Js\E-Learning-qu\desktop\src\E-LearningQu.Desktop\bin\Release\net10.0-windows\win-x64\E-LearningQu.Desktop.dll
+  E-LearningQu.Desktop -> F:\Website Js\E-Learning-qu\desktop\installer\staging\
+[2/4] Menyalin Install.cmd / Uninstall.cmd / README.txt ke staging...
+[3/4] Membuat zip: F:\Website Js\E-Learning-qu\desktop\installer\dist\E-LearningQu-Desktop-1.1.0-win-x64.zip
+[4/4] Membuat Setup.exe self-extracting (payload = zip di atas)...
+  Determining projects to restore...
+  Restored F:\Website Js\E-Learning-qu\desktop\installer\setup\Setup.csproj (in 502 ms).
+  Setup -> F:\Website Js\E-Learning-qu\desktop\installer\setup\bin\Release\net10.0\win-x64\E-LearningQu-Desktop-Setup.dll
+  Optimizing assemblies for size. This process might take a while.
+  Setup -> F:\Website Js\E-Learning-qu\desktop\installer\dist\_setup\
+
+DONE
+  Setup.exe : F:\Website Js\E-Learning-qu\desktop\installer\dist\E-LearningQu-Desktop-Setup.exe (72.6 MB)
+  Zip       : F:\Website Js\E-Learning-qu\desktop\installer\dist\E-LearningQu-Desktop-1.1.0-win-x64.zip (61.9 MB)
+  Staging   : F:\Website Js\E-Learning-qu\desktop\installer\staging

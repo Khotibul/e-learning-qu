@@ -1,6 +1,7 @@
 ﻿<UserControl x:Class="E_LearningQu.Desktop.Views.AdminKeuanganView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:E_LearningQu.Desktop.Controls"
              xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -88,6 +89,14 @@
                         <DataGrid Grid.Row="2" ItemsSource="{Binding AntreanTopup}" Style="{StaticResource Grid}"
                                   AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                                   EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Resources>
+                                <!-- Sel data: satu baris + elipsis agar kolom tetap rapi (teks panjang tidak terpotong di tengah kata). -->
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextWrapping" Value="NoWrap" />
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                </Style>
+                            </DataGrid.Resources>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Nama" Binding="{Binding Nama}" Width="2*" />
                                 <DataGridTextColumn Header="Nomor" Binding="{Binding Nomor}" Width="*" />
@@ -124,6 +133,14 @@
                         <DataGrid Grid.Row="2" ItemsSource="{Binding AntreanPembayaran}" Style="{StaticResource Grid}"
                                   AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                                   EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                            <DataGrid.Resources>
+                                <!-- Sel data: satu baris + elipsis agar kolom tetap rapi (teks panjang tidak terpotong di tengah kata). -->
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextWrapping" Value="NoWrap" />
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                </Style>
+                            </DataGrid.Resources>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Invoice" Binding="{Binding InvoiceKode}" Width="*" />
                                 <DataGridTextColumn Header="Jenis" Binding="{Binding JenisNama}" Width="*" />
@@ -154,6 +171,14 @@
                       AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                       MaxHeight="220" Margin="0,0,0,14"
                       EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                <DataGrid.Resources>
+                    <!-- Sel data: satu baris + elipsis agar kolom tetap rapi (teks panjang tidak terpotong di tengah kata). -->
+                    <Style TargetType="TextBlock">
+                        <Setter Property="TextWrapping" Value="NoWrap" />
+                        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                    </Style>
+                </DataGrid.Resources>
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Kode" Binding="{Binding Kode}" Width="90" />
                     <DataGridTextColumn Header="Nama" Binding="{Binding Nama}" Width="2*" />
@@ -168,6 +193,14 @@
                       AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                       MaxHeight="260"
                       EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                <DataGrid.Resources>
+                    <!-- Sel data: satu baris + elipsis agar kolom tetap rapi (teks panjang tidak terpotong di tengah kata). -->
+                    <Style TargetType="TextBlock">
+                        <Setter Property="TextWrapping" Value="NoWrap" />
+                        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                    </Style>
+                </DataGrid.Resources>
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Tanggal" Binding="{Binding Tanggal}" Width="100" />
                     <DataGridTextColumn Header="Nomor" Binding="{Binding Nomor}" Width="110" />
