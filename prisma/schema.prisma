@@ -125,6 +125,8 @@ model User {
   biodata       BiodataOrang?
   pemetaanFingerprint PemetaanFingerprint[]
   fingerprintEvents   FingerprintEvent[]
+  profilWajah        ProfilWajah?
+  logVerifikasiWajah LogVerifikasiWajah[]
   waliSantri    WaliSantri[]
   accounts      Account[]
   sessions      Session[]
@@ -255,6 +257,8 @@ model Siswa {
   absensiHarian   AbsensiHarianSiswa[]
   fingerprintEvents FingerprintEvent[]
   pemetaanFingerprint PemetaanFingerprint[]
+  profilWajah     ProfilWajah?
+  logVerifikasiWajah LogVerifikasiWajah[]
   permintaanAbsensi   PermintaanAbsensiManual[]
   jadwalPiket     JadwalPiket[]
   pembayaranIuran PembayaranIuran[]
@@ -1018,8 +1022,13 @@ model AbsensiHarianSiswa {
   statusMasuk    String?  // HADIR | TERLAMBAT
   statusPulang   String?  // NORMAL | AWAL | BELUM
   terlambatMenit Int?
-  sumberMasuk    String?  // FINGERPRINT | MANUAL | KOREKSI
+  sumberMasuk    String?  // FINGERPRINT | WAJAH | MANUAL | KOREKSI
   sumberPulang   String?
+  // Bukti verifikasi wajah (face recognition) — jarak euclidean descriptor
+  wajahMasuk       Boolean @default(false)
+  wajahJarakMasuk  Float?
+  wajahPulang      Boolean @default(false)
+  wajahJarakPulang Float?
   eventMasukId   String?  @unique @db.Uuid
   eventPulangId  String?  @unique @db.Uuid
   koreksiAlasan  String?
@@ -1142,6 +1151,10 @@ model AbsensiGuru {
   status     StatusAbsensi @default(HADIR)
   keterangan String?
   jamMasuk   String?
+  // Bukti verifikasi wajah (face recognition) untuk absensi harian guru
+  wajahVerified Boolean @default(false)
+  wajahJarak    Float?
+  wajahFotoId   String? @db.Uuid
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
@@ -1501,6 +1514,60 @@ model Pelanggaran {
   kelas Kelas @relation(fields: [kelasId], references: [id], onDelete: Cascade)
 
   @@map("pelanggaran")
+}
+
+// ── PROFIL WAJAH (face recognition absensi) ────────────────────────
+// Menyimpan descriptor 128-d (rata-rata sampel), bukan foto mentah.
+// Identitas orang = User; siswaId untuk absensi harian siswa.
+model ProfilWajah {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String?  @unique @db.Uuid
+  siswaId     String?  @unique @db.Uuid
+  deskriptor  Json // number[128]
+  fotoId      String?  @db.Uuid // Upload.id foto referensi (bukti visual)
+  sampel      Int      @default(1)
+  sumber      String   @default("UPLOAD") // UPLOAD | WEBCAM
+  aktif       Boolean  @default(true)
+  // Alur pendaftaran mandiri (siswa/guru dari HP) → perlu persetujuan Admin.
+  status          String  @default("AKTIF") // AKTIF | MENUNGGU | DITOLAK
+  diajukanSendiri Boolean @default(false)
+  catatanAdmin    String? // alasan penolakan / catatan verifikasi
+  fotoPengajuan   String? @db.Text // data URL JPEG tangkapan kamera (hanya selama pengajuan)
+  dibuatOleh  String?  @db.Uuid // Admin yang mendaftarkan
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  siswa Siswa? @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  logs  LogVerifikasiWajah[]
+
+  @@index([aktif])
+  @@map("profil_wajah")
+}
+
+// Jejak setiap percobaan verifikasi wajah (enrollment, uji, absensi).
+model LogVerifikasiWajah {
+  id        String   @id @default(uuid()) @db.Uuid
+  profilId  String?  @db.Uuid
+  userId    String?  @db.Uuid
+  siswaId   String?  @db.Uuid
+  tipe      String // ABSEN_MASUK | ABSEN_PULANG | ABSEN_GURU | VERIFIKASI | UJI
+  status    String // SUKSES | DUPLIKAT | TIDAK_DIKENAL | GAGAL
+  jarak     Float?
+  ambang    Float?
+  pesan     String?
+  perangkat String? // WEB | ANDROID | DESKTOP
+  fotoId    String?  @db.Uuid
+  createdAt DateTime @default(now())
+
+  profil ProfilWajah? @relation(fields: [profilId], references: [id], onDelete: SetNull)
+  user   User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  siswa  Siswa?       @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([siswaId, createdAt])
+  @@map("log_verifikasi_wajah")
 }
 
 model Upload {

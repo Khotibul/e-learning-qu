@@ -202,7 +202,7 @@ export async function prosesScan(params: {
       }
       const updated = await prisma.absensiHarianSiswa.findUnique({ where: { id: baris.id } })
       await selesai("SUKSES", `Absen masuk tercatat pukul ${jamServer} (${h.status})`, updated ? ringkas(updated) : null)
-      await kabarkan(siswa.id, "MASUK", jamServer, h.status, h.terlambatMenit, event.id)
+      await kabarkan(siswa.id, "MASUK", jamServer, h.status, h.terlambatMenit, `absensi-harian:${event.id}:MASUK`)
       return { status: "SUKSES", pesan: `Absen masuk tercatat pukul ${jamServer} (${h.status})`, eventKey, absensi: updated ? ringkas(updated) : null }
     }
 
@@ -226,7 +226,7 @@ export async function prosesScan(params: {
     }
     const updatedP = await prisma.absensiHarianSiswa.findUnique({ where: { id: baris.id } })
     await selesai("SUKSES", `Absen pulang tercatat pukul ${jamServer} (${hp.status})`, updatedP ? ringkas(updatedP) : null)
-    await kabarkan(siswa.id, "PULANG", jamServer, hp.status, null, event.id)
+    await kabarkan(siswa.id, "PULANG", jamServer, hp.status, null, `absensi-harian:${event.id}:PULANG`)
     return { status: "SUKSES", pesan: `Absen pulang tercatat pukul ${jamServer} (${hp.status})`, eventKey, absensi: updatedP ? ringkas(updatedP) : null }
   } catch (e: any) {
     console.error("prosesScan error:", e)
@@ -253,16 +253,14 @@ async function cariSiswa(perangkatId: string, perangkatUserId?: string | null, n
 
 function ringkas(b: { id: string; jamMasuk: string | null; jamPulang: string | null; statusMasuk: string | null; statusPulang: string | null; terlambatMenit: number | null }) {
   return { id: b.id, jamMasuk: b.jamMasuk, jamPulang: b.jamPulang, statusMasuk: b.statusMasuk, statusPulang: b.statusPulang, terlambatMenit: b.terlambatMenit }
-}
-
-/** Notifikasi hanya dibuat dari absensi yang sudah tervalidasi backend. */
+}  /** Notifikasi hanya dibuat dari absensi yang sudah tervalidasi backend. */
 async function kabarkan(
   siswaId: string,
   tipe: "MASUK" | "PULANG",
   jam: string,
   status: string,
   terlambatMenit: number | null,
-  eventId: string
+  eventKey: string
 ) {
   try {
     const penerima = await penerimaKehadiranSiswa(siswaId)
@@ -283,10 +281,147 @@ async function kabarkan(
       ...isi,
       tipe: "ABSENSI",
       link: tipe === "MASUK" ? "/siswa/kehadiran" : "/siswa/kehadiran",
-      eventKey: `absensi-harian:${eventId}:${tipe}`,
+      eventKey,
     })
   } catch (e) {
     console.error("Gagal kirim notifikasi absensi:", e)
+  }
+}
+
+// ─── ABSENSI HARIAN VIA WAJAH (face recognition) ───────────────────
+// Dipakai kiosk webcam (Android/desktop/web). Identitas sudah diverifikasi
+// backend dari descriptor wajah, jadi jam & status tetap memakai waktu server.
+
+export type HasilAbsensiWajah = {
+  status: "SUKSES" | "DUPLIKAT" | "DITOLAK"
+  pesan: string
+  tipe: "MASUK" | "PULANG"
+  jam: string
+  absensi: {
+    jamMasuk: string | null
+    jamPulang: string | null
+    statusMasuk: string | null
+    statusPulang: string | null
+  } | null
+}
+
+/** Jeda minimal (menit) antara absen masuk dan pulang via wajah. */
+const JEDA_MINIMAL_PULANG_MENIT = 5
+
+function menitDariJam(jam: string | null | undefined): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec((jam ?? "").trim())
+  if (!m) return null
+  return Number(m[1]) * 60 + Number(m[2])
+}
+
+export async function catatAbsensiHarianWajah(params: {
+  siswaId: string
+  jarak: number
+}): Promise<HasilAbsensiWajah> {
+  const { siswaId, jarak } = params
+  const jamServer = new Date().toTimeString().slice(0, 5)
+  const tanggal = hariTanggal(new Date())
+
+  const libur = await cekHariLibur(new Date())
+  if (libur) {
+    return { status: "DITOLAK", pesan: `Absensi ditolak: ${libur}`, tipe: "MASUK", jam: jamServer, absensi: null }
+  }
+
+  const cfg = await getKebijakanHarian()
+  const baris = await prisma.absensiHarianSiswa.upsert({
+    where: { siswaId_tanggal: { siswaId, tanggal } },
+    create: { siswaId, tanggal },
+    update: {},
+  })
+
+  // Fase ditentukan dari kondisi hari ini: belum masuk → MASUK, lalu PULANG.
+  if (!baris.jamMasuk) {
+    const h = hitungStatusMasuk(jamServer, cfg)
+    const res = await prisma.absensiHarianSiswa.updateMany({
+      where: { id: baris.id, jamMasuk: null },
+      data: {
+        jamMasuk: jamServer,
+        statusMasuk: h.status,
+        terlambatMenit: h.terlambatMenit,
+        sumberMasuk: "WAJAH",
+        wajahMasuk: true,
+        wajahJarakMasuk: jarak,
+      },
+    })
+    if (res.count === 0) {
+      const akhir = await prisma.absensiHarianSiswa.findUnique({ where: { id: baris.id } })
+      return {
+        status: "DUPLIKAT",
+        pesan: `Absen masuk sudah tercatat pukul ${akhir?.jamMasuk ?? jamServer}`,
+        tipe: "MASUK",
+        jam: jamServer,
+        absensi: akhir ? ringkas(akhir) : null,
+      }
+    }
+    const updated = await prisma.absensiHarianSiswa.findUnique({ where: { id: baris.id } })
+    await kabarkan(siswaId, "MASUK", jamServer, h.status, h.terlambatMenit, `absensi-wajah:${siswaId}:${ymd(tanggal)}:MASUK`)
+    return {
+      status: "SUKSES",
+      pesan: `Absen masuk tercatat pukul ${jamServer} (${h.status})`,
+      tipe: "MASUK",
+      jam: jamServer,
+      absensi: updated ? ringkas(updated) : null,
+    }
+  }
+
+  if (baris.jamPulang) {
+    return {
+      status: "DUPLIKAT",
+      pesan: `Absen masuk dan pulang hari ini sudah tercatat (${baris.jamMasuk} / ${baris.jamPulang})`,
+      tipe: "PULANG",
+      jam: jamServer,
+      absensi: ringkas(baris),
+    }
+  }
+
+  // Pindai ganda (siswa menempelkan wajah dua kali) tidak boleh langsung
+  // dicatat sebagai pulang — beri jeda minimal sejak jam masuk.
+  const menitMasuk = menitDariJam(baris.jamMasuk)
+  const menitSekarang = menitDariJam(jamServer)
+  if (menitMasuk !== null && menitSekarang !== null && menitSekarang >= menitMasuk && menitSekarang - menitMasuk < JEDA_MINIMAL_PULANG_MENIT) {
+    return {
+      status: "DUPLIKAT",
+      pesan: `Absen masuk sudah tercatat pukul ${baris.jamMasuk} — pulang baru bisa dicatat setelah ${JEDA_MINIMAL_PULANG_MENIT} menit`,
+      tipe: "PULANG",
+      jam: jamServer,
+      absensi: ringkas(baris),
+    }
+  }
+
+  const hp = hitungStatusPulang(jamServer, cfg)
+  const resP = await prisma.absensiHarianSiswa.updateMany({
+    where: { id: baris.id, jamPulang: null },
+    data: {
+      jamPulang: jamServer,
+      statusPulang: hp.status,
+      sumberPulang: "WAJAH",
+      wajahPulang: true,
+      wajahJarakPulang: jarak,
+    },
+  })
+  if (resP.count === 0) {
+    const akhir = await prisma.absensiHarianSiswa.findUnique({ where: { id: baris.id } })
+    return {
+      status: "DUPLIKAT",
+      pesan: `Absen pulang sudah tercatat pukul ${akhir?.jamPulang ?? jamServer}`,
+      tipe: "PULANG",
+      jam: jamServer,
+      absensi: akhir ? ringkas(akhir) : null,
+    }
+  }
+  const updatedP = await prisma.absensiHarianSiswa.findUnique({ where: { id: baris.id } })
+  await kabarkan(siswaId, "PULANG", jamServer, hp.status, null, `absensi-wajah:${siswaId}:${ymd(tanggal)}:PULANG`)
+  return {
+    status: "SUKSES",
+    pesan: `Absen pulang tercatat pukul ${jamServer} (${hp.status})`,
+    tipe: "PULANG",
+    jam: jamServer,
+    absensi: updatedP ? ringkas(updatedP) : null,
   }
 }
 

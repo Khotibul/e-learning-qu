@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../widgets/absensi_wajah_card.dart';
 import '../../widgets/verifikasi_widget.dart';
 import 'absensi_siswa_page.dart';
 
@@ -459,6 +460,10 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
           _tanggalCard(),
           const SizedBox(height: 10),
           _guruHadirCard(),
+          const SizedBox(height: 10),
+          const AbsensiWajahCard(
+            keterangan: "Kehadiran harian guru dengan verifikasi wajah — kamera depan Android/desktop.",
+          ),
           const SizedBox(height: 10),
           if (kebijakan.isNotEmpty)
             Text(

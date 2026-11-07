@@ -50,6 +50,7 @@ export const NAV_ITEMS = {
     { label: "Jadwal Mengajar", href: "/admin/jadwal", icon: "CalendarClock" },
     { label: "Absensi Guru", href: "/admin/absensi-guru", icon: "ShieldCheck" },
     { label: "Fingerprint", href: "/admin/fingerprint", icon: "Fingerprint" },
+    { label: "Absensi Wajah", href: "/admin/wajah", icon: "ScanFace" },
     { label: "Jadwal Ujian", href: "/admin/jadwal-ujian", icon: "CalendarClock" },
     { label: "Pengumuman", href: "/admin/pengumuman", icon: "Megaphone" },
     { label: "Nilai", href: "/admin/nilai", icon: "Award" },

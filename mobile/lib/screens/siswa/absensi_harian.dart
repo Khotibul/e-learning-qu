@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../widgets/absensi_wajah_card.dart';
 
 /// Absensi siswa: kehadiran hari ini (fingerprint), rekap bulanan,
 /// riwayat per mapel, dan pengajuan verifikasi manual (POST /api/mobile/siswa/kehadiran).
@@ -211,6 +212,10 @@ class _SiswaAbsensiHarianState extends State<SiswaAbsensiHarian> {
               _permintaanSection(),
               const SizedBox(height: 16),
             ],
+            const AbsensiWajahCard(
+              keterangan: "Absen masuk/pulang dengan verifikasi wajah lewat kamera depan perangkat.",
+            ),
+            const SizedBox(height: 16),
             const Text("Rekap Per Mapel", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             const SizedBox(height: 8),
             Row(children: [
