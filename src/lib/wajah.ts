@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma"
-import { ymd } from "@/lib/utils"
-import { audit, cekHariLibur, catatAbsensiHarianWajah, hariTanggal, type HasilAbsensiWajah } from "@/lib/absensi-harian"
+import { catatAbsensiGuruHarian, catatAbsensiHarianWajah, type HasilAbsensiWajah } from "@/lib/absensi-harian"
+import type { KartuIdentitas } from "@/lib/kiosk-absensi"
 import {
   AMBANG_WAJAH,
   DIMENSI_DESKRIPTOR,
@@ -32,6 +32,8 @@ type ProfilRingkas = {
   tipe: "SISWA" | "GURU" | "PEGAWAI"
   guruId: string | null
   fotoThumbId: string | null
+  /** Identitas lengkap untuk kartu absensi kiosk. */
+  kartu: KartuIdentitas | null
 }
 
 function labelTipe(profil: { siswaId: string | null; guruId: string | null }): ProfilRingkas["tipe"] {
@@ -55,7 +57,8 @@ async function muatProfilAktif(targetProfilId?: string | null): Promise<ProfilRi
         select: {
           name: true,
           image: true,
-          guru: { select: { id: true, nama: true, nip: true, deletedAt: true } },
+          guru: { select: { id: true, nama: true, nip: true, jabatan: true, deletedAt: true } },
+          pondokAssignments: { where: { aktif: true }, select: { id: true }, take: 1 },
         },
       },
       siswa: {
@@ -65,7 +68,9 @@ async function muatProfilAktif(targetProfilId?: string | null): Promise<ProfilRi
           nis: true,
           deletedAt: true,
           kelas: { select: { nama: true } },
+          jurusan: { select: { nama: true } },
           user: { select: { image: true } },
+          santri: { select: { id: true, status: true, deletedAt: true } },
         },
       },
     },
@@ -81,6 +86,36 @@ async function muatProfilAktif(targetProfilId?: string | null): Promise<ProfilRi
       const nama = r.siswa?.nama ?? r.user?.guru?.nama ?? r.user?.name ?? "Tanpa nama"
       const deskriptor = Array.isArray(r.deskriptor) ? (r.deskriptor as number[]).map(Number) : []
       const fotoThumbId = r.fotoId ?? null
+      const tipe = labelTipe({ siswaId: r.siswaId, guruId: r.user?.guru?.id ?? null })
+      const fotoUrl = r.siswa?.user.image || r.user?.image || null
+      const kartu: KartuIdentitas | null =
+        tipe === "SISWA"
+          ? {
+              tipe: "SISWA",
+              nama,
+              fotoUrl,
+              nip: null,
+              jabatan: null,
+              kelas: r.siswa?.kelas?.nama ?? null,
+              jurusan: r.siswa?.jurusan?.nama ?? null,
+              nis: r.siswa?.nis ?? null,
+              sekolahFormal: true,
+              sekolahNonFormal: !!r.siswa?.santri && !r.siswa.santri.deletedAt && r.siswa.santri.status === "AKTIF",
+            }
+          : tipe === "GURU"
+            ? {
+                tipe: "GURU",
+                nama,
+                fotoUrl,
+                nip: r.user?.guru?.nip ?? null,
+                jabatan: r.user?.guru?.jabatan ?? null,
+                kelas: null,
+                jurusan: null,
+                nis: null,
+                sekolahFormal: true,
+                sekolahNonFormal: (r.user?.pondokAssignments.length ?? 0) > 0,
+              }
+            : null
       return {
         id: r.id,
         userId: r.userId,
@@ -89,9 +124,10 @@ async function muatProfilAktif(targetProfilId?: string | null): Promise<ProfilRi
         nama,
         nis: r.siswa?.nis ?? r.user?.guru?.nip ?? null,
         kelas: r.siswa?.kelas?.nama ?? null,
-        tipe: labelTipe({ siswaId: r.siswaId, guruId: r.user?.guru?.id ?? null }),
+        tipe,
         guruId: r.user?.guru?.id ?? null,
         fotoThumbId,
+        kartu,
       }
     })
     .filter((r) => r.deskriptor.length === DIMENSI_DESKRIPTOR)
@@ -110,6 +146,8 @@ export type HasilVerifikasiWajah = {
   absensi: HasilAbsensiWajah | null
   profilId: string | null
   fotoUrl: string | null
+  /** Kartu identitas untuk ditampilkan kiosk (nama, foto, kelas/jabatan, dll). */
+  kartu: KartuIdentitas | null
 }
 
 type OpsiVerifikasi = {
@@ -141,6 +179,7 @@ export async function verifikasiWajah(opts: OpsiVerifikasi): Promise<HasilVerifi
     absensi: null,
     profilId: null,
     fotoUrl: null,
+    kartu: null,
   }
 
   const profil = await muatProfilAktif(opts.targetProfilId ?? null)
@@ -199,6 +238,7 @@ export async function verifikasiWajah(opts: OpsiVerifikasi): Promise<HasilVerifi
     jarak: bulat(terbaik.jarak),
     profilId: orang.id,
     fotoUrl: orang.fotoThumbId ? `/api/upload/${orang.fotoThumbId}` : null,
+    kartu: orang.kartu,
   }
 
   // Uji verifikasi saja (dipakai Admin untuk mengecek hasil upload foto).
@@ -246,9 +286,10 @@ export async function verifikasiWajah(opts: OpsiVerifikasi): Promise<HasilVerifi
     }
 
     if (orang.userId && orang.guruId) {
-      const hasil = await catatAbsensiGuruWajah({
+      const hasil = await catatAbsensiGuruHarian({
         guruId: orang.guruId,
         userId: orang.userId,
+        sumber: "WAJAH",
         jarak: terbaik.jarak,
         fotoId: opts.fotoId ?? null,
       })
@@ -301,44 +342,6 @@ export async function verifikasiWajah(opts: OpsiVerifikasi): Promise<HasilVerifi
       pesan: "Wajah cocok, tetapi absensi gagal dicatat — coba lagi",
     }
   }
-}
-
-async function catatAbsensiGuruWajah(params: {
-  guruId: string
-  userId: string
-  jarak: number
-  fotoId?: string | null
-}): Promise<{ status: HasilVerifikasiWajah["status"]; pesan: string }> {
-  const libur = await cekHariLibur(new Date())
-  if (libur) return { status: "GAGAL", pesan: `Absensi ditolak: ${libur}` }
-
-  const jamServer = new Date().toTimeString().slice(0, 5)
-  const tanggal = hariTanggal(new Date())
-  const lama = await prisma.absensiGuru.findUnique({
-    where: { guruId_tanggal: { guruId: params.guruId, tanggal } },
-    select: { id: true, jamMasuk: true },
-  })
-
-  if (lama?.jamMasuk) {
-    return { status: "DUPLIKAT", pesan: `Absensi guru sudah tercatat pukul ${lama.jamMasuk}` }
-  }
-
-  const data = {
-    status: "HADIR" as const,
-    jamMasuk: jamServer,
-    wajahVerified: true,
-    wajahJarak: params.jarak,
-    wajahFotoId: params.fotoId ?? null,
-  }
-  if (lama) await prisma.absensiGuru.update({ where: { id: lama.id }, data })
-  else await prisma.absensiGuru.create({ data: { guruId: params.guruId, tanggal, ...data } })
-
-  await audit(params.userId, "ABSENSI_GURU_WAJAH", "AbsensiGuru", lama?.id, {
-    jamMasuk: jamServer,
-    jarak: params.jarak,
-    tanggal: ymd(tanggal),
-  })
-  return { status: "SUKSES", pesan: `Absensi guru tercatat pukul ${jamServer} (wajah terverifikasi)` }
 }
 
 async function catatLog(data: {

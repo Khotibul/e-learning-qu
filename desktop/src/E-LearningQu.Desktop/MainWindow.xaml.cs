@@ -24,11 +24,13 @@ public partial class MainWindow : Window
     private readonly ISiswaService _siswa;
     private readonly IAdminService _admin;
     private readonly IPondokService _pondok;
+    private readonly IKioskService _kiosk;
+    private readonly IKioskTokenStore _kioskStore;
 
     /// <summary>Salinan menu tanpa saringan — dipakai ulang saat kolom cari dikosongkan.</summary>
     private IReadOnlyList<MenuItemDef> _menuAll = Array.Empty<MenuItemDef>();
 
-    public MainWindow(ISessionManager session, IAuthService auth, IOAuthService oauth, IDashboardService dashboard, IAkademikService akademik, INavigationService nav, IGuruService guru, ISiswaService siswa, IAdminService admin, IPondokService pondok)
+    public MainWindow(ISessionManager session, IAuthService auth, IOAuthService oauth, IDashboardService dashboard, IAkademikService akademik, INavigationService nav, IGuruService guru, ISiswaService siswa, IAdminService admin, IPondokService pondok, IKioskService kiosk, IKioskTokenStore kioskStore)
     {
         InitializeComponent();
         _session = session;
@@ -41,6 +43,8 @@ public partial class MainWindow : Window
         _siswa = siswa;
         _admin = admin;
         _pondok = pondok;
+        _kiosk = kiosk;
+        _kioskStore = kioskStore;
         BackendApiClient.ConnectionChanged += OnConnectionChanged;
         BackendApiClient.SessionExpired += OnSessionExpired;
         BrandService.Changed += OnBrandChanged;
@@ -124,9 +128,10 @@ public partial class MainWindow : Window
         LoginHost.Visibility = Visibility.Visible;
         Title = $"{BrandService.SiteName} — Masuk";
 
-        var vm = new LoginViewModel(_auth, _oauth);
+        var vm = new LoginViewModel(_auth, _oauth, _kiosk, _kioskStore);
         vm.LoginSucceeded += (_, _) => ShowShell();
         LoginContentHost.Content = new LoginView { DataContext = vm };
+        _ = vm.MuatStatusKioskAsync();
     }
 
     private void ShowShell()

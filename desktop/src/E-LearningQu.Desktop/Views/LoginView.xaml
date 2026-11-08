@@ -5,12 +5,14 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:conv="clr-namespace:E_LearningQu.Desktop.Converters"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              mc:Ignorable="d"
              d:DesignWidth="1220" d:DesignHeight="800">
 
     <UserControl.Resources>
         <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
         <conv:NotBoolToBoolConverter x:Key="NotBoolToBool" />
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
     </UserControl.Resources>
 
     <Grid>
@@ -158,11 +160,118 @@
                     </StackPanel>
                 </Button>
 
+                <!-- Absensi kiosk: guru/siswa absen wajah & sidik jari tanpa login -->
+                <Grid Margin="0,16,0,12">
+                    <Line X1="0" Y1="8" X2="150" Y2="8" Stroke="{StaticResource BrushBorder}" StrokeThickness="1" />
+                    <TextBlock Text="absensi tanpa login" HorizontalAlignment="Center" Background="{StaticResource BrushSurface}"
+                               Padding="10,0" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" />
+                    <Line X1="230" Y1="8" X2="380" Y2="8" Stroke="{StaticResource BrushBorder}" StrokeThickness="1" />
+                </Grid>
+
+                <Button Command="{Binding BukaKioskCommand}" HorizontalAlignment="Stretch"
+                        IsEnabled="{Binding IsKioskBusy, Converter={StaticResource NotBoolToBool}}">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource ButtonGhost}">
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Setter Property="BorderBrush" Value="{StaticResource BrushBorderStrong}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsKioskBusy}" Value="True">
+                                    <Setter Property="Content" Value="Menyiapkan kiosk…" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="&#xE722;" FontFamily="Segoe MDL2 Assets" FontSize="15" Margin="0,0,8,0"
+                                   VerticalAlignment="Center" Foreground="{StaticResource BrushPrimary}" />
+                        <TextBlock Text="Absensi Wajah &amp; Sidik Jari" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   Foreground="{StaticResource BrushPrimary}" />
+                    </StackPanel>
+                </Button>
+
+                <TextBlock FontSize="11" Style="{StaticResource Muted}" Margin="0,8,0,0" TextAlignment="Center"
+                           Text="Khusus komputer admin/desktop. Aktifkan sekali dengan akun Admin — setelah itu absensi tidak perlu login." />
+
+                <Button Command="{Binding AktifkanKioskGoogleCommand}" HorizontalAlignment="Center"
+                        Style="{StaticResource ButtonGhost}" Padding="8,4" Margin="0,2,0,0"
+                        IsEnabled="{Binding IsKioskBusy, Converter={StaticResource NotBoolToBool}}"
+                        ToolTip="Admin yang login dengan Google (tanpa kata sandi) bisa mengaktifkan kiosk di komputer ini">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="G" FontSize="13" FontWeight="Bold" Margin="0,0,6,0"
+                                   Foreground="{StaticResource BrushError}" VerticalAlignment="Center" />
+                        <TextBlock Text="Admin tanpa kata sandi? Aktifkan dengan Google" FontSize="11.5"
+                                   Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <TextBlock Text="{Binding KioskMessage}" FontSize="11.5" Margin="0,6,0,0" TextAlignment="Center"
+                           Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap"
+                           Visibility="{Binding KioskMessage, Converter={StaticResource NullToVisibility}}" />
+
                 <!-- Footer kecil -->
                 <TextBlock Text="Dengan masuk, Anda menyetujui kebijakan data pesantren."
                            Style="{StaticResource Muted}" FontSize="11" HorizontalAlignment="Center"
                            Margin="0,18,0,0" />
             </StackPanel>
+        </Border>
+
+        <!-- ==================== KIOSK ABSENSI (di layar login) ==================== -->
+        <Border x:Name="KioskOverlay" Grid.ColumnSpan="2" Panel.ZIndex="20"
+                Background="{StaticResource BrushCanvas}"
+                Visibility="{Binding IsKioskOpen, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Border Background="{StaticResource BrushPrimaryDark}" Padding="24,14">
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="36" Height="36" CornerRadius="10" Background="{StaticResource BrushAccent}">
+                                <TextBlock Text="&#xE722;" FontFamily="Segoe MDL2 Assets" FontSize="16"
+                                           Foreground="{StaticResource BrushPrimaryDark}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="Absensi Kiosk — Wajah &amp; Sidik Jari" FontSize="16" FontWeight="SemiBold"
+                                           Foreground="{StaticResource BrushTextOnDark}" />
+                                <TextBlock FontSize="11.5" Foreground="{StaticResource BrushTextOnDarkMuted}"
+                                           Text="Tanpa login · identitas guru/siswa tampil otomatis · waktu mengikuti server" />
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button Content="Muat Ulang" Style="{StaticResource ButtonGoogle}" Padding="14,8"
+                                    Click="OnMuatUlangKiosk" Margin="0,0,8,0" />
+                            <Button Content="Lupakan Kiosk" Style="{StaticResource ButtonGoogle}" Padding="14,8"
+                                    Command="{Binding LupakanKioskCommand}" Margin="0,0,8,0" />
+                            <Button Content="Tutup" Style="{StaticResource ButtonAccent}" Padding="16,8"
+                                    Click="OnTutupKiosk" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="1">
+                    <wv2:WebView2 x:Name="KioskBrowser" />
+                    <Border x:Name="KioskErrorPanel" Background="{StaticResource BrushCanvas}" Visibility="Collapsed">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560" Margin="24">
+                            <TextBlock Text="&#xE783;" FontFamily="Segoe MDL2 Assets" FontSize="28"
+                                       Foreground="{StaticResource BrushWarning}" HorizontalAlignment="Center" Margin="0,0,0,10" />
+                            <TextBlock Text="Kiosk belum dapat dimuat" Style="{StaticResource H2}" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="KioskErrorText" Style="{StaticResource Muted}" TextAlignment="Center" Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border Grid.Row="2" Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushBorder}"
+                        BorderThickness="0,1,0,0" Padding="24,10">
+                    <TextBlock FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" TextWrapping="Wrap">
+                        Guru: nama, foto, jabatan, NIP, sekolah formal/non formal. Siswa: foto, nama, kelas, jurusan, NIS,
+                        sekolah formal/non formal. Kartu identitas hilang sendiri setelah 25 detik agar kiosk siap dipakai orang berikutnya.
+                    </TextBlock>
+                </Border>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

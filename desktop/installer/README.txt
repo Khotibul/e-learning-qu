@@ -15,5 +15,7 @@ CARA PAKAI
 
 CATATAN
   - Aplikasi butuh koneksi internet ke https://e-learning-qu.vercel.app
+  - Absensi wajah memakai Microsoft Edge WebView2 Runtime (sudah terpasang di
+    Windows 10/11 terbaru; bila belum ada, unduh dari situs Microsoft)
   - Backend URL bisa diubah di appsettings.json (folder instalasi)
   - Login multi-akun: Admin, Guru, Siswa, Ustadz, dll (satu per sesi)

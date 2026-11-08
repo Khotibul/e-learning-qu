@@ -316,9 +316,13 @@ function menitDariJam(jam: string | null | undefined): number | null {
 
 export async function catatAbsensiHarianWajah(params: {
   siswaId: string
-  jarak: number
+  jarak?: number | null
+  /** WAJAH = bukti descriptor; FINGERPRINT / MANUAL = kiosk tanpa kamera. */
+  sumber?: "WAJAH" | "FINGERPRINT" | "MANUAL"
 }): Promise<HasilAbsensiWajah> {
-  const { siswaId, jarak } = params
+  const { siswaId, jarak = null } = params
+  const sumber = params.sumber ?? "WAJAH"
+  const buktiWajah = sumber === "WAJAH"
   const jamServer = new Date().toTimeString().slice(0, 5)
   const tanggal = hariTanggal(new Date())
 
@@ -343,9 +347,9 @@ export async function catatAbsensiHarianWajah(params: {
         jamMasuk: jamServer,
         statusMasuk: h.status,
         terlambatMenit: h.terlambatMenit,
-        sumberMasuk: "WAJAH",
-        wajahMasuk: true,
-        wajahJarakMasuk: jarak,
+        sumberMasuk: sumber,
+        wajahMasuk: buktiWajah,
+        wajahJarakMasuk: buktiWajah ? jarak : null,
       },
     })
     if (res.count === 0) {
@@ -399,9 +403,9 @@ export async function catatAbsensiHarianWajah(params: {
     data: {
       jamPulang: jamServer,
       statusPulang: hp.status,
-      sumberPulang: "WAJAH",
-      wajahPulang: true,
-      wajahJarakPulang: jarak,
+      sumberPulang: sumber,
+      wajahPulang: buktiWajah,
+      wajahJarakPulang: buktiWajah ? jarak : null,
     },
   })
   if (resP.count === 0) {
@@ -422,6 +426,67 @@ export async function catatAbsensiHarianWajah(params: {
     tipe: "PULANG",
     jam: jamServer,
     absensi: updatedP ? ringkas(updatedP) : null,
+  }
+}
+
+// ─── ABSENSI HARIAN GURU (wajah / kiosk) ──────────────────────────
+// Satu baris per guru per hari; jam memakai waktu server.
+
+export type HasilAbsensiGuruHarian = {
+  status: "SUKSES" | "DUPLIKAT" | "DITOLAK" | "GAGAL"
+  pesan: string
+  jam: string
+}
+
+export async function catatAbsensiGuruHarian(params: {
+  guruId: string
+  userId: string
+  sumber: "WAJAH" | "FINGERPRINT" | "MANUAL"
+  jarak?: number | null
+  fotoId?: string | null
+}): Promise<HasilAbsensiGuruHarian> {
+  const jamServer = new Date().toTimeString().slice(0, 5)
+  const tanggal = hariTanggal(new Date())
+
+  const libur = await cekHariLibur(new Date())
+  if (libur) return { status: "DITOLAK", pesan: `Absensi ditolak: ${libur}`, jam: jamServer }
+
+  const lama = await prisma.absensiGuru.findUnique({
+    where: { guruId_tanggal: { guruId: params.guruId, tanggal } },
+    select: { id: true, jamMasuk: true },
+  })
+  if (lama?.jamMasuk) {
+    return { status: "DUPLIKAT", pesan: `Absensi guru sudah tercatat pukul ${lama.jamMasuk}`, jam: lama.jamMasuk }
+  }
+
+  const buktiWajah = params.sumber === "WAJAH"
+  const data = {
+    status: "HADIR" as const,
+    jamMasuk: jamServer,
+    wajahVerified: buktiWajah,
+    wajahJarak: buktiWajah ? params.jarak ?? null : null,
+    wajahFotoId: params.fotoId ?? null,
+    keterangan:
+      params.sumber === "WAJAH"
+        ? null
+        : params.sumber === "FINGERPRINT"
+          ? "Absensi kiosk — sidik jari"
+          : "Absensi kiosk — NIS/NIP",
+  }
+  if (lama) await prisma.absensiGuru.update({ where: { id: lama.id }, data })
+  else await prisma.absensiGuru.create({ data: { guruId: params.guruId, tanggal, ...data } })
+
+  await audit(params.userId, `ABSENSI_GURU_${params.sumber}`, "AbsensiGuru", lama?.id, {
+    jamMasuk: jamServer,
+    sumber: params.sumber,
+    tanggal: ymd(tanggal),
+  })
+  return {
+    status: "SUKSES",
+    pesan: buktiWajah
+      ? `Absensi guru tercatat pukul ${jamServer} (wajah terverifikasi)`
+      : `Absensi guru tercatat pukul ${jamServer}`,
+    jam: jamServer,
   }
 }
 

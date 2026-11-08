@@ -27,6 +27,7 @@ public static class DependencyInjection
             services.Configure(configure);
 
         services.AddSingleton<IAuthTokenStore>(_ => new DpapiSessionStore());
+        services.AddSingleton<IKioskTokenStore>(_ => new DpapiKioskTokenStore());
 
         // HttpClient polos (tanpa auto-refresh) — dipakai AuthAutoRefreshHandler untuk memanggil endpoint refresh.
         services.AddHttpClient(PlainClientName, (sp, client) =>

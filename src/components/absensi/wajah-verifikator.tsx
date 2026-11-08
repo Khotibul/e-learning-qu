@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { bukaKamera, deskriptorRataRataVideo, deteksiWajah, hentikanKamera, type DeteksiWajah } from "@/lib/wajah-browser"
 import { AMBANG_WAJAH, labelTipeWajah } from "@/lib/wajah-matematika"
+import type { KartuIdentitas } from "@/lib/kiosk-absensi"
 
 export type HasilVerifikasi = {
   status: "SUKSES" | "DUPLIKAT" | "TIDAK_DIKENAL" | "DITOLAK" | "GAGAL"
@@ -19,6 +20,7 @@ export type HasilVerifikasi = {
   perangkat: string
   profilId: string | null
   absensi?: { tipe: string; jam: string } | null
+  kartu?: KartuIdentitas | null
 }
 
 type Props = {
@@ -32,6 +34,8 @@ type Props = {
   petunjuk?: string
   autoMulai?: boolean
   compact?: boolean
+  /** Sembunyikan kartu hasil bawaan (kiosk menampilkan kartu identitas sendiri). */
+  sembunyikanHasil?: boolean
 }
 
 export function WajahVerifikator({
@@ -44,6 +48,7 @@ export function WajahVerifikator({
   petunjuk,
   autoMulai = false,
   compact = false,
+  sembunyikanHasil = false,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -228,7 +233,7 @@ export function WajahVerifikator({
         </div>
       )}
 
-      {hasil && (
+      {hasil && !sembunyikanHasil && (
         <div className={`rounded-xl border px-3 py-2.5 ${statusWarna}`}>
           <div className="flex items-center gap-2">
             {hasil.status === "SUKSES" ? (

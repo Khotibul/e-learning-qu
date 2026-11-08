@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense, useState, useRef, useEffect } from "react"
+import Link from "next/link"
 import { useSession, signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Sparkles, Mail, Lock, Loader2, ArrowLeft } from "lucide-react"
+import { Sparkles, Mail, Lock, Loader2, ArrowLeft, ScanFace } from "lucide-react"
 import { toast } from "react-hot-toast"
 
 type LoginMode = "google" | "siswa" | "guru" | "admin" | "pondok"
@@ -369,6 +370,16 @@ function LoginForm() {
           )}
         </CardContent>
       </Card>
+
+      {/* Absensi kiosk: dipakai di komputer admin/desktop tanpa login. */}
+      <div className="mt-4 text-center">
+        <Link
+          href="/absensi/kiosk"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          <ScanFace className="h-4 w-4" /> Absensi tanpa login (wajah / sidik jari)
+        </Link>
+      </div>
     </motion.div>
   )
 }

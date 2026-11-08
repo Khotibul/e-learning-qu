@@ -13,18 +13,21 @@ import { WajahPendaftaran } from "@/components/absensi/wajah-pendaftaran"
 import { WajahVerifikator } from "@/components/absensi/wajah-verifikator"
 import { AMBANG_WAJAH } from "@/lib/wajah-matematika"
 import {
+  aktifkanKioskDesktop,
   daftarLogWajah,
   daftarPengajuanWajah,
   daftarProfilWajah,
   hapusProfilWajah,
   putuskanPengajuanWajahAdmin,
   ringkasanWajah,
+  statusKioskDesktop,
   tokenKioskWajah,
   ubahStatusProfilWajah,
   type LogWajahRingkas,
   type PengajuanWajahRingkas,
   type ProfilWajahRingkas,
   type RingkasanWajah,
+  type StatusKioskDesktop,
 } from "../actions"
 
 function Foto({ src, nama, size = 30 }: { src?: string | null; nama: string; size?: number }) {
@@ -51,27 +54,47 @@ const badgeStatus = (status: string) =>
         ? "bg-slate-200 text-slate-700"
         : "bg-rose-100 text-rose-800"
 
+const tanggalKiosk = (iso: string | null | undefined) =>
+  iso
+    ? new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
+    : "-"
+
+const waktuKiosk = (iso: string | null | undefined) =>
+  iso
+    ? new Date(iso).toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "-"
+
 export default function AdminWajah() {
   const [tab, setTab] = useState("profil")
   const [profil, setProfil] = useState<ProfilWajahRingkas[]>([])
   const [log, setLog] = useState<LogWajahRingkas[]>([])
   const [ringkasan, setRingkasan] = useState<RingkasanWajah | null>(null)
   const [pengajuan, setPengajuan] = useState<PengajuanWajahRingkas[]>([])
+  const [kiosk, setKiosk] = useState<StatusKioskDesktop | null>(null)
   const [memuat, setMemuat] = useState(true)
   const [membukaKiosk, setMembukaKiosk] = useState(false)
+  const [mengaktifkanKiosk, setMengaktifkanKiosk] = useState(false)
 
   const muat = useCallback(async () => {
     try {
-      const [p, l, r, pg] = await Promise.all([
+      const [p, l, r, pg, ks] = await Promise.all([
         daftarProfilWajah(),
         daftarLogWajah(100),
         ringkasanWajah(),
         daftarPengajuanWajah(),
+        statusKioskDesktop(),
       ])
       setProfil(p)
       setLog(l)
       setRingkasan(r)
       setPengajuan(pg)
+      setKiosk(ks)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal memuat data wajah")
     } finally {
@@ -93,6 +116,18 @@ export default function AdminWajah() {
       toast.error(e instanceof Error ? e.message : "Gagal membuka kiosk")
     } finally {
       setMembukaKiosk(false)
+    }
+  }
+
+  const aktifkanKiosk = async () => {
+    setMengaktifkanKiosk(true)
+    try {
+      const { url } = await aktifkanKioskDesktop()
+      window.location.href = url
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal mengaktifkan kiosk")
+    } finally {
+      setMengaktifkanKiosk(false)
     }
   }
 
@@ -376,6 +411,86 @@ export default function AdminWajah() {
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-1.5 text-sm">
+                  <ScanFace className="h-4 w-4" /> Kiosk Desktop Tanpa Login
+                </CardTitle>
+                <Button size="sm" variant="ghost" onClick={() => void muat()} disabled={memuat}>
+                  <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${memuat ? "animate-spin" : ""}`} /> Segarkan
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 text-xs text-muted-foreground">
+              <p>
+                Guru dan siswa bisa absen lewat wajah atau NIS/NIP tanpa login, dengan kartu identitas (nama, foto,
+                kelas/jabatan, NIS/NIP, sekolah formal &amp; non formal). Aktivasi berlaku 30 hari.
+              </p>
+
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium text-foreground">Kiosk di browser ini</span>
+                  {kiosk?.browser.aktif ? (
+                    <Badge className="bg-emerald-100 text-emerald-800">
+                      <CheckCircle2 className="mr-1 h-3 w-3" /> Aktif s.d. {tanggalKiosk(kiosk.browser.berlakuSampai)}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">Tidak aktif</Badge>
+                  )}
+                </div>
+
+                <div className="border-t border-border pt-2">
+                  <div className="mb-1.5 font-medium text-foreground">Kiosk aplikasi desktop</div>
+                  {!kiosk || kiosk.perangkat.length === 0 ? (
+                    <p>
+                      Belum ada komputer yang diaktifkan dari aplikasi desktop. Login Admin di aplikasi desktop, lalu
+                      tekan <b className="text-foreground">Absensi Wajah &amp; Sidik Jari</b> di layar login.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Komputer</TableHead>
+                            <TableHead>Diaktifkan</TableHead>
+                            <TableHead>Oleh</TableHead>
+                            <TableHead>Berlaku s.d.</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {kiosk.perangkat.map((p) => (
+                            <TableRow key={p.id}>
+                              <TableCell className="text-xs font-medium">{p.perangkat}</TableCell>
+                              <TableCell className="text-xs">{waktuKiosk(p.diaktifkan)}</TableCell>
+                              <TableCell className="text-xs">{p.oleh}</TableCell>
+                              <TableCell className="text-xs">{tanggalKiosk(p.berlakuSampai)}</TableCell>
+                              <TableCell>
+                                <Badge className={p.aktif ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}>
+                                  {p.aktif ? "Aktif" : "Kedaluwarsa"}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Button size="sm" onClick={aktifkanKiosk} disabled={mengaktifkanKiosk}>
+                {mengaktifkanKiosk ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <ExternalLink className="mr-1.5 h-4 w-4" />
+                )}
+                Aktifkan Kiosk di Browser Ini
+              </Button>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Log Verifikasi Wajah</CardTitle></CardHeader>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { getMobileUser } from "@/lib/mobile-auth"
-import { verifyWajahToken } from "@/lib/wajah-token"
+import { bacaCookie, KIOSK_COOKIE, verifyKioskToken, verifyWajahToken } from "@/lib/wajah-token"
 import { normalisasiDeskriptor, verifikasiWajah, type PerangkatWajah } from "@/lib/wajah"
 import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
@@ -20,6 +20,13 @@ type Operator = { id: string; role: string }
 async function getOperator(req: Request): Promise<Operator | null> {
   const session = await auth()
   if (session?.user?.id) return { id: session.user.id, role: String(session.user.role ?? "SISWA") }
+
+  // Kiosk desktop yang sudah diaktifkan Admin — absensi tanpa login.
+  const kioskToken = bacaCookie(req.headers.get("cookie"), KIOSK_COOKIE)
+  if (kioskToken) {
+    const kiosk = await verifyKioskToken(kioskToken)
+    if (kiosk) return { id: kiosk.sub, role: "KIOSK" }
+  }
 
   const header = req.headers.get("authorization") || req.headers.get("Authorization")
   const token = header?.startsWith("Bearer ") ? header.slice(7).trim() : ""

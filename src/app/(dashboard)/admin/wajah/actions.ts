@@ -1,11 +1,12 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { cookies } from "next/headers"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { audit } from "@/lib/absensi-harian"
 import { AMBANG_WAJAH, normalisasiDeskriptor } from "@/lib/wajah-matematika"
-import { signWajahToken } from "@/lib/wajah-token"
+import { KIOSK_COOKIE, KIOSK_TOKEN_TTL_SECONDS, signKioskToken, signWajahToken, verifyKioskToken } from "@/lib/wajah-token"
 import { putuskanPendaftaranWajah } from "@/lib/wajah-pendaftaran"
 
 async function requireAdmin() {
@@ -311,6 +312,109 @@ export async function tokenKioskWajah() {
   const token = await signWajahToken(admin.id, String(admin.role ?? "ADMIN"), "ADMIN")
   const base = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "")
   return { token, url: `${base}/absensi/wajah?t=${encodeURIComponent(token)}` }
+}
+
+/**
+ * Aktifkan kiosk absensi di komputer ini (cookie 30 hari) supaya guru/siswa
+ * bisa absen wajah atau sidik jari tanpa login. Hanya Admin yang boleh.
+ */
+export async function aktifkanKioskDesktop() {
+  const admin = await requireAdmin()
+  const token = await signKioskToken(admin.id, admin.name ?? null)
+  const jar = await cookies()
+  jar.set(KIOSK_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: KIOSK_TOKEN_TTL_SECONDS,
+  })
+  await audit(admin.id, "KIOSK_DESKTOP_AKTIF", "User", admin.id, {
+    perangkat: "BROWSER",
+    masaBerlakuHari: KIOSK_TOKEN_TTL_SECONDS / 86400,
+    berlakuSampai: new Date(Date.now() + KIOSK_TOKEN_TTL_SECONDS * 1000).toISOString(),
+  })
+  return { url: "/absensi/kiosk" }
+}
+
+export type AktivasiKioskRingkas = {
+  id: string
+  perangkat: string
+  diaktifkan: string
+  oleh: string
+  berlakuSampai: string
+  aktif: boolean
+}
+
+export type StatusKioskDesktop = {
+  /** Cookie kiosk di browser admin yang sedang membuka halaman ini. */
+  browser: { aktif: boolean; berlakuSampai: string | null }
+  /** Satu baris per komputer (aplikasi desktop) — aktivasi terakhirnya. */
+  perangkat: AktivasiKioskRingkas[]
+}
+
+/**
+ * Status kiosk desktop untuk panel Admin → Absensi Wajah.
+ * Browser: dibaca dari cookie perangkat yang sedang dipakai.
+ * Aplikasi desktop: dari audit aktivasi (token 30 hari), dikelompokkan per komputer.
+ */
+export async function statusKioskDesktop(): Promise<StatusKioskDesktop> {
+  await requireAdmin()
+
+  const jar = await cookies()
+  const tokenBrowser = jar.get(KIOSK_COOKIE)?.value ?? ""
+  const sesiBrowser = tokenBrowser ? await verifyKioskToken(tokenBrowser) : null
+
+  const rows = await prisma.auditLog.findMany({
+    where: { action: "KIOSK_DESKTOP_AKTIF" },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    select: {
+      id: true,
+      createdAt: true,
+      detail: true,
+      user: { select: { name: true, email: true, guru: { select: { nama: true } } } },
+    },
+  })
+
+  const sekarang = Date.now()
+  const perKomputer = new Map<string, AktivasiKioskRingkas>()
+
+  for (const r of rows) {
+    const detail = (r.detail && typeof r.detail === "object" ? r.detail : {}) as {
+      perangkat?: string
+      perangkatNama?: string
+      masaBerlakuHari?: number
+      berlakuSampai?: string
+    }
+    // Hanya aktivasi dari aplikasi desktop; aktivasi browser sudah diwakili cookie di atas.
+    if (detail.perangkat !== "DESKTOP") continue
+
+    const nama = (detail.perangkatNama ?? "Desktop").trim() || "Desktop"
+    if (perKomputer.has(nama)) continue // rows sudah urut terbaru → simpan yang terakhir saja
+
+    const hari = Number.isFinite(detail.masaBerlakuHari) ? Number(detail.masaBerlakuHari) : 30
+    const kedaluwarsa = detail.berlakuSampai
+      ? new Date(detail.berlakuSampai)
+      : new Date(r.createdAt.getTime() + hari * 86400000)
+
+    perKomputer.set(nama, {
+      id: r.id,
+      perangkat: nama,
+      diaktifkan: r.createdAt.toISOString(),
+      oleh: r.user?.guru?.nama ?? r.user?.name ?? r.user?.email ?? "Admin",
+      berlakuSampai: kedaluwarsa.toISOString(),
+      aktif: kedaluwarsa.getTime() > sekarang,
+    })
+  }
+
+  return {
+    browser: {
+      aktif: !!sesiBrowser,
+      berlakuSampai: sesiBrowser?.exp ? new Date(sesiBrowser.exp * 1000).toISOString() : null,
+    },
+    perangkat: [...perKomputer.values()].sort((a, b) => b.diaktifkan.localeCompare(a.diaktifkan)),
+  }
 }
 
 export type PengajuanWajahRingkas = {
