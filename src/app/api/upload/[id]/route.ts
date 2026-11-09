@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getMobileUser } from "@/lib/mobile-auth"
+import { bacaCookie, KIOSK_COOKIE, verifyKioskToken } from "@/lib/wajah-token"
 import { bolehAksesUpload } from "@/lib/upload-akses"
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -20,10 +21,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       // Akses: sesi login web (cookie) ATAU token mobile (Bearer)
       const session = await auth()
       const mobileUser = session?.user ? null : await getMobileUser(req)
+      // Komputer kiosk absensi tidak punya sesi login. Cookie perangkatnya hanya
+      // boleh membaca file INTERNAL (foto identitas pada kartu absensi), bukan PRIVAT.
+      const kiosk =
+        !session?.user && !mobileUser
+          ? await verifyKioskToken(bacaCookie(req.headers.get("cookie"), KIOSK_COOKIE))
+          : null
       const user = session?.user
         ? { id: session.user.id, role: String(session.user.role ?? "SISWA") }
         : mobileUser
         ? { id: mobileUser.id, role: String(mobileUser.role ?? "SISWA") }
+        : kiosk
+        ? { id: kiosk.sub, role: "KIOSK" }
         : null
       if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

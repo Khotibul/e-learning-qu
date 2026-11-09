@@ -108,11 +108,23 @@ export function KioskAbsensi({ admin, berlakuSampai, perangkat }: Props) {
           <KartuOrang hasil={hasil} onLanjut={reset} />
         ) : (
           <>
-            {hasil && (
-              <div className="flex items-start gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+            {hasil && !hasil.kartu && (
+              <div
+                className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-sm ${
+                  hasil.status === "SUKSES"
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                    : "border-rose-500/40 bg-rose-500/10 text-rose-200"
+                }`}
+              >
                 <UserX className="mt-0.5 h-4 w-4 shrink-0" />
                 <div>
-                  <p className="font-semibold">Identitas tidak ditemukan</p>
+                  <p className="font-semibold">
+                    {hasil.status === "TIDAK_DIKENAL"
+                      ? "Identitas tidak ditemukan"
+                      : hasil.status === "SUKSES"
+                        ? "Absensi tercatat"
+                        : "Absensi tidak tercatat"}
+                  </p>
                   <p className="text-xs">{hasil.pesan}</p>
                 </div>
               </div>

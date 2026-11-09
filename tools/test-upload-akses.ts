@@ -26,6 +26,11 @@ function main() {
   cek("INTERNAL user login mana pun -> izin", bolehAksesUpload({ userId: pemilik.id, akses: "INTERNAL" }, lain) === true)
   cek("INTERNAL tanpa login -> tolak", bolehAksesUpload({ userId: pemilik.id, akses: "INTERNAL" }, null) === false)
 
+  console.log("3b) Kiosk absensi (cookie perangkat, tanpa sesi login)")
+  const kiosk = { id: "U-KIOSK", role: "KIOSK" }
+  cek("kiosk + foto identitas INTERNAL -> izin", bolehAksesUpload({ userId: pemilik.id, akses: "INTERNAL" }, kiosk) === true)
+  cek("kiosk + file PRIVAT orang lain -> tolak", bolehAksesUpload({ userId: pemilik.id, akses: "PRIVAT" }, kiosk) === false)
+
   console.log("4) Baris lama (userId null — kompatibilitas link lama)")
   cek("baris lama + user login -> izin", bolehAksesUpload({ userId: null, akses: "PRIVAT" }, lain) === true)
   cek("baris lama + tanpa login -> tolak", bolehAksesUpload({ userId: null, akses: "PRIVAT" }, null) === false)
