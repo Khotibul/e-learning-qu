@@ -10,4 +10,11 @@ namespace E_LearningQu.Application.Abstractions;
 public interface IKioskService
 {
     Task<KioskActivationResponse> AktifkanAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Aktivasi untuk Admin yang masuk lewat Google (tanpa kata sandi): browser sistem
+    /// dibuka ke halaman aktivasi web, lalu token kiosk dikirim balik ke listener
+    /// loopback aplikasi ini.
+    /// </summary>
+    Task<KioskActivationResponse> AktifkanLewatBrowserAsync(CancellationToken ct = default);
 }

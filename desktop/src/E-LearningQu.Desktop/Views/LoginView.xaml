@@ -195,7 +195,7 @@
                 <Button Command="{Binding AktifkanKioskGoogleCommand}" HorizontalAlignment="Center"
                         Style="{StaticResource ButtonGhost}" Padding="8,4" Margin="0,2,0,0"
                         IsEnabled="{Binding IsKioskBusy, Converter={StaticResource NotBoolToBool}}"
-                        ToolTip="Admin yang login dengan Google (tanpa kata sandi) bisa mengaktifkan kiosk di komputer ini">
+                        ToolTip="Buka browser untuk masuk dengan akun Google Admin, lalu kiosk aktif otomatis di komputer ini">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="G" FontSize="13" FontWeight="Bold" Margin="0,0,6,0"
                                    Foreground="{StaticResource BrushError}" VerticalAlignment="Center" />

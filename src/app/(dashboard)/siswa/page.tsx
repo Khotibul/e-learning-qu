@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { prisma, withRetry } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { BookOpen, Brain, FileText, Megaphone, Trophy, Target, Clock, Flame, TrendingUp, TrendingDown, Lightbulb, GraduationCap } from "lucide-react"
 import { StatCard } from "./_components/StatCard"
@@ -28,7 +28,9 @@ async function getDashboardData() {
     include: { tahunAjaran: true },
   })
 
-  const [avgNilai, ujianAktif, tugasAktif, pengumuman, penguasaanList, latihanStats, learningActivities, nextUjian, learningPaths] = await Promise.all([
+  // Halaman ini dibuka semua siswa hampir bersamaan saat pergantian jam. Retry singkat
+  // meredam gangguan koneksi DB sesaat supaya tidak menjadi galat render server.
+  const [avgNilai, ujianAktif, tugasAktif, pengumuman, penguasaanList, latihanStats, learningActivities, nextUjian, learningPaths] = await withRetry(() => Promise.all([
     prisma.nilai.aggregate({ where: { siswaId: siswa.id }, _avg: { nilai: true } }),
     siswa.kelasId ? prisma.ujian.count({ where: { kelasId: siswa.kelasId, isLatihan: false, status: "AKTIF", deletedAt: null } }) : Promise.resolve(0),
     siswa.kelasId ? prisma.ujian.count({ where: { kelasId: siswa.kelasId, isLatihan: true, status: "AKTIF", deletedAt: null } }) : Promise.resolve(0),
@@ -43,14 +45,21 @@ async function getDashboardData() {
       include: { kompetensi: { select: { nama: true, mataPelajaran: { select: { nama: true } } } } },
     }),
     prisma.latihanAI.aggregate({ where: { siswaId: siswa.id }, _avg: { skor: true }, _count: { _all: true } }),
-    prisma.learningActivity.findMany({ where: { siswaId: siswa.id }, select: { jenis: true, createdAt: true, durationMs: true }, orderBy: { createdAt: "desc" } }),
+    // Dibatasi: siswa aktif bisa punya ribuan baris aktivitas — cukup 500 terbaru
+    // untuk streak & total jam belajar, agar respons tidak makin berat seiring waktu.
+    prisma.learningActivity.findMany({
+      where: { siswaId: siswa.id },
+      select: { jenis: true, createdAt: true, durationMs: true },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    }),
     siswa.kelasId ? prisma.ujian.findFirst({
       where: { kelasId: siswa.kelasId, isLatihan: false, status: "AKTIF", deletedAt: null },
       select: { id: true, nama: true, mataPelajaran: { select: { nama: true } }, jamSelesai: true },
       orderBy: { jamSelesai: "asc" },
     }) : Promise.resolve(null),
     prisma.learningPath.findMany({ where: { siswaId: siswa.id }, select: { progres: true } }),
-  ])
+  ]))
 
   const nilaiRataRata = avgNilai._avg.nilai ?? 0
 

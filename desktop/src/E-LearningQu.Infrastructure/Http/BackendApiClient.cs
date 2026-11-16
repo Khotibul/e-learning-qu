@@ -37,6 +37,8 @@ public sealed class BackendApiClient : IBackendApiClient
         _http.Timeout = TimeSpan.FromSeconds(options.Value.TimeoutSeconds);
     }
 
+    public string BaseUrl => (_http.BaseAddress?.ToString() ?? "").TrimEnd('/');
+
     public async Task<TResponse> GetAsync<TResponse>(string path, string? token = null, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, Normalize(path));

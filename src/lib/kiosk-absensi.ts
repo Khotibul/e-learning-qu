@@ -52,6 +52,65 @@ function fotoDari(image: string | null | undefined): string | null {
   return image && image.trim() ? image.trim() : null
 }
 
+/** Kartu identitas siswa: foto, nama, kelas, jurusan, NIS, sekolah formal/non formal. */
+export function kartuSiswa(data: {
+  nama: string
+  nis: string | null
+  image: string | null | undefined
+  kelasNama: string | null
+  jurusanNama: string | null
+  santriAktif: boolean
+}): KartuIdentitas {
+  return {
+    tipe: "SISWA",
+    nama: data.nama,
+    fotoUrl: fotoDari(data.image),
+    nip: null,
+    jabatan: null,
+    kelas: data.kelasNama,
+    jurusan: data.jurusanNama,
+    nis: data.nis,
+    sekolahFormal: true,
+    sekolahNonFormal: data.santriAktif,
+  }
+}
+
+/** Kartu identitas guru: foto, nama, jabatan, NIP, sekolah formal/non formal. */
+export function kartuGuru(data: {
+  nama: string
+  nip: string | null
+  jabatan: string | null
+  image: string | null | undefined
+  punyaPenugasanPondok: boolean
+}): KartuIdentitas {
+  return {
+    tipe: "GURU",
+    nama: data.nama,
+    fotoUrl: fotoDari(data.image),
+    nip: data.nip,
+    jabatan: data.jabatan,
+    kelas: null,
+    jurusan: null,
+    nis: null,
+    sekolahFormal: true,
+    sekolahNonFormal: data.punyaPenugasanPondok,
+  }
+}
+
+/**
+ * Judul + nada warna banner hasil kiosk. Identitas yang tidak dikenal (mis. NIS
+ * salah) harus berbeda dari absensi yang tidak tercatat karena alasan lain —
+ * termasuk PEGAWAI yang berhasil diverifikasi tanpa kartu identitas.
+ */
+export function ringkasHasilKiosk(hasil: Pick<HasilAbsenKiosk, "status" | "pesan">): {
+  judul: string
+  nada: "sukses" | "gagal"
+} {
+  if (hasil.status === "SUKSES") return { judul: "Absensi tercatat", nada: "sukses" }
+  if (hasil.status === "TIDAK_DIKENAL") return { judul: "Identitas tidak ditemukan", nada: "gagal" }
+  return { judul: "Absensi tidak tercatat", nada: "gagal" }
+}
+
 /** Cari identitas siswa/guru berdasarkan NIS, NISN, atau NIP. */
 export async function cariIdentitasKiosk(kodeInput: unknown): Promise<IdentitasKiosk | null> {
   const kode = normalisasiKodeKiosk(kodeInput)
@@ -80,18 +139,15 @@ export async function cariIdentitasKiosk(kodeInput: unknown): Promise<IdentitasK
       userId: siswa.userId,
       siswaId: siswa.id,
       guruId: null,
-      kartu: {
-        tipe: "SISWA",
+      kartu: kartuSiswa({
         nama: siswa.nama,
-        fotoUrl: fotoDari(siswa.user.image),
-        nip: null,
-        jabatan: null,
-        kelas: siswa.kelas?.nama ?? null,
-        jurusan: siswa.jurusan?.nama ?? null,
         nis: siswa.nis,
-        sekolahFormal: true,
-        sekolahNonFormal: !!siswa.santri && !siswa.santri.deletedAt && siswa.santri.status === "AKTIF",
-      },
+        image: siswa.user.image,
+        kelasNama: siswa.kelas?.nama ?? null,
+        jurusanNama: siswa.jurusan?.nama ?? null,
+        santriAktif:
+          !!siswa.santri && !siswa.santri.deletedAt && siswa.santri.status === "AKTIF",
+      }),
     }
   }
 
@@ -118,18 +174,13 @@ export async function cariIdentitasKiosk(kodeInput: unknown): Promise<IdentitasK
     userId: guru.userId,
     siswaId: null,
     guruId: guru.id,
-    kartu: {
-      tipe: "GURU",
+    kartu: kartuGuru({
       nama: guru.nama,
-      fotoUrl: fotoDari(guru.user.image),
       nip: guru.nip,
       jabatan: guru.jabatan,
-      kelas: null,
-      jurusan: null,
-      nis: null,
-      sekolahFormal: true,
-      sekolahNonFormal: guru.user.pondokAssignments.length > 0,
-    },
+      image: guru.user.image,
+      punyaPenugasanPondok: guru.user.pondokAssignments.length > 0,
+    }),
   }
 }
 

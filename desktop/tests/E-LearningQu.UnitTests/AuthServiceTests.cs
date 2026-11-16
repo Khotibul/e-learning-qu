@@ -14,6 +14,7 @@ public class AuthServiceTests
 {
     private sealed class FakeApi : IBackendApiClient
     {
+        public string BaseUrl => "https://contoh.test";
         public Func<object, object>? OnPost { get; set; }
         public string? LastPath { get; private set; }
 

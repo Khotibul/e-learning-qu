@@ -13,6 +13,7 @@ public class DashboardTests
 {
     private sealed class FakeApi : IBackendApiClient
     {
+        public string BaseUrl => "https://contoh.test";
         public string? LastPath { get; private set; }
         public string? LastToken { get; private set; }
         public object? Response { get; set; }

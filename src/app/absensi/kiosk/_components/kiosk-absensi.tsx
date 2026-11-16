@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { WajahVerifikator, type HasilVerifikasi } from "@/components/absensi/wajah-verifikator"
-import type { KartuIdentitas, MetodeKiosk } from "@/lib/kiosk-absensi"
+import { ringkasHasilKiosk, type KartuIdentitas, type MetodeKiosk } from "@/lib/kiosk-absensi"
 
 type Props = {
   admin: string
@@ -111,20 +111,14 @@ export function KioskAbsensi({ admin, berlakuSampai, perangkat }: Props) {
             {hasil && !hasil.kartu && (
               <div
                 className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-sm ${
-                  hasil.status === "SUKSES"
+                  ringkasHasilKiosk(hasil).nada === "sukses"
                     ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
                     : "border-rose-500/40 bg-rose-500/10 text-rose-200"
                 }`}
               >
                 <UserX className="mt-0.5 h-4 w-4 shrink-0" />
                 <div>
-                  <p className="font-semibold">
-                    {hasil.status === "TIDAK_DIKENAL"
-                      ? "Identitas tidak ditemukan"
-                      : hasil.status === "SUKSES"
-                        ? "Absensi tercatat"
-                        : "Absensi tidak tercatat"}
-                  </p>
+                  <p className="font-semibold">{ringkasHasilKiosk(hasil).judul}</p>
                   <p className="text-xs">{hasil.pesan}</p>
                 </div>
               </div>

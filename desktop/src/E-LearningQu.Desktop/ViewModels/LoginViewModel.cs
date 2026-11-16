@@ -181,14 +181,15 @@ public partial class LoginViewModel : ObservableObject
 
     /// <summary>
     /// Aktivasi kiosk memakai akun Google — untuk Admin yang tidak punya kata
-    /// sandi (login Google-only). Alur OAuth sama dengan tombol Masuk Google.
+    /// sandi (login Google-only). Google menolak redirect loopback OAuth dari
+    /// aplikasi desktop, jadi browser sistem dibuka ke halaman aktivasi web dan
+    /// token kiosk dikirim balik ke listener lokal aplikasi ini.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanAktifkanKioskGoogle))]
     private async Task AktifkanKioskGoogleAsync()
     {
         KioskMessage = null;
         IsKioskBusy = true;
-        var loginBerhasil = false;
         try
         {
             var tersimpan = await BacaKioskTersimpanAsync();
@@ -198,15 +199,7 @@ public partial class LoginViewModel : ObservableObject
                 return;
             }
 
-            var login = await _oauth.LoginWithGoogleAsync();
-            if (!login.IsSuccess)
-            {
-                KioskMessage = login.ErrorMessage ?? "Login Google gagal.";
-                return;
-            }
-            loginBerhasil = true;
-
-            var hasil = await _kiosk.AktifkanAsync();
+            var hasil = await _kiosk.AktifkanLewatBrowserAsync();
             var kredensial = new KioskCredential(
                 hasil.Token,
                 hasil.Url,
@@ -220,18 +213,17 @@ public partial class LoginViewModel : ObservableObject
         {
             KioskMessage = ex.ServerMessage ?? ex.Message;
         }
+        catch (InvalidOperationException ex)
+        {
+            // Pesan spesifik: waktu habis, browser gagal dibuka, atau token ditolak.
+            KioskMessage = ex.Message;
+        }
         catch (Exception)
         {
             KioskMessage = "Gagal mengaktifkan kiosk dengan Google. Coba lagi.";
         }
         finally
         {
-            if (loginBerhasil)
-            {
-                // Aktivasi tidak boleh meninggalkan sesi Admin aktif di layar login.
-                try { await _auth.SignOutAsync(); }
-                catch { /* sesi sementara — jangan gagalkan aktivasi */ }
-            }
             IsKioskBusy = false;
         }
     }

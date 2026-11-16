@@ -3,6 +3,10 @@ namespace E_LearningQu.Application.Abstractions;
 /// <summary>HTTP client backend — semua akses data lewat interface ini (tidak ada koneksi DB langsung).</summary>
 public interface IBackendApiClient
 {
+    /// <summary>Alamat dasar backend tanpa garis miring di akhir (mis. https://e-learning-qu.vercel.app) —
+    /// dipakai saat harus membuka halaman web di browser sistem (aktivasi kiosk).</summary>
+    string BaseUrl { get; }
+
     Task<TResponse> GetAsync<TResponse>(string path, string? token = null, CancellationToken ct = default);
 
     /// <summary>GET biner (foto profil/thumbnail). Sukses = byte[]; non-2xx/gagal
