@@ -97,16 +97,22 @@ class DashboardHeader extends StatelessWidget {
                               style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 11.5, letterSpacing: 0.3),
                             ),
                             const SizedBox(height: 1),
+                            // Dua baris agar nama panjang tidak langsung terpotong di layar sempit.
                             Text(
                               name,
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white, fontSize: 18.5, fontWeight: FontWeight.w800, letterSpacing: -0.3),
+                              style: const TextStyle(color: Colors.white, fontSize: 18.5, fontWeight: FontWeight.w800, letterSpacing: -0.3, height: 1.15),
                             ),
+                            // Badge di baris sendiri supaya tidak berebut lebar dengan nama.
+                            if (badge != null && badge!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 5),
+                                child: Align(alignment: Alignment.centerLeft, child: _HeaderBadge(text: badge!)),
+                              ),
                           ],
                         ),
                       ),
-                      if (badge != null && badge!.isNotEmpty) _HeaderBadge(text: badge!),
                       if (actions != null) IconTheme.merge(data: const IconThemeData(color: Colors.white), child: actions!),
                     ],
                   ),
@@ -154,7 +160,6 @@ class _HeaderBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(right: 6, top: 4),
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.18),
@@ -421,51 +426,62 @@ class PercentTile extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         boxShadow: AppShadows.soft,
       ),
-      child: Row(
+      // Label di atas, cincin di bawah: pada layar 320dp lebar untuk label tetap
+      // utuh (sebelumnya "Absensi"/"AI Tutor" terpotong jadi "Abse…").
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox.expand(
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: clamped / 100),
-                    duration: const Duration(milliseconds: 700),
-                    curve: Curves.easeOutCubic,
-                    builder: (_, v, _) => CircularProgressIndicator(
-                      value: v,
-                      strokeWidth: 5,
-                      strokeCap: StrokeCap.round,
-                      backgroundColor: const Color(0xFFEFF1F8),
-                      color: color,
-                    ),
-                  ),
+          Row(
+            children: [
+              Icon(icon, size: 12, color: color),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.ink),
                 ),
-                Text("$clamped%", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: color)),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Row(
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: Stack(
+                  alignment: Alignment.center,
                   children: [
-                    Icon(icon, size: 12, color: color),
-                    const SizedBox(width: 5),
-                    Flexible(
-                      child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.ink)),
+                    SizedBox.expand(
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: clamped / 100),
+                        duration: const Duration(milliseconds: 700),
+                        curve: Curves.easeOutCubic,
+                        builder: (_, v, _) => CircularProgressIndicator(
+                          value: v,
+                          strokeWidth: 5,
+                          strokeCap: StrokeCap.round,
+                          backgroundColor: const Color(0xFFEFF1F8),
+                          color: color,
+                        ),
+                      ),
                     ),
+                    Text("$clamped%", style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: color)),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(detail, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: AppColors.inkMuted)),
-              ],
-            ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  detail,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10, height: 1.3, color: AppColors.inkMuted),
+                ),
+              ),
+            ],
           ),
         ],
       ),

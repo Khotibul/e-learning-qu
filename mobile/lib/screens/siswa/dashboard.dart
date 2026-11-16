@@ -124,13 +124,15 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                       ],
                       const SectionHeader(title: "Ringkasan Belajar"),
                       const SizedBox(height: 10),
-                      GridView.count(
+                      GridView(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 2,
-                        childAspectRatio: 1.95,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          mainAxisExtent: 78,
+                        ),
                         children: [
                           StatTile(icon: Icons.psychology_outlined, label: "Nilai Rata-rata", value: (s["nilaiRataRata"] ?? 0).toStringAsFixed(1), color: AppColors.success),
                           StatTile(icon: Icons.track_changes_outlined, label: "Mastery", value: "${s["rataMastery"] ?? 0}%", color: AppColors.primary),
@@ -151,13 +153,15 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                       const SizedBox(height: 20),
                       const SectionHeader(title: "Grafik Persentase"),
                       const SizedBox(height: 10),
-                      GridView.count(
+                      GridView(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 2,
-                        childAspectRatio: 2.15,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          mainAxisExtent: 98,
+                        ),
                         children: [
                           PercentTile(
                             label: "Absensi",
@@ -200,13 +204,15 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                       const SizedBox(height: 22),
                       const SectionHeader(title: "Akademik"),
                       const SizedBox(height: 10),
-                      GridView.count(
+                      GridView(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 3,
-                        childAspectRatio: 0.92,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          mainAxisExtent: 106,
+                        ),
                         children: [
                           FeatureTile(icon: Icons.quiz_outlined, label: "Ujian", gradient: AppGradients.indigo, onTap: () => _buka(const SiswaUjian())),
                           FeatureTile(icon: Icons.menu_book_outlined, label: "Materi", gradient: AppGradients.sky, onTap: () => _buka(const SiswaMateri())),
@@ -220,13 +226,15 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                       const SizedBox(height: 22),
                       const SectionHeader(title: "Kehadiran"),
                       const SizedBox(height: 10),
-                      GridView.count(
+                      GridView(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 3,
-                        childAspectRatio: 0.92,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          mainAxisExtent: 106,
+                        ),
                         children: [
                           FeatureTile(icon: Icons.fact_check_outlined, label: "Absensi", gradient: AppGradients.emerald, onTap: () => _buka(const SiswaAbsensiHarian())),
                           FeatureTile(icon: Icons.fingerprint, label: "Kehadiran", gradient: AppGradients.sky, onTap: () => _buka(const SiswaKehadiran())),
@@ -238,13 +246,15 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                       const SizedBox(height: 22),
                       const SectionHeader(title: "Kelas & Organisasi"),
                       const SizedBox(height: 10),
-                      GridView.count(
+                      GridView(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 3,
-                        childAspectRatio: 0.92,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          mainAxisExtent: 106,
+                        ),
                         children: [
                           FeatureTile(icon: Icons.groups_outlined, label: "Kelas", gradient: AppGradients.teal, onTap: () => _buka(const SiswaStrukturKelas())),
                           FeatureTile(
@@ -268,13 +278,15 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
                       const SizedBox(height: 22),
                       const SectionHeader(title: "Lainnya"),
                       const SizedBox(height: 10),
-                      GridView.count(
+                      GridView(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 3,
-                        childAspectRatio: 0.92,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          mainAxisExtent: 106,
+                        ),
                         children: [
                           FeatureTile(icon: Icons.psychology_outlined, label: "Profil Belajar", gradient: AppGradients.violet, onTap: () => _buka(const SiswaProfilBelajar())),
                           FeatureTile(icon: Icons.assignment_turned_in_outlined, label: "Evaluasi SUS", gradient: AppGradients.sky, onTap: () => _buka(const SiswaSus())),

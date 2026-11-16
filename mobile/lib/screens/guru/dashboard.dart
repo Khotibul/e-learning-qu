@@ -111,13 +111,15 @@ class _GuruDashboardState extends State<GuruDashboard> {
                         child: Center(child: CircularProgressIndicator()),
                       )
                     else
-                      GridView.count(
+                      GridView(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 2,
-                        childAspectRatio: 1.95,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          mainAxisExtent: 78,
+                        ),
                         children: [
                           StatTile(icon: Icons.door_front_door_outlined, label: "Kelas Saya", value: "${stats["kelasCount"] ?? 0}", color: AppColors.primary),
                           StatTile(icon: Icons.book_outlined, label: "Mata Pelajaran", value: "${stats["mapelCount"] ?? 0}", color: const Color(0xFF0284C7)),
@@ -132,13 +134,15 @@ class _GuruDashboardState extends State<GuruDashboard> {
                     const SizedBox(height: 22),
                     const SectionHeader(title: "Pembelajaran"),
                     const SizedBox(height: 10),
-                    GridView.count(
+                    GridView(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 3,
-                      childAspectRatio: 0.92,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        mainAxisExtent: 106,
+                      ),
                       children: [
                         FeatureTile(icon: Icons.people_outline, label: "Murid", gradient: AppGradients.indigo, onTap: () => _buka(const GuruMurid())),
                         FeatureTile(icon: Icons.menu_book_outlined, label: "Materi", gradient: AppGradients.amber, onTap: () => _buka(const GuruMateri())),
@@ -151,13 +155,15 @@ class _GuruDashboardState extends State<GuruDashboard> {
                     const SizedBox(height: 22),
                     const SectionHeader(title: "Kehadiran & Kelas"),
                     const SizedBox(height: 10),
-                    GridView.count(
+                    GridView(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 3,
-                      childAspectRatio: 0.92,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        mainAxisExtent: 106,
+                      ),
                       children: [
                         FeatureTile(icon: Icons.fact_check_outlined, label: "Absensi", gradient: AppGradients.emerald, onTap: () => _buka(const GuruAbsensi())),
                         FeatureTile(icon: Icons.shield_outlined, label: "Wali Kelas", gradient: AppGradients.sky, onTap: () => _buka(const GuruWaliKelas())),
@@ -169,16 +175,18 @@ class _GuruDashboardState extends State<GuruDashboard> {
                     const SizedBox(height: 22),
                     const SectionHeader(title: "Analitik & AI"),
                     const SizedBox(height: 10),
-                    GridView.count(
+                    GridView(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 3,
-                      childAspectRatio: 0.92,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        mainAxisExtent: 106,
+                      ),
                       children: [
                         FeatureTile(icon: Icons.analytics_outlined, label: "Analitik", gradient: AppGradients.violet, onTap: () => _buka(const GuruAnalitik())),
-                        FeatureTile(icon: Icons.monitor_heart_outlined, label: "Teacher Analytics", gradient: AppGradients.sky, onTap: () => _buka(const GuruTeacherAnalytics())),
+                        FeatureTile(icon: Icons.monitor_heart_outlined, label: "Analitik Guru", gradient: AppGradients.sky, onTap: () => _buka(const GuruTeacherAnalytics())),
                         FeatureTile(icon: Icons.support_agent_outlined, label: "Intervensi", gradient: AppGradients.amber, onTap: () => _buka(const GuruIntervensi())),
                         FeatureTile(icon: Icons.memory_outlined, label: "AI Knowledge", gradient: AppGradients.teal, onTap: () => _buka(const GuruAiKnowledge())),
                         FeatureTile(icon: Icons.psychology_outlined, label: "Evaluasi AI", gradient: AppGradients.violet, onTap: () => _buka(const GuruAiEvaluation())),
@@ -188,13 +196,15 @@ class _GuruDashboardState extends State<GuruDashboard> {
                     const SizedBox(height: 22),
                     const SectionHeader(title: "Pondok & Lainnya"),
                     const SizedBox(height: 10),
-                    GridView.count(
+                    GridView(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 3,
-                      childAspectRatio: 0.92,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        mainAxisExtent: 106,
+                      ),
                       children: [
                         if (bisaUstadz) FeatureTile(icon: Icons.school_outlined, label: "Ustadz", gradient: AppGradients.emerald, onTap: () => _buka(const GuruUstadzPondok())),
                         if (bisaPengurus) FeatureTile(icon: Icons.groups_outlined, label: "Pengurus", gradient: AppGradients.violet, onTap: () => _buka(const GuruPengurusPondok())),
