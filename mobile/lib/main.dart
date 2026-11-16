@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'theme/app_theme.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
@@ -32,33 +33,7 @@ class ELearningQuApp extends StatelessWidget {
       child: MaterialApp(
         title: 'E-Learning QU',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF4F46E5),
-            secondary: const Color(0xFF06B6D4),
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-          scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-          cardTheme: CardThemeData(
-            elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE2E8F0))),
-            color: Colors.white,
-          ),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.white,
-            foregroundColor: Color(0xFF0F172A),
-            elevation: 0,
-            centerTitle: true,
-            titleTextStyle: TextStyle(color: Color(0xFF0F172A), fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-          ),
-        ),
+        theme: AppTheme.light(),
         home: const AuthGate(),
       ),
     );
@@ -151,18 +126,51 @@ class _RoleScaffoldState extends State<RoleScaffold> {
 
     return Scaffold(
       body: pages[_idx],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _idx,
-        onDestinationSelected: (i) => setState(() => _idx = i),
-        height: 60,
-        indicatorColor: const Color(0xFFEEF2FF),
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: items,
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: AppColors.border)),
+          boxShadow: [BoxShadow(color: Color(0x141E1B4B), blurRadius: 24, offset: Offset(0, -8))],
+        ),
+        child: SafeArea(
+          top: false,
+          child: NavigationBar(
+            selectedIndex: _idx,
+            onDestinationSelected: (i) => setState(() => _idx = i),
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            destinations: items,
+          ),
+        ),
       ),
+      // Menu akun sengaja dipisah dari bilah navigasi utama agar tidak salah tekan.
       floatingActionButton: FloatingActionButton.small(
-        onPressed: () => context.read<AuthProvider>().signOut(),
-        child: const Icon(Icons.logout),
+        heroTag: "keluar",
+        tooltip: "Keluar",
+        onPressed: () => _konfirmasiKeluar(context),
+        child: const Icon(Icons.logout, size: 18),
       ),
     );
+  }
+
+  Future<void> _konfirmasiKeluar(BuildContext context) async {
+    final keluar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text("Keluar dari aplikasi?", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        content: const Text("Anda perlu masuk kembali untuk membuka absensi, ujian, dan materi.", style: TextStyle(fontSize: 13, height: 1.45)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Batal", style: TextStyle(color: AppColors.inkSoft))),
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size(96, 42), backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Keluar"),
+          ),
+        ],
+      ),
+    );
+    if (keluar == true && context.mounted) {
+      await context.read<AuthProvider>().signOut();
+    }
   }
 }

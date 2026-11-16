@@ -1,5 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_ui.dart';
 import 'ujian.dart';
 import 'materi.dart';
 import 'absensi_harian.dart';
@@ -35,217 +37,267 @@ class _SiswaDashboardState extends State<SiswaDashboard> {
   @override
   void initState() {
     super.initState();
-    ApiService.getDashboard().then((v) {
-      if (mounted) setState(() { stats = v; loading = false; });
-    }).catchError((_) { if (mounted) setState(() => loading = false); });
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final v = await ApiService.getDashboard();
+      if (mounted) {
+        setState(() {
+          stats = v;
+          loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  void _buka(Widget page) => Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+
+  void _butuhJabatan(String jabatan, VoidCallback lanjut) {
+    final punya = stats?["jabatan"]?.toString();
+    if (punya != jabatan) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Hanya $jabatan yang dapat membuka fitur ini — sama seperti website")),
+      );
+      return;
+    }
+    lanjut();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return Scaffold(appBar: AppBar(title: const Text("Beranda")), body: const Center(child: CircularProgressIndicator()));
     final s = stats ?? {};
+    final nama = (s["nama"] ?? "Siswa").toString();
+    final jabatan = s["jabatan"]?.toString();
+    final sudahAdaData = !loading && stats != null;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Beranda Siswa"), backgroundColor: Colors.white, actions: const [NotifBell(), SizedBox(width: 8)]),
-      body: Container(
-        decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFEEF2FF), Color(0xFFF8FAFC)])),
+      body: AppBackdrop(
         child: RefreshIndicator(
-          onRefresh: () async {
-            final v = await ApiService.getDashboard();
-            if (mounted) setState(() => stats = v);
-          },
+          onRefresh: _load,
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.zero,
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
-              // Header
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.person_outline, color: Colors.white, size: 20)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Text("Halo, ${s["nama"] ?? "Siswa"}", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)), if (s["jabatan"] != null) ...[const SizedBox(width: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: const Color(0xFFEEF2FF), borderRadius: BorderRadius.circular(20)), child: Text(s["jabatan"], style: const TextStyle(fontSize: 10, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600)))] ]), Text("${s["kelas"] ?? "-"} • ${s["jurusan"] ?? "-"} • ${s["semester"] ?? ""}", style: const TextStyle(color: Colors.black54, fontSize: 11))]))]),
-                    if (s["jabatan"] != null) ...[
-                      const SizedBox(height: 8),
-                      Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFBAE6FD))), child: Row(children: [const Icon(Icons.verified, size: 14, color: Color(0xFF0284C7)), const SizedBox(width: 6), Text("Jabatan: ${s["jabatan"]} — akses khusus tersedia", style: const TextStyle(fontSize: 11, color: Color(0xFF0284C7), fontWeight: FontWeight.w600))])),
+              SafeArea(
+                bottom: false,
+                child: DashboardHeader(
+                  greeting: "Selamat datang,",
+                  name: nama,
+                  subtitle: "${s["kelas"] ?? "-"} • ${s["jurusan"] ?? "-"} • ${s["semester"] ?? ""}",
+                  badge: jabatan,
+                  subtitleIcon: Icons.school_outlined,
+                  actions: Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Material(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(14),
+                      child: const IconTheme(
+                        data: IconThemeData(color: Colors.white),
+                        child: NotifBell(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 96),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (loading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else ...[
+                      if (jabatan != null && jabatan.isNotEmpty) ...[
+                        InfoBanner(
+                          icon: Icons.verified_outlined,
+                          text: "Anda menjabat sebagai $jabatan — fitur khusus jabatan tersedia di bagian Kelas & Organisasi.",
+                          color: AppColors.accent,
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                      const SectionHeader(title: "Ringkasan Belajar"),
+                      const SizedBox(height: 10),
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 2,
+                        childAspectRatio: 1.95,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        children: [
+                          StatTile(icon: Icons.psychology_outlined, label: "Nilai Rata-rata", value: (s["nilaiRataRata"] ?? 0).toStringAsFixed(1), color: AppColors.success),
+                          StatTile(icon: Icons.track_changes_outlined, label: "Mastery", value: "${s["rataMastery"] ?? 0}%", color: AppColors.primary),
+                          StatTile(icon: Icons.local_fire_department_outlined, label: "Streak", value: "${s["streak"] ?? 0} hari", color: AppColors.gold),
+                          StatTile(icon: Icons.schedule_outlined, label: "Jam Belajar", value: "${s["jamBelajar"] ?? 0}j", color: AppColors.accent),
+                          StatTile(icon: Icons.quiz_outlined, label: "Ujian Aktif", value: "${s["ujianAktif"] ?? 0}", color: const Color(0xFF7C3AED)),
+                          StatTile(icon: Icons.menu_book_outlined, label: "Latihan Aktif", value: "${s["tugasAktif"] ?? 0}", color: AppColors.rose),
+                          StatTile(icon: Icons.trending_up_outlined, label: "Progres", value: "${s["progresBelajar"] ?? 0}%", color: AppColors.warning),
+                          StatTile(icon: Icons.library_books_outlined, label: "Materi", value: "${s["totalMateri"] ?? 0}", color: const Color(0xFF0284C7)),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      InfoBanner(
+                        icon: Icons.auto_awesome_outlined,
+                        text: (s["aiInsight"] ?? "Mulai belajar untuk melihat insight AI.").toString(),
+                        italic: true,
+                      ),
+                      const SizedBox(height: 20),
+                      const SectionHeader(title: "Grafik Persentase"),
+                      const SizedBox(height: 10),
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 2,
+                        childAspectRatio: 2.15,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        children: [
+                          PercentTile(
+                            label: "Absensi",
+                            value: ((s["persentaseAbsensi"] ?? 0) as num).round(),
+                            detail: "${s["hadirAbsensi"] ?? 0}/${s["totalAbsensi"] ?? 0} hari",
+                            icon: Icons.fact_check_outlined,
+                            color: AppColors.success,
+                          ),
+                          PercentTile(
+                            label: "Materi",
+                            value: ((s["keaktifanMateri"] ?? 0) as num).round(),
+                            detail: "${s["materiDiakses"] ?? 0}/${s["totalMateri"] ?? 0} dibuka",
+                            icon: Icons.menu_book_outlined,
+                            color: AppColors.accent,
+                          ),
+                          PercentTile(
+                            label: "AI Tutor",
+                            value: ((s["keaktifanAI"] ?? 0) as num).round(),
+                            detail: "${s["aiChatCount"] ?? 0} chat",
+                            icon: Icons.smart_toy_outlined,
+                            color: const Color(0xFF7C3AED),
+                          ),
+                          PercentTile(
+                            label: "Aplikasi",
+                            value: ((s["keaktifanAplikasi"] ?? 0) as num).round(),
+                            detail: "${s["totalAktivitas"] ?? 0} aktivitas",
+                            icon: Icons.phone_android_outlined,
+                            color: AppColors.primary,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      PercentTile(
+                        label: "Nilai",
+                        value: ((s["nilaiRataRata"] ?? 0) as num).round().clamp(0, 100),
+                        detail: "rata-rata ${((s["nilaiRataRata"] ?? 0) as num).toStringAsFixed(1)}",
+                        icon: Icons.grade_outlined,
+                        color: AppColors.gold,
+                      ),
+                      const SizedBox(height: 22),
+                      const SectionHeader(title: "Akademik"),
+                      const SizedBox(height: 10),
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 3,
+                        childAspectRatio: 0.92,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        children: [
+                          FeatureTile(icon: Icons.quiz_outlined, label: "Ujian", gradient: AppGradients.indigo, onTap: () => _buka(const SiswaUjian())),
+                          FeatureTile(icon: Icons.menu_book_outlined, label: "Materi", gradient: AppGradients.sky, onTap: () => _buka(const SiswaMateri())),
+                          FeatureTile(icon: Icons.assignment_outlined, label: "Latihan", gradient: AppGradients.violet, onTap: () => _buka(const SiswaLatihan())),
+                          FeatureTile(icon: Icons.grade_outlined, label: "Nilai", gradient: AppGradients.amber, onTap: () => _buka(const SiswaNilai())),
+                          FeatureTile(icon: Icons.leaderboard_outlined, label: "Ranking", gradient: AppGradients.rose, onTap: () => _buka(const SiswaRanking())),
+                          FeatureTile(icon: Icons.smart_toy_outlined, label: "AI Tutor", gradient: AppGradients.violet, onTap: () => _buka(const SiswaAiTutor())),
+                          FeatureTile(icon: Icons.insights_outlined, label: "AI Analitik", gradient: AppGradients.teal, onTap: () => _buka(const SiswaAiAnalitik())),
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      const SectionHeader(title: "Kehadiran"),
+                      const SizedBox(height: 10),
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 3,
+                        childAspectRatio: 0.92,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        children: [
+                          FeatureTile(icon: Icons.fact_check_outlined, label: "Absensi", gradient: AppGradients.emerald, onTap: () => _buka(const SiswaAbsensiHarian())),
+                          FeatureTile(icon: Icons.fingerprint, label: "Kehadiran", gradient: AppGradients.sky, onTap: () => _buka(const SiswaKehadiran())),
+                          FeatureTile(icon: Icons.assignment_turned_in_outlined, label: "Izin", gradient: AppGradients.violet, onTap: () => _buka(const SiswaIzin())),
+                          FeatureTile(icon: Icons.calendar_today_outlined, label: "Jadwal", gradient: AppGradients.rose, onTap: () => _buka(const SiswaJadwal())),
+                          FeatureTile(icon: Icons.cleaning_services_outlined, label: "Piket", gradient: AppGradients.teal, onTap: () => _buka(const SiswaJadwalPiket())),
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      const SectionHeader(title: "Kelas & Organisasi"),
+                      const SizedBox(height: 10),
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 3,
+                        childAspectRatio: 0.92,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        children: [
+                          FeatureTile(icon: Icons.groups_outlined, label: "Kelas", gradient: AppGradients.teal, onTap: () => _buka(const SiswaStrukturKelas())),
+                          FeatureTile(
+                            icon: Icons.assignment_outlined,
+                            label: "Sekretaris",
+                            gradient: AppGradients.sky,
+                            locked: jabatan != "SEKRETARIS",
+                            onTap: () => _butuhJabatan("SEKRETARIS", () => _buka(const SiswaSekretaris())),
+                          ),
+                          FeatureTile(
+                            icon: Icons.account_balance_wallet_outlined,
+                            label: "Bendahara",
+                            gradient: AppGradients.amber,
+                            locked: jabatan != "BENDAHARA",
+                            onTap: () => _butuhJabatan("BENDAHARA", () => _buka(const SiswaBendahara())),
+                          ),
+                          FeatureTile(icon: Icons.savings_outlined, label: "Iuran", gradient: AppGradients.emerald, onTap: () => _buka(const SiswaIuranSaya())),
+                          FeatureTile(icon: Icons.wallet_outlined, label: "Dompet", gradient: AppGradients.emerald, onTap: () => _buka(const SiswaDompet())),
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      const SectionHeader(title: "Lainnya"),
+                      const SizedBox(height: 10),
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 3,
+                        childAspectRatio: 0.92,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        children: [
+                          FeatureTile(icon: Icons.psychology_outlined, label: "Profil Belajar", gradient: AppGradients.violet, onTap: () => _buka(const SiswaProfilBelajar())),
+                          FeatureTile(icon: Icons.assignment_turned_in_outlined, label: "Evaluasi SUS", gradient: AppGradients.sky, onTap: () => _buka(const SiswaSus())),
+                          FeatureTile(icon: Icons.settings_outlined, label: "Pengaturan", gradient: AppGradients.slate, onTap: () => _buka(const SiswaPengaturanNew())),
+                        ],
+                      ),
+                      if (sudahAdaData)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 18),
+                          child: Text(
+                            "Data diperbarui otomatis saat Anda menarik halaman ke bawah.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted.withValues(alpha: 0.9)),
+                          ),
+                        ),
                     ],
-                    const SizedBox(height: 12),
-                    Text(s["aiInsight"] ?? "Mulai belajar untuk melihat insight AI.", style: const TextStyle(fontSize: 12, color: Color(0xFF475569), fontStyle: FontStyle.italic)),
-                  ]),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              // 8 StatCards seperti website
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                childAspectRatio: 2.2,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                children: [
-                  _StatCard(title: "Nilai Rata-rata", value: (s["nilaiRataRata"] ?? 0).toStringAsFixed(1), icon: Icons.psychology_outlined, color: const Color(0xFF10B981)),
-                  _StatCard(title: "Mastery", value: "${s["rataMastery"] ?? 0}%", icon: Icons.track_changes_outlined, color: const Color(0xFF4F46E5)),
-                  _StatCard(title: "Streak", value: "${s["streak"] ?? 0} hari", icon: Icons.local_fire_department_outlined, color: const Color(0xFFF59E0B)),
-                  _StatCard(title: "Jam Belajar", value: "${s["jamBelajar"] ?? 0}j", icon: Icons.schedule_outlined, color: const Color(0xFF06B6D4)),
-                  _StatCard(title: "Ujian Aktif", value: "${s["ujianAktif"] ?? 0}", icon: Icons.quiz_outlined, color: const Color(0xFF8B5CF6)),
-                  _StatCard(title: "Latihan Aktif", value: "${s["tugasAktif"] ?? 0}", icon: Icons.menu_book_outlined, color: const Color(0xFFEC4899)),
-                  _StatCard(title: "Progres", value: "${s["progresBelajar"] ?? 0}%", icon: Icons.trending_up_outlined, color: const Color(0xFF14B8A6)),
-                  _StatCard(title: "Materi", value: "${s["totalMateri"] ?? 0}", icon: Icons.library_books_outlined, color: const Color(0xFFF97316)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Grafik Persentase — sesuai website: absensi, materi, AI, aplikasi, nilai
-              const Text("Grafik Persentase", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-              const SizedBox(height: 8),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                childAspectRatio: 2.8,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                children: [
-                  _PercentCard(label: "Absensi", value: s["persentaseAbsensi"] ?? 0, total: "${s["hadirAbsensi"] ?? 0}/${s["totalAbsensi"] ?? 0}", icon: Icons.fact_check_outlined, color: const Color(0xFF10B981)),
-                  _PercentCard(label: "Materi", value: s["keaktifanMateri"] ?? 0, total: "${s["materiDiakses"] ?? 0}/${s["totalMateri"] ?? 0}", icon: Icons.menu_book_outlined, color: const Color(0xFF06B6D4)),
-                  _PercentCard(label: "AI Tutor", value: s["keaktifanAI"] ?? 0, total: "${s["aiChatCount"] ?? 0} chat", icon: Icons.smart_toy_outlined, color: const Color(0xFF8B5CF6)),
-                  _PercentCard(label: "Aplikasi", value: s["keaktifanAplikasi"] ?? 0, total: "${s["totalAktivitas"] ?? 0} aktivitas", icon: Icons.phone_android_outlined, color: const Color(0xFF4F46E5)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              _PercentCard(label: "Nilai", value: ((s["nilaiRataRata"] ?? 0) as num).round(), total: "rata ${((s["nilaiRataRata"] ?? 0) as num).toStringAsFixed(1)}", icon: Icons.grade_outlined, color: const Color(0xFFF59E0B), fullWidth: true),
-              const SizedBox(height: 12),
-              const Text("Menu Belajar", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-              const SizedBox(height: 8),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 3,
-              childAspectRatio: 0.95,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              children: [
-                _MenuCard(icon: Icons.quiz_outlined, label: "Ujian", color: const Color(0xFF4F46E5), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaUjian()))),
-                _MenuCard(icon: Icons.menu_book_outlined, label: "Materi", color: const Color(0xFF06B6D4), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaMateri()))),
-                _MenuCard(icon: Icons.fact_check_outlined, label: "Absensi", color: const Color(0xFF10B981), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAbsensiHarian()))),
-                _MenuCard(icon: Icons.fingerprint, label: "Kehadiran", color: const Color(0xFF0EA5E9), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaKehadiran()))),
-                _MenuCard(icon: Icons.grade_outlined, label: "Nilai", color: const Color(0xFFF59E0B), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaNilai()))),
-                _MenuCard(icon: Icons.leaderboard_outlined, label: "Ranking", color: const Color(0xFFEF4444), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaRanking()))),
-                _MenuCard(icon: Icons.smart_toy_outlined, label: "AI Tutor", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAiTutor()))),
-                _MenuCard(icon: Icons.menu_book_outlined, label: "Latihan", color: const Color(0xFF6366F1), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaLatihan()))),
-                _MenuCard(icon: Icons.calendar_today_outlined, label: "Jadwal", color: const Color(0xFFEC4899), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwal()))),
-                _MenuCard(icon: Icons.cleaning_services_outlined, label: "Piket", color: const Color(0xFF0EA5E9), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaJadwalPiket()))),
-                _MenuCard(icon: Icons.groups_outlined, label: "Kelas", color: const Color(0xFF14B8A6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaStrukturKelas()))),
-                _MenuCard(icon: Icons.psychology_outlined, label: "Profil", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaProfilBelajar()))),
-                _MenuCard(
-                  icon: Icons.account_balance_wallet_outlined,
-                  label: "Bendahara",
-                  color: const Color(0xFFF97316),
-                  onTap: () {
-                    final jabatan = s["jabatan"]?.toString();
-                    if (jabatan != "BENDAHARA") {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hanya Bendahara yang dapat mengakses fitur ini — sama seperti website"), backgroundColor: Color(0xFFEF4444)));
-                      return;
-                    }
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaBendahara()));
-                  },
-                ),
-                _MenuCard(
-                  icon: Icons.savings_outlined,
-                  label: "Iuran",
-                  color: const Color(0xFF14B8A6),
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaIuranSaya())),
-                ),
-                _MenuCard(
-                  icon: Icons.assignment_outlined,
-                  label: "Sekretaris",
-                  color: const Color(0xFF0EA5E9),
-                  onTap: () {
-                    final jabatan = s["jabatan"]?.toString();
-                    if (jabatan != "SEKRETARIS") {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hanya Sekretaris yang dapat mengakses fitur ini — sama seperti website"), backgroundColor: Color(0xFFEF4444)));
-                      return;
-                    }
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaSekretaris()));
-                  },
-                ),
-                _MenuCard(
-                  icon: Icons.settings_outlined,
-                  label: "Pengaturan",
-                  color: const Color(0xFF64748B),
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaPengaturanNew())),
-                ),
-                _MenuCard(icon: Icons.assignment_outlined, label: "Izin", color: const Color(0xFF8B5CF6), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaIzin()))),
-                _MenuCard(icon: Icons.account_balance_wallet_outlined, label: "Dompet", color: const Color(0xFF10B981), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaDompet()))),
-                _MenuCard(
-                  icon: Icons.assignment_turned_in_outlined,
-                  label: "Evaluasi SUS",
-                  color: const Color(0xFF0EA5E9),
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaSus())),
-                ),
-                _MenuCard(
-                  icon: Icons.insights_outlined,
-                  label: "AI Analitik",
-                  color: const Color(0xFF8B5CF6),
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAiAnalitik())),
-                ),
-              ],
-            ),
             ],
           ),
         ),
       ),
     );
   }
-}
-
-class _StatCard extends StatelessWidget {
-  final String title; final String value; final IconData icon; final Color color;
-  const _StatCard({required this.title, required this.value, required this.icon, required this.color});
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E8F0))),
-    child: Row(children: [
-      Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)), child: Icon(icon, size: 16, color: color)),
-      const SizedBox(width: 10),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 10, color: Colors.black54)), Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color))])),
-    ]),
-  );
-}
-
-class _PercentCard extends StatelessWidget {
-  final String label; final int value; final String total; final IconData icon; final Color color; final bool fullWidth;
-  const _PercentCard({required this.label, required this.value, required this.total, required this.icon, required this.color, this.fullWidth = false});
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E8F0))),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Icon(icon, size: 14, color: color), const SizedBox(width: 6), Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)), const Spacer(), Text("$value%", style: TextStyle(fontWeight: FontWeight.bold, color: color))]),
-      const SizedBox(height: 6),
-      ClipRRect(borderRadius: BorderRadius.circular(6), child: LinearProgressIndicator(value: value / 100, minHeight: 6, backgroundColor: const Color(0xFFF1F5F9), color: color)),
-      const SizedBox(height: 4),
-      Text(total, style: const TextStyle(fontSize: 10, color: Colors.black54)),
-    ]),
-  );
-}
-
-class _MenuCard extends StatelessWidget {
-  final IconData icon; final String label; final Color color; final VoidCallback onTap;
-  const _MenuCard({required this.icon, required this.label, required this.color, required this.onTap});
-  @override
-  Widget build(BuildContext context) => Card(
-    elevation: 0,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFF1F5F9))),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 18)),
-          const SizedBox(height: 6),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
-        ]),
-      ),
-    ),
-  );
 }
