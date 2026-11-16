@@ -7,8 +7,13 @@ export async function GET() {
     const features = await prisma.landingFeature.findMany({
       where: { isActive: true },
       orderBy: { order: "asc" },
+      take: 60,
     })
-    return NextResponse.json(features)
+    // Halaman depan adalah halaman paling ramai; cache di edge agar ribuan
+    // kunjungan tidak menjadi ribuan query DB. Perubahan admin tampil <= 1 menit.
+    return NextResponse.json(features, {
+      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
+    })
   } catch {
     return NextResponse.json({ error: "Gagal memuat fitur" }, { status: 500 })
   }

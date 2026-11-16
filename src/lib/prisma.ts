@@ -12,7 +12,13 @@ function buildOptimizedUrl(raw: string | undefined): string | undefined {
     // connection_limit: batasi koneksi per instance serverless agar tidak exhaust DB
     // pool_timeout: tunggu slot pool sebelum error (detik)
     // connect_timeout: timeout koneksi awal (detik)
-    if (!u.searchParams.has("connection_limit")) u.searchParams.set("connection_limit", "10")
+    // Saat ramai, Vercel menjalankan banyak instance sekaligus; tiap instance punya
+    // pool sendiri. 10 koneksi/instance cepat menghabiskan kuota koneksi Postgres
+    // (gejala: "too many connections" / P1001 saat jam sibuk). Default 5, dan bisa
+    // dinaikkan lewat env PRISMA_CONNECTION_LIMIT bila kuota DB besar.
+    if (!u.searchParams.has("connection_limit")) {
+      u.searchParams.set("connection_limit", process.env.PRISMA_CONNECTION_LIMIT || "5")
+    }
     if (!u.searchParams.has("pool_timeout")) u.searchParams.set("pool_timeout", "20")
     if (!u.searchParams.has("connect_timeout")) u.searchParams.set("connect_timeout", "10")
     // keep sslmode=require if already present; otherwise ensure for db.prisma.io
@@ -51,32 +57,82 @@ function createPrismaClient(): PrismaClient {
   return client
 }
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+/**
+ * Operasi baca yang aman diulang. Mutasi sengaja TIDAK diulang: kalau koneksi
+ * putus setelah INSERT/UPDATE diproses, pengulangan bisa membuat data ganda.
+ */
+const OPERASI_BACA = new Set([
+  "findUnique",
+  "findUniqueOrThrow",
+  "findFirst",
+  "findFirstOrThrow",
+  "findMany",
+  "count",
+  "aggregate",
+  "groupBy",
+])
 
-export const prisma: PrismaClient = globalForPrisma.prisma ?? createPrismaClient()
+/** Kegagalan sesaat (jaringan putus, pool penuh) — layak dicoba ulang. */
+export function galatSesaat(e: unknown): boolean {
+  const msg = String((e as { message?: string })?.message ?? e)
+  return (
+    msg.includes("P1001") ||
+    msg.includes("P1002") ||
+    msg.includes("P1017") ||
+    msg.includes("P2024") ||
+    msg.includes("Can't reach database") ||
+    msg.includes("Connection timed out") ||
+    msg.includes("Timed out fetching") ||
+    msg.includes("Connection pool") ||
+    msg.includes("Server has closed the connection") ||
+    msg.includes("ECONNRESET") ||
+    msg.includes("ETIMEDOUT")
+  )
+}
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
-
-// Helper untuk retry transient error (network blip region SE Asia)
-// Pakai di operasi kritis mis. start ujian: await withRetry(() => prisma.ujian.findFirst(...))
-export async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+async function ulangiBilaSesaat<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
   let lastErr: unknown
   for (let i = 0; i <= retries; i++) {
     try {
       return await fn()
-    } catch (e: unknown) {
-      const msg = String((e as { message?: string })?.message ?? e)
-      const isTransient =
-        msg.includes("Can't reach database") ||
-        msg.includes("Connection timed out") ||
-        msg.includes("P1001") ||
-        msg.includes("P1002") ||
-        msg.includes("Timed out fetching")
-      if (!isTransient || i === retries) throw e
+    } catch (e) {
+      if (!galatSesaat(e) || i === retries) throw e
       lastErr = e
-      const delay = 400 * Math.pow(2, i) + Math.random() * 200
-      await new Promise((r) => setTimeout(r, delay))
+      // Jeda pendek berjitter: memberi waktu pool/DB pulih tanpa menahan request lama.
+      await new Promise((r) => setTimeout(r, 150 * Math.pow(2, i) + Math.random() * 100))
     }
   }
   throw lastErr
+}
+
+/**
+ * Semua query BACA diulang otomatis sekali-dua kali saat gagal sesaat.
+ *
+ * Inilah penyebab paling sering "An error occurred in the Server Components
+ * render": satu query timeout/pool penuh saat ramai langsung melempar error ke
+ * render halaman. Dengan retry di lapisan ini, gangguan sepersekian detik tidak
+ * lagi tampil sebagai halaman error, dan tidak perlu diingat pemanggilnya.
+ */
+function denganRetryBaca(client: PrismaClient): PrismaClient {
+  return client.$extends({
+    name: "retryBacaSesaat",
+    query: {
+      $allOperations({ operation, args, query }) {
+        if (!OPERASI_BACA.has(operation)) return query(args)
+        return ulangiBilaSesaat(() => query(args))
+      },
+    },
+  }) as unknown as PrismaClient
+}
+
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+
+export const prisma: PrismaClient = globalForPrisma.prisma ?? denganRetryBaca(createPrismaClient())
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
+
+// Helper untuk retry manual pada blok berisi beberapa query sekaligus
+// (mis. start ujian: await withRetry(() => prisma.ujian.findFirst(...)))
+export async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+  return ulangiBilaSesaat(fn, retries)
 }

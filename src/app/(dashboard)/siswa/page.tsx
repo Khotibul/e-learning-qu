@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth"
-import { prisma, withRetry } from "@/lib/prisma"
+import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { BookOpen, Brain, FileText, Megaphone, Trophy, Target, Clock, Flame, TrendingUp, TrendingDown, Lightbulb, GraduationCap } from "lucide-react"
 import { StatCard } from "./_components/StatCard"
@@ -28,9 +28,9 @@ async function getDashboardData() {
     include: { tahunAjaran: true },
   })
 
-  // Halaman ini dibuka semua siswa hampir bersamaan saat pergantian jam. Retry singkat
-  // meredam gangguan koneksi DB sesaat supaya tidak menjadi galat render server.
-  const [avgNilai, ujianAktif, tugasAktif, pengumuman, penguasaanList, latihanStats, learningActivities, nextUjian, learningPaths] = await withRetry(() => Promise.all([
+  // Halaman ini dibuka semua siswa hampir bersamaan saat pergantian jam. Query baca
+  // otomatis diulang saat gangguan sesaat oleh klien Prisma (src/lib/prisma.ts).
+  const [avgNilai, ujianAktif, tugasAktif, pengumuman, penguasaanList, latihanStats, learningActivities, nextUjian, learningPaths] = await Promise.all([
     prisma.nilai.aggregate({ where: { siswaId: siswa.id }, _avg: { nilai: true } }),
     siswa.kelasId ? prisma.ujian.count({ where: { kelasId: siswa.kelasId, isLatihan: false, status: "AKTIF", deletedAt: null } }) : Promise.resolve(0),
     siswa.kelasId ? prisma.ujian.count({ where: { kelasId: siswa.kelasId, isLatihan: true, status: "AKTIF", deletedAt: null } }) : Promise.resolve(0),
@@ -59,7 +59,7 @@ async function getDashboardData() {
       orderBy: { jamSelesai: "asc" },
     }) : Promise.resolve(null),
     prisma.learningPath.findMany({ where: { siswaId: siswa.id }, select: { progres: true } }),
-  ]))
+  ])
 
   const nilaiRataRata = avgNilai._avg.nilai ?? 0
 
