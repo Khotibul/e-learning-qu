@@ -1,6 +1,9 @@
 import 'package:e_learning_qu/providers/auth_provider.dart';
 import 'package:e_learning_qu/screens/guru/dashboard.dart';
+import 'package:e_learning_qu/screens/siswa/absensi_harian.dart';
 import 'package:e_learning_qu/screens/siswa/dashboard.dart';
+import 'package:e_learning_qu/screens/siswa/ujian.dart';
+import 'package:e_learning_qu/widgets/absensi_wajah_card.dart';
 import 'package:e_learning_qu/theme/app_theme.dart';
 import 'package:e_learning_qu/widgets/app_ui.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +43,27 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets("kartu absensi wajah rapi di 320dp", (tester) async {
+    await pumpDiLayar(
+      tester,
+      const Scaffold(
+        body: Padding(padding: EdgeInsets.all(16), child: AbsensiWajahCard()),
+      ),
+      320,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets("layar absensi harian rapi di 320dp", (tester) async {
+    await pumpDiLayar(tester, const SiswaAbsensiHarian(), 320);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets("layar daftar ujian rapi di 320dp", (tester) async {
+    await pumpDiLayar(tester, const SiswaUjian(), 320);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets("header rapi dengan nama panjang dan badge jabatan", (tester) async {
     await pumpDiLayar(

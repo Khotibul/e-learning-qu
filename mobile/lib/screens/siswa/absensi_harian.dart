@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/absensi_wajah_card.dart';
+import '../../widgets/app_ui.dart';
 
 /// Absensi siswa: kehadiran hari ini (fingerprint), rekap bulanan,
 /// riwayat per mapel, dan pengajuan verifikasi manual (POST /api/mobile/siswa/kehadiran).
@@ -39,7 +41,7 @@ class _SiswaAbsensiHarianState extends State<SiswaAbsensiHarian> {
 
   String _ymd(DateTime d) => d.toIso8601String().split("T")[0];
 
-  void _snack(String msg, {Color color = const Color(0xFF10B981)}) {
+  void _snack(String msg, {Color color = AppColors.success}) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
@@ -96,12 +98,19 @@ class _SiswaAbsensiHarianState extends State<SiswaAbsensiHarian> {
         padding: const EdgeInsets.all(14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            const Icon(Icons.fingerprint, color: Color(0xFF4F46E5), size: 18),
+            const Icon(Icons.fingerprint, color: AppColors.primary, size: 18),
             const SizedBox(width: 8),
-            const Text("Kehadiran Hari Ini", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            const Spacer(),
-            if (pol != null) Text("Masuk ${pol["jamMasuk"]} • Pulang ${pol["jamPulang"]}", style: const TextStyle(fontSize: 10, color: Colors.black54)),
+            const Expanded(
+              child: Text("Kehadiran Hari Ini", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            ),
           ]),
+          if (pol != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              "Jam masuk ${pol["jamMasuk"]} • pulang ${pol["jamPulang"]}",
+              style: const TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
+            ),
+          ],
           const SizedBox(height: 10),
           Row(children: [
             Expanded(child: _pill("Masuk", today?["jamMasuk"]?.toString() ?? "-", masuk)),
@@ -124,12 +133,12 @@ class _SiswaAbsensiHarianState extends State<SiswaAbsensiHarian> {
 
   Widget _pill(String label, String jam, String? status) {
     final st = (status ?? "").toUpperCase();
-    final Color c = st == "HADIR" || st == "NORMAL" ? const Color(0xFF10B981) : st == "TERLAMBAT" || st == "AWAL" ? const Color(0xFFF59E0B) : Colors.black38;
+    final Color c = st == "HADIR" || st == "NORMAL" ? AppColors.success : st == "TERLAMBAT" || st == "AWAL" ? AppColors.warning : AppColors.inkMuted;
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(color: c.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12), border: Border.all(color: c.withValues(alpha: 0.3))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.black54)),
+        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.inkMuted)),
         const SizedBox(height: 2),
         Text(jam, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: c)),
         Text(st.isEmpty ? "BELUM" : st, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: c)),
@@ -139,8 +148,8 @@ class _SiswaAbsensiHarianState extends State<SiswaAbsensiHarian> {
 
   Widget _mini(String label, String value) => Expanded(
         child: Column(children: [
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF4F46E5))),
-          Text(label, style: const TextStyle(fontSize: 9, color: Colors.black54), textAlign: TextAlign.center),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.primary)),
+          Text(label, style: const TextStyle(fontSize: 9, color: AppColors.inkMuted), textAlign: TextAlign.center),
         ]),
       );
 
@@ -151,18 +160,27 @@ class _SiswaAbsensiHarianState extends State<SiswaAbsensiHarian> {
         padding: const EdgeInsets.all(14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            const Icon(Icons.how_to_reg_outlined, size: 16, color: Color(0xFF0EA5E9)),
+            const Icon(Icons.how_to_reg_outlined, size: 16, color: AppColors.accent),
             const SizedBox(width: 6),
-            const Text("Pengajuan Manual", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            const Spacer(),
-            FilledButton.tonal(onPressed: _ajukanManual, child: const Text("+ Ajukan")),
+            const Expanded(
+              child: Text("Pengajuan Manual", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            ),
+            FilledButton.tonal(
+              onPressed: _ajukanManual,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 34),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                visualDensity: VisualDensity.compact,
+              ),
+              child: const Text("+ Ajukan", style: TextStyle(fontSize: 12)),
+            ),
           ]),
           const SizedBox(height: 6),
-          if (list.isEmpty) const Text("Belum ada pengajuan", style: TextStyle(fontSize: 12, color: Colors.black45)),
+          if (list.isEmpty) const Text("Belum ada pengajuan", style: TextStyle(fontSize: 12, color: AppColors.inkMuted)),
           ...list.map((raw) {
             final p = raw as Map;
             final st = (p["status"] ?? "").toString();
-            final Color c = st == "DISETUJUI" ? const Color(0xFF10B981) : st == "DITOLAK" ? const Color(0xFFEF4444) : const Color(0xFFF59E0B);
+            final Color c = st == "DISETUJUI" ? AppColors.success : st == "DITOLAK" ? AppColors.danger : AppColors.warning;
             return ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -185,7 +203,7 @@ class _SiswaAbsensiHarianState extends State<SiswaAbsensiHarian> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text("Absensi Harian"), backgroundColor: Colors.white, elevation: 0),
+        appBar: AppBar(title: const Text("Absensi Harian")),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -200,11 +218,12 @@ class _SiswaAbsensiHarianState extends State<SiswaAbsensiHarian> {
     final hadirPenuh = entries.where((e) => e.value.every((x) => x["status"] == "HADIR")).length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Absensi Harian"), backgroundColor: Colors.white, elevation: 0),
-      body: RefreshIndicator(
+      appBar: AppBar(title: const Text("Absensi Harian")),
+      body: AppBackdrop(
+        child: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
             if (_kehadiran.isNotEmpty) ...[
               _todayCard(),
@@ -215,18 +234,18 @@ class _SiswaAbsensiHarianState extends State<SiswaAbsensiHarian> {
             const AbsensiWajahCard(
               keterangan: "Absen masuk/pulang dengan verifikasi wajah lewat kamera depan perangkat.",
             ),
-            const SizedBox(height: 16),
-            const Text("Rekap Per Mapel", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 20),
+            const SectionHeader(title: "Rekap Per Mapel"),
+            const SizedBox(height: 10),
             Row(children: [
-              _StatCard(label: "Total Hari", value: "$totalHari", sub: "hari berjadwal"),
+              _StatCard(label: "Total Hari", value: "$totalHari", sub: "hari berjadwal", color: AppColors.primary),
               const SizedBox(width: 8),
-              _StatCard(label: "Hadir Penuh", value: "$hadirPenuh", sub: "dari $totalHari", color: Colors.green),
+              _StatCard(label: "Hadir Penuh", value: "$hadirPenuh", sub: "dari $totalHari", color: AppColors.success),
               const SizedBox(width: 8),
-              _StatCard(label: "Persentase", value: totalHari>0 ? "${((hadirPenuh/totalHari)*100).round()}%" : "0%", sub: "rata harian"),
+              _StatCard(label: "Persentase", value: totalHari>0 ? "${((hadirPenuh/totalHari)*100).round()}%" : "0%", sub: "rata harian", color: AppColors.accent),
             ]),
             const SizedBox(height: 12),
-            const Text("Persentase = HADIR ÷ total pelajaran hari itu × 100%", style: TextStyle(fontSize: 11, color: Colors.black54)),
+            const Text("Persentase = HADIR ÷ total pelajaran hari itu × 100%", style: TextStyle(fontSize: 11, color: AppColors.inkMuted)),
             const SizedBox(height: 12),
             ...entries.map((e) {
               final total = e.value.length;
@@ -236,10 +255,10 @@ class _SiswaAbsensiHarianState extends State<SiswaAbsensiHarian> {
                 child: ExpansionTile(
                   title: Text(e.key, style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text("$hadir/$total hadir — $pct%"),
-                  trailing: Badge(label: Text(pct==100 ? "Hadir Penuh" : pct==0 ? "Tidak Hadir" : "Sebagian"), backgroundColor: pct==100?Colors.green: pct>=75?Colors.orange:Colors.red),
+                  trailing: Badge(label: Text(pct==100 ? "Hadir Penuh" : pct==0 ? "Tidak Hadir" : "Sebagian"), backgroundColor: pct==100 ? AppColors.success : pct>=75 ? AppColors.warning : AppColors.danger),
                   children: e.value.map<Widget>((x) => ListTile(
                     dense: true,
-                    leading: Icon(x["status"]=="HADIR" ? Icons.check_circle : Icons.cancel, color: x["status"]=="HADIR"?Colors.green:Colors.red, size: 18),
+                    leading: Icon(x["status"]=="HADIR" ? Icons.check_circle : Icons.cancel, color: x["status"]=="HADIR" ? AppColors.success : AppColors.danger, size: 18),
                     title: Text(x["mataPelajaran"] ?? "-", style: const TextStyle(fontSize: 13)),
                     trailing: Chip(label: Text(x["status"], style: const TextStyle(fontSize: 11))),
                   )).toList(),
@@ -247,6 +266,7 @@ class _SiswaAbsensiHarianState extends State<SiswaAbsensiHarian> {
               );
             }),
           ],
+        ),
         ),
       ),
     );
@@ -257,5 +277,23 @@ class _StatCard extends StatelessWidget {
   final String label; final String value; final String sub; final Color? color;
   const _StatCard({required this.label, required this.value, required this.sub, this.color});
   @override
-  Widget build(BuildContext context) => Expanded(child: Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(children: [Text(label, style: const TextStyle(fontSize: 11, color: Colors.black54)), Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)), Text(sub, style: const TextStyle(fontSize: 10, color: Colors.black45))]))));
+  Widget build(BuildContext context) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border),
+            boxShadow: AppShadows.soft,
+          ),
+          child: Column(
+            children: [
+              Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color ?? AppColors.primary, letterSpacing: -0.4)),
+              const SizedBox(height: 2),
+              Text(label, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.ink), textAlign: TextAlign.center),
+              Text(sub, style: const TextStyle(fontSize: 9, color: AppColors.inkMuted), textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      );
 }

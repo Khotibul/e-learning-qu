@@ -144,7 +144,9 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
+          // Lebar 0, bukan infinity: tombol di dalam Row akan gagal layout bila
+          // minimumSize memaksa lebar tak hingga (Size.fromHeight).
+          minimumSize: const Size(0, 52),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
@@ -155,7 +157,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.ink,
-          minimumSize: const Size.fromHeight(48),
+          minimumSize: const Size(0, 48),
           side: const BorderSide(color: AppColors.borderStrong),
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

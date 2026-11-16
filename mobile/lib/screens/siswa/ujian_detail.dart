@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_ui.dart';
 
 class UjianDetail extends StatefulWidget {
   final String ujianId;
@@ -8,6 +10,13 @@ class UjianDetail extends StatefulWidget {
   @override
   State<UjianDetail> createState() => _UjianDetailState();
 }
+
+/// Gaya tombol navigasi bawah: rapat agar tiga tombol tetap muat di 320dp.
+const ButtonStyle _tombolNavigasi = ButtonStyle(
+  padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 8)),
+  textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+  minimumSize: WidgetStatePropertyAll(Size(0, 48)),
+);
 
 class _UjianDetailState extends State<UjianDetail> {
   Map<String, dynamic>? ujian;
@@ -19,6 +28,7 @@ class _UjianDetailState extends State<UjianDetail> {
   List<String> raguRagu = [];
   int waktuTersisa = 0;
   Timer? timer;
+  Timer? autoSaveTimer;
   bool isSubmitting = false;
   Map<String, dynamic>? hasil;
   bool showReview = false;
@@ -62,8 +72,10 @@ class _UjianDetailState extends State<UjianDetail> {
         setState(() => waktuTersisa--);
       }
     });
-    // Auto-save tiap 30 detik
-    Timer.periodic(const Duration(seconds: 30), (t) {
+    // Auto-save tiap 30 detik — disimpan agar bisa dibatalkan saat layar ditutup
+    // (sebelumnya timer ini tak pernah dibatalkan dan terus memanggil server).
+    autoSaveTimer?.cancel();
+    autoSaveTimer = Timer.periodic(const Duration(seconds: 30), (t) {
       if (!hasStarted || hasil != null) { t.cancel(); return; }
       ApiService.autoSaveUjian(widget.ujianId, answers, raguRagu).catchError((_) {});
     });
@@ -75,6 +87,7 @@ class _UjianDetailState extends State<UjianDetail> {
       final res = await ApiService.submitUjian(widget.ujianId, answers, raguRagu);
       setState(() { hasil = res; isSubmitting = false; });
       timer?.cancel();
+      autoSaveTimer?.cancel();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal submit: $e")));
       setState(() => isSubmitting = false);
@@ -90,6 +103,7 @@ class _UjianDetailState extends State<UjianDetail> {
   @override
   void dispose() {
     timer?.cancel();
+    autoSaveTimer?.cancel();
     super.dispose();
   }
 
@@ -100,8 +114,8 @@ class _UjianDetailState extends State<UjianDetail> {
       final bisaRetake = ujian?["bisaRetake"] == true;
       final hasilSoal = (hasil!["hasilSoal"] as List?)?.cast<Map<String, dynamic>>() ?? [];
       return Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
-        appBar: AppBar(title: Text(ujian?["isLatihan"] == true ? "Hasil Latihan" : "Hasil Ujian"), backgroundColor: Colors.white, elevation: 0),
+        backgroundColor: AppColors.surface,
+        appBar: AppBar(title: Text(ujian?["isLatihan"] == true ? "Hasil Latihan" : "Hasil Ujian")),
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -110,53 +124,66 @@ class _UjianDetailState extends State<UjianDetail> {
                 padding: const EdgeInsets.all(16),
                 child: Column(children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFF4F46E5).withValues(alpha: 0.08), shape: BoxShape.circle),
-                    child: Text("${hasil!["nilai"]}", style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Color(0xFF4F46E5))),
+                    width: 96,
+                    height: 96,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      gradient: AppGradients.brand,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: AppShadows.brand,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text("${hasil!["nilai"]}", style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: Colors.white, height: 1.0)),
+                        const SizedBox(height: 2),
+                        Text("NILAI", style: TextStyle(fontSize: 9, letterSpacing: 1.2, color: Colors.white.withValues(alpha: 0.8), fontWeight: FontWeight.w700)),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text("${hasil!["jumlahBenar"]}/${hasil!["jumlahSoal"]} benar • ${hasil!["perolehPoin"]}/${hasil!["totalPoin"]} poin", style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
-                  ClipRRect(borderRadius: BorderRadius.circular(8), child: LinearProgressIndicator(value: (hasil!["nilai"] as int) / 100, minHeight: 8, backgroundColor: const Color(0xFFF1F5F9), color: (hasil!["nilai"] as int) >= 75 ? const Color(0xFF10B981) : (hasil!["nilai"] as int) >= 60 ? const Color(0xFFF59E0B) : const Color(0xFFEF4444))),
+                  Text("${hasil!["jumlahBenar"]}/${hasil!["jumlahSoal"]} benar • ${hasil!["perolehPoin"]}/${hasil!["totalPoin"]} poin", style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5, color: AppColors.inkSoft)),
+                  const SizedBox(height: 12),
+                  ClipRRect(borderRadius: BorderRadius.circular(8), child: LinearProgressIndicator(value: (hasil!["nilai"] as int) / 100, minHeight: 8, backgroundColor: const Color(0xFFEFF1F8), color: (hasil!["nilai"] as int) >= 75 ? AppColors.success : (hasil!["nilai"] as int) >= 60 ? AppColors.warning : AppColors.danger)),
                   const SizedBox(height: 8),
-                  Text((hasil!["nilai"] as int) >= 75 ? "Lulus" : "Belum lulus", style: TextStyle(fontSize: 12, color: (hasil!["nilai"] as int) >= 75 ? const Color(0xFF10B981) : const Color(0xFFEF4444), fontWeight: FontWeight.w600)),
+                  Text((hasil!["nilai"] as int) >= 75 ? "Lulus" : "Belum lulus", style: TextStyle(fontSize: 12, color: (hasil!["nilai"] as int) >= 75 ? AppColors.success : AppColors.danger, fontWeight: FontWeight.w700)),
                 ]),
               ),
             ),
             const SizedBox(height: 12),
             // Rincian per soal — benar / salah
             Row(children: [
-              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: const Color(0xFF10B981).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)), child: Row(children: [const Icon(Icons.check_circle, size: 14, color: Color(0xFF10B981)), const SizedBox(width: 4), Text("${hasilSoal.where((e) => e["isCorrect"] == true).length} Benar", style: const TextStyle(fontSize: 11, color: Color(0xFF10B981), fontWeight: FontWeight.w600))])),
+              Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(20)), child: Row(children: [const Icon(Icons.check_circle, size: 14, color: AppColors.success), const SizedBox(width: 4), Text("${hasilSoal.where((e) => e["isCorrect"] == true).length} Benar", style: const TextStyle(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.w600))])),
               const SizedBox(width: 8),
-              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: const Color(0xFFEF4444).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)), child: Row(children: [const Icon(Icons.cancel, size: 14, color: Color(0xFFEF4444)), const SizedBox(width: 4), Text("${hasilSoal.where((e) => e["isCorrect"] != true).length} Salah", style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444), fontWeight: FontWeight.w600))])),
+              Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), decoration: BoxDecoration(color: AppColors.danger.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(20)), child: Row(children: [const Icon(Icons.cancel, size: 14, color: AppColors.danger), const SizedBox(width: 4), Text("${hasilSoal.where((e) => e["isCorrect"] != true).length} Salah", style: const TextStyle(fontSize: 11, color: AppColors.danger, fontWeight: FontWeight.w600))])),
             ]),
             const SizedBox(height: 12),
             ...hasilSoal.map((h) {
               final isCorrect = h["isCorrect"] == true;
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: isCorrect ? const Color(0xFF10B981).withValues(alpha: 0.3) : const Color(0xFFEF4444).withValues(alpha: 0.3))),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: isCorrect ? AppColors.success.withValues(alpha: 0.3) : AppColors.danger.withValues(alpha: 0.3))),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
                       Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: isCorrect ? const Color(0xFF10B981).withValues(alpha: 0.12) : const Color(0xFFEF4444).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-                        child: Icon(isCorrect ? Icons.check : Icons.close, size: 14, color: isCorrect ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
+                        decoration: BoxDecoration(color: isCorrect ? AppColors.success.withValues(alpha: 0.12) : AppColors.danger.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+                        child: Icon(isCorrect ? Icons.check : Icons.close, size: 14, color: isCorrect ? AppColors.success : AppColors.danger),
                       ),
                       const SizedBox(width: 8),
                       Text("Soal ${h["nomor"]}", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                       const Spacer(),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: isCorrect ? const Color(0xFF10B981) : const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(20)),
-                        child: Text(isCorrect ? "+${h["poin"]}" : "0", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isCorrect ? Colors.white : const Color(0xFF64748B))),
+                        decoration: BoxDecoration(color: isCorrect ? AppColors.success : const Color(0xFFEFF1F8), borderRadius: BorderRadius.circular(20)),
+                        child: Text(isCorrect ? "+${h["poin"]}" : "0", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isCorrect ? Colors.white : AppColors.inkSoft)),
                       ),
                     ]),
                     const SizedBox(height: 8),
                     if (h["jawaban"] != null) ...[
-                      Text("Jawaban Anda:", style: const TextStyle(fontSize: 10, color: Colors.black54, fontWeight: FontWeight.w600)),
+                      Text("Jawaban Anda:", style: const TextStyle(fontSize: 10, color: AppColors.inkMuted, fontWeight: FontWeight.w600)),
                       Container(
                         width: double.infinity,
                         margin: const EdgeInsets.only(top: 4),
@@ -167,7 +194,7 @@ class _UjianDetailState extends State<UjianDetail> {
                     ],
                     if (!isCorrect) ...[
                       const SizedBox(height: 6),
-                      Text("Kunci:", style: const TextStyle(fontSize: 10, color: Colors.black54, fontWeight: FontWeight.w600)),
+                      Text("Kunci:", style: const TextStyle(fontSize: 10, color: AppColors.inkMuted, fontWeight: FontWeight.w600)),
                       Container(
                         width: double.infinity,
                         margin: const EdgeInsets.only(top: 4),
@@ -182,7 +209,8 @@ class _UjianDetailState extends State<UjianDetail> {
             }),
             const SizedBox(height: 12),
             if (bisaRetake)
-              SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: () => setState(() { hasil = null; hasStarted = false; showKonfirmasi = true; answers = {}; raguRagu = []; currentNomor = 1; }), icon: const Icon(Icons.refresh, size: 16), label: const Text("Kerjakan Lagi"), style: FilledButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)))),
+              SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: () => setState(() { hasil = null; hasStarted = false; showKonfirmasi = true; answers = {}; raguRagu = []; currentNomor = 1; }), icon: const Icon(Icons.refresh, size: 16), label: const Text("Kerjakan Lagi"))),
+            const SizedBox(height: 10),
             SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text("Kembali ke Daftar"))),
             const SizedBox(height: 16),
           ],
@@ -191,20 +219,46 @@ class _UjianDetailState extends State<UjianDetail> {
     }
     if (showKonfirmasi && ujian != null) {
       return Scaffold(
-        body: Center(
-          child: Card(
-            margin: const EdgeInsets.all(16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+        body: AppBackdrop(
+          child: Center(
+            child: Container(
+              margin: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.border),
+                boxShadow: AppShadows.lift,
+              ),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(ujian!["nama"] ?? "-", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Text("${ujian!["mapel"] ?? ""} • ${ujian!["jumlahSoal"]} soal • ${ujian!["durasi"]} menit"),
-                const SizedBox(height: 12),
-                const Text("Siap memulai? Timer akan langsung jalan.", style: TextStyle(fontSize: 12, color: Colors.black54)),
-                const SizedBox(height: 12),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(gradient: AppGradients.indigo, borderRadius: BorderRadius.circular(18)),
+                  child: const Icon(Icons.assignment_outlined, color: Colors.white, size: 26),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  ujian!["nama"] ?? "-",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.ink, letterSpacing: -0.3),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "${ujian!["mapel"] ?? ""} • ${ujian!["jumlahSoal"]} soal • ${ujian!["durasi"]} menit",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12, color: AppColors.inkMuted),
+                ),
+                const SizedBox(height: 14),
+                const InfoBanner(
+                  icon: Icons.timer_outlined,
+                  text: "Timer berjalan begitu ujian dimulai dan jawaban tersimpan otomatis tiap 30 detik.",
+                  color: AppColors.warning,
+                ),
+                const SizedBox(height: 16),
                 Row(children: [
                   Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text("Batal"))),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(child: FilledButton(onPressed: _start, child: const Text("Mulai"))),
                 ]),
               ]),
@@ -220,20 +274,45 @@ class _UjianDetailState extends State<UjianDetail> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(children: [Text(ujian!["nama"], style: const TextStyle(fontSize: 14)), Text("${ujian!["mapel"]}", style: const TextStyle(fontSize: 11, color: Colors.black54))]),
+        titleSpacing: 4,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(ujian!["nama"], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+            Text("${ujian!["mapel"]}", style: const TextStyle(fontSize: 11, color: AppColors.inkMuted)),
+          ],
+        ),
         actions: [
           Container(
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: waktuTersisa < 300 ? Colors.red : const Color(0xFF4F46E5), borderRadius: BorderRadius.circular(8)),
-            child: Text(_formatTime(waktuTersisa), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+            margin: const EdgeInsets.only(right: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: waktuTersisa < 300 ? AppColors.danger : AppColors.primary,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(color: (waktuTersisa < 300 ? AppColors.danger : AppColors.primary).withValues(alpha: 0.30), blurRadius: 12, offset: const Offset(0, 4))],
+            ),
+            child: Text(_formatTime(waktuTersisa), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12.5)),
           ),
         ],
       ),
       body: Column(
         children: [
-          LinearProgressIndicator(value: answeredCount / (soalList.length), minHeight: 4),
-          Padding(padding: const EdgeInsets.all(12), child: Row(children: [Text("$answeredCount/${soalList.length} terjawab", style: const TextStyle(fontSize: 11, color: Colors.black54)), const Spacer(), TextButton(onPressed: () => setState(() => showReview = true), child: const Text("Review", style: TextStyle(fontSize: 12)))])),
+          LinearProgressIndicator(value: answeredCount / (soalList.length), minHeight: 6),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 10, 4),
+            child: Row(
+              children: [
+                Text("$answeredCount/${soalList.length} terjawab", style: const TextStyle(fontSize: 11.5, color: AppColors.inkMuted, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => setState(() => showReview = true),
+                  icon: const Icon(Icons.grid_view_rounded, size: 15),
+                  label: const Text("Review", style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -242,26 +321,45 @@ class _UjianDetailState extends State<UjianDetail> {
                   padding: const EdgeInsets.all(16),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
-                      Text("Soal ${currentSoal["nomor"]}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.black54)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(8)),
+                        child: Text("Soal ${currentSoal["nomor"]}", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5, color: AppColors.primary)),
+                      ),
                       const Spacer(),
-                      if (raguRagu.contains(currentSoal["id"])) Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(8)), child: const Text("Ragu-ragu", style: TextStyle(fontSize: 10, color: Colors.orange))),
+                      if (raguRagu.contains(currentSoal["id"]))
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(color: AppColors.warning.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+                          child: const Text("Ragu-ragu", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.warning)),
+                        ),
                     ]),
-                    const SizedBox(height: 8),
-                    Text(currentSoal["pertanyaan"] ?? "", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 10),
+                    Text(currentSoal["pertanyaan"] ?? "", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, height: 1.45, color: AppColors.ink)),
                     const SizedBox(height: 12),
                     if (currentSoal["jenisSoal"] == "PILIHAN_GANDA" && currentSoal["pilihanGanda"] is List)
                       ...((currentSoal["pilihanGanda"] as List).map((opt) {
                         final label = opt["label"] ?? "";
                         final text = opt["text"] ?? "";
                         final selected = answers[currentSoal["id"]] == label;
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(border: Border.all(color: selected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0)), borderRadius: BorderRadius.circular(10), color: selected ? const Color(0xFFEEF2FF) : Colors.white),
-                          child: RadioListTile<String>(
-                            title: Text("$label. $text", style: const TextStyle(fontSize: 13)),
-                            value: label,
-                            groupValue: answers[currentSoal["id"]],
-                            onChanged: (v) => setState(() => answers[currentSoal["id"]] = v!),
+                        // Material (bukan Container berwarna) agar ripple ListTile tetap terlihat.
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Material(
+                            color: selected ? AppColors.primarySoft : Colors.white,
+                            clipBehavior: Clip.antiAlias,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(color: selected ? AppColors.primary : AppColors.border, width: selected ? 1.5 : 1),
+                            ),
+                            child: RadioListTile<String>(
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                              title: Text("$label. $text", style: const TextStyle(fontSize: 13, color: AppColors.ink, height: 1.35)),
+                              value: label,
+                              groupValue: answers[currentSoal["id"]],
+                              onChanged: (v) => setState(() => answers[currentSoal["id"]] = v!),
+                            ),
                           ),
                         );
                       })),
@@ -270,13 +368,13 @@ class _UjianDetailState extends State<UjianDetail> {
                         controller: TextEditingController(text: answers[currentSoal["id"]] ?? ""),
                         onChanged: (v) => answers[currentSoal["id"]] = v,
                         maxLines: 5,
-                        decoration: const InputDecoration(hintText: "Tulis jawaban...", border: OutlineInputBorder()),
+                        decoration: const InputDecoration(hintText: "Tulis jawaban…"),
                       ),
                     if (currentSoal["jenisSoal"] == "ISIAN_SINGKAT")
                       TextField(
                         controller: TextEditingController(text: answers[currentSoal["id"]] ?? ""),
                         onChanged: (v) => answers[currentSoal["id"]] = v,
-                        decoration: const InputDecoration(hintText: "Jawaban singkat...", border: OutlineInputBorder()),
+                        decoration: const InputDecoration(hintText: "Jawaban singkat…"),
                       ),
                   ]),
                 ),
@@ -285,54 +383,98 @@ class _UjianDetailState extends State<UjianDetail> {
           ),
           if (showReview)
             Container(
-              color: Colors.black54,
-              child: Card(
+              color: Colors.black.withValues(alpha: 0.45),
+              child: Container(
                 margin: const EdgeInsets.all(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(children: [
-                    const Text("Review Jawaban", style: TextStyle(fontWeight: FontWeight.bold)),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: AppShadows.lift,
+                ),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text("Review Jawaban", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.ink)),
                     const SizedBox(height: 8),
                     Wrap(spacing: 8, runSpacing: 8, children: soalList.map((s) {
                       final id = s["id"] as String;
                       final isAnswered = answers[id]?.trim().isNotEmpty ?? false;
                       final isRagu = raguRagu.contains(id);
-                      Color c = Colors.grey.shade200;
-                      if (isAnswered && isRagu) c = Colors.orange.shade200;
-                      else if (isAnswered) c = Colors.green.shade200;
+                      Color c = const Color(0xFFEFF1F8);
+                      Color fg = AppColors.inkMuted;
+                      if (isAnswered && isRagu) {
+                        c = AppColors.warning.withValues(alpha: 0.18);
+                        fg = AppColors.warning;
+                      } else if (isAnswered) {
+                        c = AppColors.success.withValues(alpha: 0.16);
+                        fg = AppColors.success;
+                      }
+                      final aktif = currentNomor == s["nomor"];
                       return InkWell(
+                        borderRadius: BorderRadius.circular(10),
                         onTap: () => setState(() { currentNomor = s["nomor"]; showReview = false; }),
-                        child: Container(width: 40, height: 40, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(8), border: Border.all(color: currentNomor == s["nomor"] ? const Color(0xFF4F46E5) : Colors.transparent, width: 2)), child: Center(child: Text("${s["nomor"]}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: c,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: aktif ? AppColors.primary : Colors.transparent, width: 2),
+                          ),
+                          child: Center(child: Text("${s["nomor"]}", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: fg))),
+                        ),
                       );
                     }).toList()),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     Row(children: [
                       Expanded(child: OutlinedButton(onPressed: () => setState(() => showReview = false), child: const Text("Lanjut"))),
-                      const SizedBox(width: 8),
-                      Expanded(child: FilledButton(onPressed: isSubmitting ? null : _submit, child: isSubmitting ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text("Kumpulkan"))),
+                      const SizedBox(width: 10),
+                      Expanded(child: FilledButton(onPressed: isSubmitting ? null : _submit, child: isSubmitting ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text("Kumpulkan"))),
                     ]),
                   ]),
                 ),
               ),
-            ),
         ],
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Color(0xFFE2E8F0)))),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: AppColors.border)),
+          boxShadow: [BoxShadow(color: Color(0x141E1B4B), blurRadius: 20, offset: Offset(0, -6))],
+        ),
         child: Row(children: [
-          Expanded(child: OutlinedButton.icon(onPressed: currentNomor > 1 ? () => setState(() => currentNomor--) : null, icon: const Icon(Icons.chevron_left, size: 16), label: const Text("Sebelum"))),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: currentNomor > 1 ? () => setState(() => currentNomor--) : null,
+              style: _tombolNavigasi,
+              icon: const Icon(Icons.chevron_left, size: 16),
+              label: const Text("Sebelum"),
+            ),
+          ),
           const SizedBox(width: 8),
           OutlinedButton(
             onPressed: () {
               final id = currentSoal["id"] as String;
               setState(() { if (raguRagu.contains(id)) raguRagu.remove(id); else raguRagu.add(id); });
             },
-            style: OutlinedButton.styleFrom(foregroundColor: raguRagu.contains(currentSoal["id"]) ? Colors.orange : null),
-            child: Text(raguRagu.contains(currentSoal["id"]) ? "Batal Ragu" : "Ragu"),
+            style: _tombolNavigasi.copyWith(
+              foregroundColor: WidgetStatePropertyAll(raguRagu.contains(currentSoal["id"]) ? AppColors.warning : AppColors.inkSoft),
+            ),
+            child: Text(
+              raguRagu.contains(currentSoal["id"]) ? "Batal Ragu" : "Ragu",
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           const SizedBox(width: 8),
-          Expanded(child: FilledButton.icon(onPressed: currentNomor < soalList.length ? () => setState(() => currentNomor++) : () => setState(() => showReview = true), icon: Icon(currentNomor < soalList.length ? Icons.chevron_right : Icons.send, size: 16), label: Text(currentNomor < soalList.length ? "Lanjut" : "Review"))),
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: currentNomor < soalList.length ? () => setState(() => currentNomor++) : () => setState(() => showReview = true),
+              style: FilledButton.styleFrom(minimumSize: const Size(0, 48), padding: const EdgeInsets.symmetric(horizontal: 8), textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+              icon: Icon(currentNomor < soalList.length ? Icons.chevron_right : Icons.send, size: 16),
+              label: Text(currentNomor < soalList.length ? "Lanjut" : "Review", maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ),
         ]),
       ),
     );

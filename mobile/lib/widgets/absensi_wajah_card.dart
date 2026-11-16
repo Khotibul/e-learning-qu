@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
+import 'app_ui.dart';
 
 /// Absensi wajah (face recognition) untuk perangkat Android.
 /// Aplikasi meminta token kiosk berumur pendek ke server, lalu membuka halaman
@@ -34,11 +36,11 @@ class _AbsensiWajahCardState extends State<AbsensiWajahCard> {
       if (!ok) throw Exception("Browser tidak bisa dibuka pada perangkat ini");
       if (!daftar && data["terdaftar"] != true && mounted) {
         _snack("Wajah Anda belum terdaftar — gunakan tombol Daftarkan Wajah untuk mendaftar sendiri.",
-            const Color(0xFFF59E0B));
+            AppColors.warning);
       }
     } catch (e) {
       if (mounted) {
-        _snack(e.toString().replaceFirst("Exception: ", ""), const Color(0xFFEF4444));
+        _snack(e.toString().replaceFirst("Exception: ", ""), AppColors.danger);
       }
     } finally {
       if (mounted) setState(() => _memuat = false);
@@ -52,90 +54,121 @@ class _AbsensiWajahCardState extends State<AbsensiWajahCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFE0E7FF)),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppShadows.soft,
       ),
-      color: const Color(0xFFF5F7FF),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.face_retouching_natural, size: 16, color: Color(0xFF4F46E5)),
-              ),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text("Absensi Wajah (Kamera)",
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-              ),
-              if (_terdaftar == true)
-                const Icon(Icons.verified, size: 15, color: Color(0xFF10B981))
-              else if (_terdaftar == false)
-                const Icon(Icons.info_outline, size: 15, color: Color(0xFFF59E0B)),
-            ]),
-            const SizedBox(height: 6),
-            Text(
-              widget.keterangan ??
-                  "Verifikasi wajah lewat kamera depan perangkat. Bisa dipakai di Android maupun browser desktop.",
-              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _memuat ? null : () => _buka(),
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF4F46E5),
-                  visualDensity: VisualDensity.compact,
-                ),
-                icon: _memuat
-                    ? const SizedBox(
-                        height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.camera_front, size: 15),
-                label: Text(_memuat ? "Membuka kamera…" : "Buka Absensi Wajah",
-                    style: const TextStyle(fontSize: 12)),
-              ),
-            ),
-            if (_terdaftar != true)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _memuat ? null : () => _buka(daftar: true),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF4F46E5),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        icon: const Icon(Icons.badge_outlined, size: 15),
-                        label: const Text("Daftarkan Wajah Sendiri", style: TextStyle(fontSize: 11)),
-                      ),
-                    ),
-                    if (_terdaftar == false)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 4),
-                        child: Text(
-                            "Wajah belum terdaftar — daftar sendiri lewat kamera, lalu tunggu persetujuan Admin.",
-                            style: TextStyle(fontSize: 10, color: Color(0xFFB45309))),
-                      ),
+                  gradient: AppGradients.indigo,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(color: AppColors.primary.withValues(alpha: 0.30), blurRadius: 12, offset: const Offset(0, 5)),
                   ],
                 ),
+                child: const Icon(Icons.face_retouching_natural, size: 20, color: Colors.white),
               ),
-          ],
-        ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  "Absensi Wajah (Kamera)",
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: AppColors.ink),
+                ),
+              ),
+              if (_terdaftar == true)
+                _StatusChip(icon: Icons.verified_outlined, label: "Terdaftar", color: AppColors.success)
+              else if (_terdaftar == false)
+                _StatusChip(icon: Icons.info_outline, label: "Belum", color: AppColors.warning),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            widget.keterangan ??
+                "Verifikasi wajah lewat kamera depan perangkat. Bisa dipakai di Android maupun browser desktop.",
+            style: const TextStyle(fontSize: 11.5, height: 1.45, color: AppColors.inkMuted),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _memuat ? null : () => _buka(),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+              icon: _memuat
+                  ? const SizedBox(
+                      height: 15, width: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.camera_front, size: 17),
+              label: Text(_memuat ? "Membuka kamera…" : "Buka Absensi Wajah",
+                  style: const TextStyle(fontSize: 13)),
+            ),
+          ),
+          if (_terdaftar != true)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _memuat ? null : () => _buka(daftar: true),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(42),
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.borderStrong),
+                      ),
+                      icon: const Icon(Icons.badge_outlined, size: 16),
+                      label: const Text("Daftarkan Wajah Sendiri", style: TextStyle(fontSize: 12)),
+                    ),
+                  ),
+                  if (_terdaftar == false)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: InfoBanner(
+                        icon: Icons.info_outline,
+                        text: "Wajah belum terdaftar — daftar sendiri lewat kamera, lalu tunggu persetujuan Admin.",
+                        color: AppColors.warning,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
+}
+
+class _StatusChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _StatusChip({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.22)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
+          ],
+        ),
+      );
 }

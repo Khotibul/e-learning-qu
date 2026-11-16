@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
 import 'ujian_detail.dart';
 
 class SiswaUjian extends StatefulWidget {
@@ -34,10 +35,10 @@ class _SiswaUjianState extends State<SiswaUjian> {
 
   Color _statusColor(String s) {
     switch (s) {
-      case "AKTIF": return const Color(0xFF10B981);
-      case "SELESAI": return const Color(0xFF6B7280);
-      case "DRAFT": return const Color(0xFFF59E0B);
-      default: return const Color(0xFF4F46E5);
+      case "AKTIF": return AppColors.success;
+      case "SELESAI": return AppColors.inkSoft;
+      case "DRAFT": return AppColors.warning;
+      default: return AppColors.primary;
     }
   }
 
@@ -57,23 +58,30 @@ class _SiswaUjianState extends State<SiswaUjian> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF8FAFC),
-    appBar: AppBar(title: const Text("Ujian"), backgroundColor: Colors.white, elevation: 0),
+    backgroundColor: AppColors.surface,
+    appBar: AppBar(title: const Text("Ujian")),
     body: Column(
       children: [
         Container(
-          color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(bottom: BorderSide(color: AppColors.border)),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: ["SEMUA", "AKTIF", "SELESAI", "DRAFT"].map((f) => Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
-                label: Text(f, style: const TextStyle(fontSize: 12)),
+                label: Text(f, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
                 selected: filter == f,
+                showCheckmark: false,
                 onSelected: (_) => setState(() => filter = f),
-                selectedColor: const Color(0xFF4F46E5),
-                labelStyle: TextStyle(color: filter == f ? Colors.white : const Color(0xFF64748B)),
+                selectedColor: AppColors.primary,
+                backgroundColor: Colors.white,
+                side: const BorderSide(color: AppColors.border),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                labelStyle: TextStyle(color: filter == f ? Colors.white : AppColors.inkSoft),
               ),
             )).toList()),
           ),
@@ -82,7 +90,16 @@ class _SiswaUjianState extends State<SiswaUjian> {
           child: loading
               ? const Center(child: CircularProgressIndicator())
               : filtered.isEmpty
-                  ? const Center(child: Text("Belum ada ujian", style: TextStyle(color: Colors.black54)))
+                  ? const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.inbox_outlined, size: 44, color: AppColors.borderStrong),
+                          SizedBox(height: 8),
+                          Text("Belum ada ujian", style: TextStyle(color: AppColors.inkMuted, fontSize: 13)),
+                        ],
+                      ),
+                    )
                   : RefreshIndicator(
                       onRefresh: _load,
                       child: ListView.builder(
@@ -99,22 +116,22 @@ class _SiswaUjianState extends State<SiswaUjian> {
                           IconData actionIcon;
                           if (sudah && bisaRetake) {
                             actionLabel = "Kerjakan Lagi";
-                            actionColor = const Color(0xFF4F46E5);
+                            actionColor = AppColors.primary;
                             actionEnabled = true;
                             actionIcon = Icons.refresh_outlined;
                           } else if (sudah && !bisaRetake) {
                             actionLabel = "Sudah Dikerjakan";
-                            actionColor = const Color(0xFF94A3B8);
+                            actionColor = AppColors.inkMuted;
                             actionEnabled = false;
                             actionIcon = Icons.check_circle_outline;
                           } else if (status == "AKTIF") {
                             actionLabel = "Kerjakan";
-                            actionColor = const Color(0xFF10B981);
+                            actionColor = AppColors.success;
                             actionEnabled = true;
                             actionIcon = Icons.play_arrow_outlined;
                           } else {
                             actionLabel = status == "DRAFT" ? "Belum Tersedia" : "Selesai";
-                            actionColor = const Color(0xFF94A3B8);
+                            actionColor = AppColors.inkMuted;
                             actionEnabled = false;
                             actionIcon = Icons.block_outlined;
                           }
@@ -122,9 +139,9 @@ class _SiswaUjianState extends State<SiswaUjian> {
                             margin: const EdgeInsets.only(bottom: 12),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                              boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppColors.border),
+                              boxShadow: AppShadows.soft,
                             ),
                             child: Padding(
                               padding: const EdgeInsets.all(16),
@@ -136,14 +153,29 @@ class _SiswaUjianState extends State<SiswaUjian> {
                                     child: Icon(status == "AKTIF" ? Icons.quiz_outlined : Icons.description_outlined, size: 16, color: _statusColor(status)),
                                   ),
                                   const SizedBox(width: 12),
-                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(u["nama"] ?? "-", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                    Text("${u["mapel"] ?? "-"} • ${u["kelas"] ?? ""}", style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                                  ])),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(color: _statusColor(status).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
-                                    child: Text(status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _statusColor(status))),
+                                  // Status dipindah ke baris mapel agar judul punya lebar penuh
+                                  // (sebelumnya "Penilaian Tengah Semester…" terpotong).
+                                  Expanded(
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text(u["nama"] ?? "-", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.ink, height: 1.3), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                      const SizedBox(height: 3),
+                                      Row(children: [
+                                        Flexible(
+                                          child: Text(
+                                            "${u["mapel"] ?? "-"} • ${u["kelas"] ?? ""}",
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontSize: 11.5, color: AppColors.inkMuted),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(color: _statusColor(status).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+                                          child: Text(status, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: _statusColor(status))),
+                                        ),
+                                      ]),
+                                    ]),
                                   ),
                                 ]),
                                 const SizedBox(height: 12),
@@ -164,16 +196,16 @@ class _SiswaUjianState extends State<SiswaUjian> {
                                     icon: Icon(actionIcon, size: 16),
                                     label: Text(actionLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                                     style: FilledButton.styleFrom(
-                                      backgroundColor: actionEnabled ? actionColor : const Color(0xFFF1F5F9),
-                                      foregroundColor: actionEnabled ? Colors.white : const Color(0xFF64748B),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      backgroundColor: actionEnabled ? actionColor : AppColors.surface,
+                                      foregroundColor: actionEnabled ? Colors.white : AppColors.inkMuted,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                      minimumSize: const Size.fromHeight(44),
                                     ),
                                   ),
                                 ),
                                 if (bisaRetake) ...[
                                   const SizedBox(height: 6),
-                                  const Row(children: [Icon(Icons.replay, size: 12, color: Color(0xFF4F46E5)), SizedBox(width: 4), Text("Dapat dikerjakan ulang", style: TextStyle(fontSize: 10, color: Color(0xFF4F46E5)))]),
+                                  const Row(children: [Icon(Icons.replay, size: 12, color: AppColors.primary), SizedBox(width: 4), Text("Dapat dikerjakan ulang", style: TextStyle(fontSize: 10, color: AppColors.primary))]),
                                 ],
                               ]),
                             ),
@@ -191,5 +223,5 @@ class _Meta extends StatelessWidget {
   final IconData icon; final String text;
   const _Meta({required this.icon, required this.text});
   @override
-  Widget build(BuildContext context) => Row(children: [Icon(icon, size: 14, color: const Color(0xFF94A3B8)), const SizedBox(width: 4), Text(text, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))]); 
+  Widget build(BuildContext context) => Row(children: [Icon(icon, size: 14, color: AppColors.inkMuted), const SizedBox(width: 4), Text(text, style: const TextStyle(fontSize: 11, color: AppColors.inkSoft))]);
 }
