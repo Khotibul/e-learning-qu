@@ -2,6 +2,7 @@ import 'package:e_learning_qu/providers/auth_provider.dart';
 import 'package:e_learning_qu/screens/guru/dashboard.dart';
 import 'package:e_learning_qu/screens/siswa/absensi_harian.dart';
 import 'package:e_learning_qu/screens/siswa/dashboard.dart';
+import 'package:e_learning_qu/screens/siswa/pengaturan.dart';
 import 'package:e_learning_qu/screens/siswa/ujian.dart';
 import 'package:e_learning_qu/widgets/absensi_wajah_card.dart';
 import 'package:e_learning_qu/theme/app_theme.dart';
@@ -57,6 +58,11 @@ void main() {
 
   testWidgets("layar absensi harian rapi di 320dp", (tester) async {
     await pumpDiLayar(tester, const SiswaAbsensiHarian(), 320);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets("form profil siswa (data diri & keluarga) rapi di 320dp", (tester) async {
+    await pumpDiLayar(tester, const SiswaPengaturanNew(), 320, withAuth: true);
     expect(tester.takeException(), isNull);
   });
 

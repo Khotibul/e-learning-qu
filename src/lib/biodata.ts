@@ -79,6 +79,15 @@ export type BiodataInput = {
   desa?: string | null
   kodePos?: string | null
   noHp?: string | null
+  // data keluarga & asal sekolah
+  anakKe?: number | string | null
+  statusKeluarga?: string | null
+  namaAyah?: string | null
+  namaIbu?: string | null
+  pekerjaanAyah?: string | null
+  pekerjaanIbu?: string | null
+  asalSekolah?: string | null
+  noTelpWali?: string | null
   kontakDaruratNama?: string | null
   kontakDaruratHubungan?: string | null
   kontakDaruratTelp?: string | null
@@ -94,6 +103,8 @@ const SELF_FIELDS: (keyof BiodataInput)[] = [
   "panggilan", "jenisKelamin", "tempatLahir", "tanggalLahir", "agama",
   "kewarganegaraan", "alamat", "provinsi", "kabupaten", "kecamatan",
   "desa", "kodePos", "noHp",
+  "anakKe", "statusKeluarga", "namaAyah", "namaIbu", "pekerjaanAyah",
+  "pekerjaanIbu", "asalSekolah", "noTelpWali",
   "kontakDaruratNama", "kontakDaruratHubungan", "kontakDaruratTelp",
 ]
 
@@ -134,6 +145,12 @@ export async function upsertBiodata(
   if (typeof (data as { tanggalLahir?: unknown }).tanggalLahir === "string") {
     const d = new Date((data as { tanggalLahir: string }).tanggalLahir)
     if (!Number.isNaN(d.getTime())) (data as { tanggalLahir?: Date }).tanggalLahir = d
+  }
+  // anakKe dari form HTML selalu string — normalisasi ke Int atau null.
+  if ("anakKe" in data) {
+    const raw = (data as { anakKe?: unknown }).anakKe
+    const n = raw === null || raw === undefined || raw === "" ? null : Number(raw)
+    ;(data as { anakKe?: number | null }).anakKe = n !== null && Number.isFinite(n) ? Math.trunc(n) : null
   }
   if (Object.keys(data).length === 0) return prisma.biodataOrang.findUnique({ where: { userId } })
   return prisma.biodataOrang.upsert({
@@ -289,6 +306,10 @@ export async function getBiodataLengkap(userId: string, opts?: { full?: boolean 
           kewarganegaraan: b.kewarganegaraan, agama: b.agama,
           alamat: b.alamat, provinsi: b.provinsi, kabupaten: b.kabupaten,
           kecamatan: b.kecamatan, desa: b.desa, kodePos: b.kodePos, noHp: b.noHp,
+          anakKe: b.anakKe, statusKeluarga: b.statusKeluarga,
+          namaAyah: b.namaAyah, namaIbu: b.namaIbu,
+          pekerjaanAyah: b.pekerjaanAyah, pekerjaanIbu: b.pekerjaanIbu,
+          asalSekolah: b.asalSekolah, noTelpWali: b.noTelpWali,
           kontakDaruratNama: b.kontakDaruratNama, kontakDaruratHubungan: b.kontakDaruratHubungan, kontakDaruratTelp: b.kontakDaruratTelp,
           fotoUrl: fotoUrl(b.fotoUploadId), fotoThumbUrl: fotoUrl(b.fotoThumbId), fotoUpdatedAt: b.fotoUpdatedAt,
         }

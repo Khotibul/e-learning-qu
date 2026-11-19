@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
 import type { StatusSantri, HubunganWali, StatusKehadiranSantri, JenisStatusLog } from "@prisma/client"
+import { upsertBiodata, type BiodataInput } from "@/lib/biodata"
 
 async function requireAdmin() {
   const session = await auth()
@@ -156,6 +157,39 @@ export async function updateSantri(
   })
   revalidatePath("/admin/santri")
   return updated
+}
+
+/** Biodata pribadi/keluarga santri (dipakai dialog edit Admin). */
+export async function getSantriDetail(santriId: string) {
+  await requireAdmin()
+  const santri = await prisma.santri.findUnique({
+    where: { id: santriId },
+    include: {
+      user: { select: { email: true, isActive: true } },
+      siswa: { select: { nama: true, nis: true, kelas: { select: { nama: true } } } },
+      walis: { include: { wali: { select: { nama: true } } } },
+    },
+  })
+  if (!santri) throw new Error("Santri tidak ditemukan")
+  const biodata = await prisma.biodataOrang.findUnique({ where: { userId: santri.userId } })
+  return { santri, biodata }
+}
+
+export async function getSantriBiodata(santriId: string) {
+  await requireAdmin()
+  const santri = await prisma.santri.findUnique({ where: { id: santriId }, select: { userId: true } })
+  if (!santri) throw new Error("Santri tidak ditemukan")
+  return prisma.biodataOrang.findUnique({ where: { userId: santri.userId } })
+}
+
+/** Admin mengisi/memperbarui biodata santri. */
+export async function simpanBiodataSantri(santriId: string, data: BiodataInput) {
+  await requireAdmin()
+  const santri = await prisma.santri.findUnique({ where: { id: santriId }, select: { userId: true } })
+  if (!santri) throw new Error("Santri tidak ditemukan")
+  const result = await upsertBiodata(santri.userId, data, "admin")
+  revalidatePath("/admin/santri")
+  return result
 }
 
 export async function updateKeberadaan(

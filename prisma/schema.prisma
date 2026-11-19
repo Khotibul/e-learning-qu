@@ -3125,6 +3125,15 @@ model BiodataOrang {
   desa      String?
   kodePos   String?
   noHp      String?
+  // ── data keluarga & asal sekolah (diisi siswa/santri atau Admin) ──
+  anakKe         Int?
+  statusKeluarga String? // contoh: Anak Kandung, Anak Angkat, Yatim, Piatu
+  namaAyah       String?
+  namaIbu        String?
+  pekerjaanAyah  String?
+  pekerjaanIbu   String?
+  asalSekolah    String?
+  noTelpWali     String?
   // ── kontak darurat ──
   kontakDaruratNama     String?
   kontakDaruratHubungan String?

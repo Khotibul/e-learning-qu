@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
+import { upsertBiodata, type BiodataInput } from "@/lib/biodata"
 
 // ─── DASHBOARD ───────────────────────────────────────────
 
@@ -245,6 +246,36 @@ export async function updateMurid(
   })
   revalidatePath("/(dashboard)/admin/murid")
   return siswa
+}
+
+/** Biodata pribadi/keluarga murid (dipakai dialog edit Admin). */
+export async function getMuridBiodata(siswaId: string) {
+  await requireAdmin()
+  const siswa = await prisma.siswa.findUnique({ where: { id: siswaId }, select: { userId: true } })
+  if (!siswa) throw new Error("Murid tidak ditemukan")
+  return prisma.biodataOrang.findUnique({ where: { userId: siswa.userId } })
+}
+
+/** Detail murid untuk dialog detail Admin (identitas + biodata). */
+export async function getMuridDetail(id: string) {
+  await requireAdmin()
+  const siswa = await prisma.siswa.findUnique({
+    where: { id },
+    include: { user: { select: { email: true } }, kelas: { select: { nama: true } } },
+  })
+  if (!siswa) throw new Error("Murid tidak ditemukan")
+  const biodata = await prisma.biodataOrang.findUnique({ where: { userId: siswa.userId } })
+  return { siswa, biodata }
+}
+
+/** Admin mengisi/memperbarui biodata murid (termasuk field sensitif). */
+export async function simpanBiodataMurid(siswaId: string, data: BiodataInput) {
+  await requireAdmin()
+  const siswa = await prisma.siswa.findUnique({ where: { id: siswaId }, select: { userId: true } })
+  if (!siswa) throw new Error("Murid tidak ditemukan")
+  const result = await upsertBiodata(siswa.userId, data, "admin")
+  revalidatePath("/(dashboard)/admin/murid")
+  return result
 }
 
 export async function deleteMurid(id: string) {

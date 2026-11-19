@@ -50,6 +50,7 @@ Loader2,
   FileSpreadsheet,
   FileText,
   KeyRound,
+  Eye,
 } from "lucide-react"
 import {
   getMurids,
@@ -59,7 +60,11 @@ import {
   restoreMurid,
   resetMuridPassword,
   getKelasRefs,
+  getMuridBiodata,
+  simpanBiodataMurid,
+  getMuridDetail,
 } from "../actions"
+import { BiodataFields, BiodataRingkas, BIODATA_FORM_KOSONG, biodataKeForm, formKeBiodata, type BiodataForm } from "@/components/biodata-fields"
 
 interface Murid {
   id: string
@@ -119,6 +124,26 @@ const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; re
     nama: "", nis: "", nisn: "", alamat: "", noTelp: "", email: "", kelasId: "", jabatan: "", password: "",
   })
   const [submitting, setSubmitting] = useState(false)
+  const [biodata, setBiodata] = useState<BiodataForm>(BIODATA_FORM_KOSONG)
+
+  // ── dialog detail (identitas + biodata) ──
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detail, setDetail] = useState<{ siswa: Murid; biodata: Parameters<typeof biodataKeForm>[0] } | null>(null)
+
+  async function openDetail(id: string) {
+    setDetailOpen(true)
+    setDetail(null)
+    setDetailLoading(true)
+    try {
+      setDetail((await getMuridDetail(id)) as any)
+    } catch (err: any) {
+      toast.error(err?.message || "Gagal memuat detail murid")
+      setDetailOpen(false)
+    } finally {
+      setDetailLoading(false)
+    }
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -187,6 +212,9 @@ const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; re
         }
         return (
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => openDetail(m.id)} className="p-2 sm:px-3 sm:py-1">
+              <Eye className="h-4 w-4" /><span className="hidden sm:inline ml-1">Detail</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={() => {
               setEditing(m)
               setFormData({
@@ -195,6 +223,10 @@ const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; re
                 kelasId: m.kelasId || "", password: "", jabatan: m.jabatan || "",
               })
               setDialogOpen(true)
+              setBiodata(BIODATA_FORM_KOSONG)
+              getMuridBiodata(m.id)
+                .then((b) => setBiodata(biodataKeForm(b)))
+                .catch(() => toast.error("Gagal memuat data diri murid"))
             }} className="p-2 sm:px-3 sm:py-1">
               <Edit className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span>
             </Button>
@@ -218,6 +250,13 @@ const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; re
     manualPagination: true, pageCount: totalPages, rowCount: total,
   })
 
+  /** Alamat murid ada di form utama (Siswa.alamat), bukan di biodata. */
+  function biodataMurid() {
+    const payload = formKeBiodata(biodata)
+    delete payload.alamat
+    return payload
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!formData.nama || !formData.email) { toast.error("Nama dan Email harus diisi"); return }
@@ -229,15 +268,17 @@ const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; re
           alamat: formData.alamat || undefined, noTelp: formData.noTelp || undefined,
           kelasId: formData.kelasId || undefined, jabatan: formData.jabatan || undefined,
         })
+        await simpanBiodataMurid(editing.id, biodataMurid())
         toast.success("Murid berhasil diperbarui")
       } else {
-        await createMurid({
+        const created = await createMurid({
           nama: formData.nama, nis: formData.nis || undefined, nisn: formData.nisn || undefined,
           alamat: formData.alamat || undefined, noTelp: formData.noTelp || undefined,
           email: formData.email, kelasId: formData.kelasId || undefined,
           jabatan: formData.jabatan || undefined,
           password: formData.password || undefined,
         })
+        await simpanBiodataMurid(created.id, biodataMurid())
         toast.success("Murid berhasil ditambahkan")
       }
       setDialogOpen(false); resetForm(); fetchData()
@@ -264,6 +305,7 @@ const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; re
 
   function resetForm() {
     setEditing(null)
+    setBiodata(BIODATA_FORM_KOSONG)
     setFormData({ nama: "", nis: "", nisn: "", alamat: "", noTelp: "", email: "", kelasId: "", jabatan: "", password: "" })
   }
 
@@ -374,6 +416,38 @@ const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; re
         </div>
       )}
 
+      {/* Dialog Detail */}
+      <Dialog open={detailOpen} onOpenChange={(o) => { setDetailOpen(o); if (!o) setDetail(null) }}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Detail Murid — {detail?.siswa.nama ?? ""}</DialogTitle></DialogHeader>
+          {detailLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : detail ? (
+            <div className="space-y-4">
+              <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                {[
+                  ["Nama", detail.siswa.nama],
+                  ["NIS", detail.siswa.nis],
+                  ["NISN", detail.siswa.nisn],
+                  ["Email", detail.siswa.user?.email],
+                  ["Kelas", detail.siswa.kelas?.nama],
+                  ["Jabatan", detail.siswa.jabatan],
+                  ["No. Telepon", detail.siswa.noTelp],
+                  ["Alamat", detail.siswa.alamat],
+                ].map(([label, value]) => (
+                  <div key={label as string} className="space-y-0.5">
+                    <dt className="text-xs text-muted-foreground">{label}</dt>
+                    <dd className="text-sm">{(value as string | null) || "-"}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="border-t pt-3 text-sm font-semibold">Data Diri & Keluarga</div>
+              <BiodataRingkas biodata={detail.biodata} />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm() }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>{editing ? "Edit Murid" : "Tambah Murid"}</DialogTitle></DialogHeader>
@@ -425,6 +499,13 @@ const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; re
               <div className="space-y-2 col-span-2">
                 <label className="text-sm font-medium">Alamat</label>
                 <Input value={formData.alamat} onChange={(e) => setFormData((f) => ({ ...f, alamat: e.target.value }))} placeholder="Alamat" />
+              </div>
+              <div className="col-span-2 border-t pt-3">
+                <p className="text-sm font-semibold">Data Diri & Keluarga</p>
+                <p className="text-xs text-muted-foreground">Boleh diisi Admin bila siswa belum melengkapinya sendiri.</p>
+              </div>
+              <div className="col-span-2">
+                <BiodataFields value={biodata} onChange={setBiodata} idPrefix="murid" />
               </div>
               {!editing && (
                 <div className="space-y-2 col-span-2">

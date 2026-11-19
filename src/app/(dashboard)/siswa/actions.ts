@@ -10,6 +10,7 @@ import bcrypt from "bcryptjs"
 import { trackMateriOpened, trackMateriCompleted, trackAssessmentDimulai, trackAssessmentSelesai } from "@/lib/agents/learning-analytics"
 import { getKebijakanHarian, ajukanAbsensiManual } from "@/lib/absensi-harian"
 import { isAssessmentLocked } from "@/lib/assessment-guard"
+import { upsertBiodata, type BiodataInput } from "@/lib/biodata"
 
 export async function getCurrentSiswa() {
   const session = await auth()
@@ -615,6 +616,21 @@ export async function updateSiswaProfile(data: {
     }
     return siswa
   })
+  revalidatePath("/(dashboard)/siswa/pengaturan")
+  return result
+}
+
+/** Biodata pribadi/keluarga milik siswa login (diisi sendiri di Pengaturan). */
+export async function getSiswaBiodata() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+  return prisma.biodataOrang.findUnique({ where: { userId: session.user.id } })
+}
+
+export async function updateSiswaBiodata(data: BiodataInput) {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+  const result = await upsertBiodata(session.user.id, data, "self")
   revalidatePath("/(dashboard)/siswa/pengaturan")
   return result
 }

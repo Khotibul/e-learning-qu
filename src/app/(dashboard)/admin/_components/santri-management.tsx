@@ -15,13 +15,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  Search, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Loader2, Users, HeartHandshake, MapPin, History,
+  Search, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Loader2, Users, HeartHandshake, MapPin, History, Eye,
 } from "lucide-react"
 import {
   getSantris, getSiswaOpts, createSantriDariSiswa, createSantriNonformal, updateSantri, deleteSantri,
   getWaliOpts, createWali, deleteWali, assignWaliToSantri, unassignWaliFromSantri,
-  updateKeberadaan, getSantriStatusLog,
+  updateKeberadaan, getSantriStatusLog, getSantriBiodata, simpanBiodataSantri, getSantriDetail,
 } from "../santri/actions"
+import { BiodataFields, BiodataRingkas, BIODATA_FORM_KOSONG, biodataKeForm, formKeBiodata, type BiodataForm } from "@/components/biodata-fields"
 
 interface SantriWaliItem { isPrimary: boolean; wali: { id: string; nama: string; hubungan: string; noTelp: string | null } }
 interface Santri {
@@ -160,11 +161,35 @@ export function SantriManagement(props: Props) {
   const [editing, setEditing] = useState<Santri | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({ nisNo: "", tanggalMasuk: "", catatan: "", status: "AKTIF" })
+  const [biodata, setBiodata] = useState<BiodataForm>(BIODATA_FORM_KOSONG)
+
+  // ── dialog detail (identitas + biodata) ──
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detail, setDetail] = useState<{ santri: Santri; biodata: Parameters<typeof biodataKeForm>[0] } | null>(null)
+
+  const openDetail = async (s: Santri) => {
+    setDetailOpen(true)
+    setDetail(null)
+    setDetailLoading(true)
+    try {
+      setDetail((await getSantriDetail(s.id)) as any)
+    } catch (err: any) {
+      toast.error(err?.message || "Gagal memuat detail santri")
+      setDetailOpen(false)
+    } finally {
+      setDetailLoading(false)
+    }
+  }
 
   const openEdit = (s: Santri) => {
     setEditing(s)
     setEditForm({ nisNo: s.nisNo || "", tanggalMasuk: s.tanggalMasuk ? s.tanggalMasuk.slice(0, 10) : "", catatan: s.catatan || "", status: s.status })
+    setBiodata(BIODATA_FORM_KOSONG)
     setEditOpen(true)
+    getSantriBiodata(s.id)
+      .then((b) => setBiodata(biodataKeForm(b)))
+      .catch(() => toast.error("Gagal memuat data diri santri"))
   }
 
   const handleEdit = async (e: React.FormEvent) => {
@@ -173,6 +198,7 @@ export function SantriManagement(props: Props) {
     setSubmitting(true)
     try {
       await updateSantri(editing.id, { ...editForm, status: editForm.status as any })
+      await simpanBiodataSantri(editing.id, formKeBiodata(biodata))
       toast.success("Data santri diperbarui")
       setEditOpen(false)
       setEditing(null)
@@ -372,6 +398,9 @@ export function SantriManagement(props: Props) {
                   <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{item.walis.length ? item.walis.map((w) => w.wali.nama).join(", ") : "-"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
+                      <Button variant="outline" size="sm" onClick={() => openDetail(item)} className="p-2" title="Detail">
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => openWali(item)} className="p-2" title="Kelola Wali">
                         <HeartHandshake className="h-4 w-4" />
                       </Button>
@@ -489,9 +518,41 @@ export function SantriManagement(props: Props) {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Detail */}
+      <Dialog open={detailOpen} onOpenChange={(o) => { setDetailOpen(o); if (!o) setDetail(null) }}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Detail Santri — {detail?.santri.nama ?? ""}</DialogTitle></DialogHeader>
+          {detailLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : detail ? (
+            <div className="space-y-4">
+              <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                {[
+                  ["Nama", detail.santri.nama],
+                  ["Nomor Induk Santri", detail.santri.nisNo],
+                  ["Email", detail.santri.user?.email],
+                  ["Status", STATUS_LABEL[detail.santri.status] || detail.santri.status],
+                  ["Keberadaan", KEBERADAAN_LABEL[detail.santri.keberadaan] || detail.santri.keberadaan],
+                  ["Siswa", detail.santri.siswa ? `${detail.santri.siswa.nama}${detail.santri.siswa.kelas ? ` · ${detail.santri.siswa.kelas.nama}` : ""}` : "Nonformal"],
+                  ["Wali", detail.santri.walis.length ? detail.santri.walis.map((w) => w.wali.nama).join(", ") : null],
+                  ["Tanggal Masuk", detail.santri.tanggalMasuk ? new Date(detail.santri.tanggalMasuk).toLocaleDateString("id-ID") : null],
+                ].map(([label, value]) => (
+                  <div key={label as string} className="space-y-0.5">
+                    <dt className="text-xs text-muted-foreground">{label}</dt>
+                    <dd className="text-sm">{(value as string | null) || "-"}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="border-t pt-3 text-sm font-semibold">Data Diri & Keluarga</div>
+              <BiodataRingkas biodata={detail.biodata} />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog Edit */}
       <Dialog open={editOpen} onOpenChange={(o) => { setEditOpen(o); if (!o) setEditing(null) }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Santri — {editing?.nama}</DialogTitle></DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4">
             <div className="space-y-2">
@@ -512,6 +573,11 @@ export function SantriManagement(props: Props) {
               <label className="text-sm font-medium">Catatan</label>
               <Input value={editForm.catatan} onChange={(e) => setEditForm((f) => ({ ...f, catatan: e.target.value }))} />
             </div>
+            <div className="border-t pt-3">
+              <p className="text-sm font-semibold">Data Diri & Keluarga</p>
+              <p className="text-xs text-muted-foreground">Boleh diisi Admin bila santri belum melengkapinya sendiri.</p>
+            </div>
+            <BiodataFields value={biodata} onChange={setBiodata} idPrefix="santri" tampilkanAlamat />
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => { setEditOpen(false); setEditing(null) }}>Batal</Button>
               <Button type="submit" disabled={submitting}>
