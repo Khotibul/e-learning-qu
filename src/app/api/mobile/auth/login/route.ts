@@ -43,8 +43,8 @@ export async function POST(req: Request) {
     if (!email || !password || !role) {
       return NextResponse.json({ error: "Email, password, role wajib diisi" }, { status: 400, headers: corsHeaders })
     }
-    if (!["SISWA", "GURU", "KEPALA_PONDOK", "PENGURUS_PONDOK", "USTADZ_PONDOK"].includes(role)) {
-      return NextResponse.json({ error: "Role hanya SISWA, GURU, atau Pengelola Pondok (Admin khusus website)" }, { status: 400, headers: corsHeaders })
+    if (!["ADMIN", "SISWA", "GURU", "KEPALA_PONDOK", "PENGURUS_PONDOK", "USTADZ_PONDOK"].includes(role)) {
+      return NextResponse.json({ error: "Role hanya ADMIN, SISWA, GURU, atau Pengelola Pondok" }, { status: 400, headers: corsHeaders })
     }
 
     const ip = getClientIp(req)

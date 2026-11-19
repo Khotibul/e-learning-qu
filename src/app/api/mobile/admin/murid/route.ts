@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { requireAdmin, ok, fail, options } from "../_lib";
+import { bersihkanNomor, cekIdentitasSiswa, pesanDuplikat } from "@/lib/identitas";
 
 export { options };
 
@@ -55,6 +56,13 @@ export async function POST(req: NextRequest) {
     if (!nama || !email) return fail("Nama dan email wajib", 400);
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return fail("Email sudah terdaftar", 400);
+    const nisBersih = bersihkanNomor(nis);
+    const nisnBersih = bersihkanNomor(nisn);
+    try {
+      await cekIdentitasSiswa({ nis: nisBersih, nisn: nisnBersih });
+    } catch (e) {
+      return fail((e as Error).message, 400);
+    }
     const hashedPassword = password ? await bcrypt.hash(password, 12) : null;
     const siswa = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -63,8 +71,8 @@ export async function POST(req: NextRequest) {
       return tx.siswa.create({
         data: {
           nama,
-          nis: nis || null,
-          nisn: nisn || null,
+          nis: nisBersih,
+          nisn: nisnBersih,
           alamat: alamat || null,
           noTelp: noTelp || null,
           kelasId: kelasId || null,
@@ -73,10 +81,11 @@ export async function POST(req: NextRequest) {
         },
         include: { user: true },
       });
-    });
+    }).catch((e) => { throw pesanDuplikat(e, "NIS atau NISN sudah dipakai murid lain"); });
     return ok(siswa, 201);
   } catch (e) {
     console.error(e);
-    return fail("Gagal");
+    const pesan = e instanceof Error && !("code" in e) ? e.message : "Gagal";
+    return fail(pesan, 400);
   }
 }

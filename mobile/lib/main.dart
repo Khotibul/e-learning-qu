@@ -14,6 +14,8 @@ import 'screens/guru/murid_detail.dart';
 import 'screens/guru/absensi.dart';
 import 'screens/guru/analitik.dart';
 import 'screens/guru/ujian.dart';
+import 'screens/admin/murid_page.dart';
+import 'screens/admin/santri_page.dart';
 import 'models/user.dart';
 
 void main() async {
@@ -71,8 +73,9 @@ class _RoleScaffoldState extends State<RoleScaffold> {
   Widget build(BuildContext context) {
     final isSiswa = widget.role == Role.siswa;
     final isGuru = widget.role == Role.guru;
+    final isAdmin = widget.role == Role.admin;
 
-    // Fitur disesuaikan dengan website — semua yang relevan untuk mobile, hanya Siswa & Guru
+    // Fitur disesuaikan dengan website — Siswa, Guru, dan Admin (data murid/santri)
     final siswaPages = [
       const SiswaDashboard(),
       const SiswaUjian(),
@@ -87,28 +90,18 @@ class _RoleScaffoldState extends State<RoleScaffold> {
       const GuruAbsensi(), // absensi sesi mengajar + absensi siswa per mapel
       const GuruAnalitik(), // analitik guru
     ];
+    final adminPages = [
+      const AdminMuridPage(),
+      const AdminSantriPage(),
+    ];
 
-    // Admin tidak ada di Android — khusus web
-    if (!isSiswa && !isGuru) {
-      return Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.admin_panel_settings, size: 64, color: Color(0xFF94A3B8)),
-              const SizedBox(height: 12),
-              const Text("Akses Admin hanya via Website", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const Text("Silakan login sebagai Siswa atau Guru di aplikasi Android", textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
-              const SizedBox(height: 16),
-              FilledButton(onPressed: () => context.read<AuthProvider>().signOut(), child: const Text("Kembali ke Login")),
-            ]),
-          ),
-        ),
-      );
-    }
-
-    final pages = isSiswa ? siswaPages : guruPages;
-    final items = isSiswa
+    final pages = isSiswa ? siswaPages : (isGuru ? guruPages : adminPages);
+    final items = isAdmin
+        ? const [
+            NavigationDestination(icon: Icon(Icons.people_outline, size: 20), selectedIcon: Icon(Icons.people, size: 20), label: "Murid"),
+            NavigationDestination(icon: Icon(Icons.school_outlined, size: 20), selectedIcon: Icon(Icons.school, size: 20), label: "Santri"),
+          ]
+        : isSiswa
         ? const [
             NavigationDestination(icon: Icon(Icons.dashboard_outlined, size: 20), selectedIcon: Icon(Icons.dashboard, size: 20), label: "Beranda"),
             NavigationDestination(icon: Icon(Icons.quiz_outlined, size: 20), selectedIcon: Icon(Icons.quiz, size: 20), label: "Ujian"),

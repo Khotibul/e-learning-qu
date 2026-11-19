@@ -9,8 +9,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Save, Loader2, Key, User } from "lucide-react"
-import { getGuruProfile, updateGuruProfile, updateGuruPassword } from "../actions"
+import { Save, Loader2, Key, User, Users } from "lucide-react"
+import { getGuruProfile, updateGuruProfile, updateGuruPassword, getGuruBiodata, updateGuruBiodata } from "../actions"
+import { BiodataFields, BIODATA_FORM_KOSONG, biodataKeForm, formKeBiodata, type BiodataForm } from "@/components/biodata-fields"
 
 interface ProfileData {
   id: string
@@ -34,6 +35,9 @@ export default function GuruPengaturanPage() {
   const [alamat, setAlamat] = useState("")
   const [noTelp, setNoTelp] = useState("")
 
+  const [biodata, setBiodata] = useState<BiodataForm>(BIODATA_FORM_KOSONG)
+  const [savingBiodata, setSavingBiodata] = useState(false)
+
   const [passwordLama, setPasswordLama] = useState("")
   const [passwordBaru, setPasswordBaru] = useState("")
   const [passwordKonfirmasi, setPasswordKonfirmasi] = useState("")
@@ -51,6 +55,10 @@ export default function GuruPengaturanPage() {
       })
       .catch(() => toast.error("Gagal memuat profil"))
       .finally(() => setLoading(false))
+
+    getGuruBiodata()
+      .then((b) => setBiodata(biodataKeForm(b)))
+      .catch(() => toast.error("Gagal memuat data diri"))
   }, [])
 
   async function handleSaveProfile() {
@@ -62,6 +70,21 @@ export default function GuruPengaturanPage() {
       toast.error(e?.message || "Gagal menyimpan profil")
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleSaveBiodata() {
+    setSavingBiodata(true)
+    try {
+      // Alamat sudah diurus di form Profil (Guru.alamat) — jangan ditimpa null di biodata.
+      const payload = formKeBiodata(biodata)
+      delete payload.alamat
+      await updateGuruBiodata(payload)
+      toast.success("Data diri berhasil disimpan")
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal menyimpan data diri")
+    } finally {
+      setSavingBiodata(false)
     }
   }
 
@@ -150,6 +173,24 @@ export default function GuruPengaturanPage() {
             <Button onClick={handleSaveProfile} disabled={saving}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Simpan Perubahan
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Users className="h-5 w-5" />
+            Data Diri & Keluarga
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <BiodataFields value={biodata} onChange={setBiodata} idPrefix="guru" />
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSaveBiodata} disabled={savingBiodata}>
+              {savingBiodata ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Simpan Data Diri
             </Button>
           </div>
         </CardContent>

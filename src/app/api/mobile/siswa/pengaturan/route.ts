@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"; import { prisma } from "@/lib/prisma"; import { getMobileUser } from "@/lib/mobile-auth"; import bcrypt from "bcryptjs";
 import { upsertBiodata, type BiodataInput } from "@/lib/biodata";
+import { bersihkanNomor, cekIdentitasSiswa } from "@/lib/identitas";
 const corsHeaders = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET, POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type, Authorization"};
 
 async function ambilSiswa(req: Request) {
@@ -37,13 +38,20 @@ export async function POST(req: Request) {
     const op = String(body.op || "");
 
     if (op === "updateProfile") {
+      const nis = body.nis === undefined ? undefined : bersihkanNomor(String(body.nis));
+      const nisn = body.nisn === undefined ? undefined : bersihkanNomor(String(body.nisn));
+      try {
+        await cekIdentitasSiswa({ nis, nisn }, siswa.id);
+      } catch (e) {
+        return NextResponse.json({ error: (e as Error).message }, { status: 400, headers: corsHeaders });
+      }
       const result = await prisma.$transaction(async (tx) => {
         const updated = await tx.siswa.update({
           where: { id: siswa.id },
           data: {
             ...(body.nama !== undefined && { nama: String(body.nama || "") }),
-            ...(body.nis !== undefined && { nis: body.nis ? String(body.nis) : null }),
-            ...(body.nisn !== undefined && { nisn: body.nisn ? String(body.nisn) : null }),
+            ...(nis !== undefined && { nis }),
+            ...(nisn !== undefined && { nisn }),
             ...(body.alamat !== undefined && { alamat: body.alamat ? String(body.alamat) : null }),
             ...(body.noTelp !== undefined && { noTelp: body.noTelp ? String(body.noTelp) : null }),
           },

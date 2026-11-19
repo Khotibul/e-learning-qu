@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { requireAdmin, ok, fail, options } from "../../_lib";
+import { bersihkanNomor, cekIdentitasSiswa, pesanDuplikat } from "@/lib/identitas";
 
 export { options };
 
@@ -43,7 +44,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       await prisma.user.update({ where: { id: siswa.userId }, data: { password: hashedPassword } });
       return ok(siswa.nama);
     }
-    const { nama, nis, nisn, alamat, noTelp, kelasId, jabatan } = body;
+    const { nama, alamat, noTelp, kelasId, jabatan } = body;
+    const nis = body.nis === undefined ? undefined : bersihkanNomor(body.nis);
+    const nisn = body.nisn === undefined ? undefined : bersihkanNomor(body.nisn);
+    await cekIdentitasSiswa({ nis, nisn }, id);
     const updated = await prisma.$transaction(async (tx) => {
       const u = await tx.siswa.update({
         where: { id },
@@ -58,6 +62,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     return ok(updated);
   } catch (e) {
     console.error(e);
-    return fail("Gagal");
+    const pesan = e instanceof Error && !("code" in e) ? e.message : pesanDuplikat(e, "NIS atau NISN sudah dipakai murid lain").message;
+    return fail(pesan, 400);
   }
 }

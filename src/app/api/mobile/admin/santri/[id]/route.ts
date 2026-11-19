@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { bersihkanNomor, cekNisNoSantriUnik, pesanDuplikat } from "@/lib/identitas"
 import { requireAdmin, ok, fail, options } from "../../_lib"
 
 export { options }
@@ -13,7 +14,7 @@ export async function GET(req: Request, ctx: Ctx) {
     const santri = await prisma.santri.findUnique({
       where: { id },
       select: {
-        id: true, nisNo: true, nama: true, keberadaan: true, status: true, catatan: true, tanggalMasuk: true, deletedAt: true,
+        id: true, userId: true, nisNo: true, nama: true, keberadaan: true, status: true, catatan: true, tanggalMasuk: true, deletedAt: true,
         user: { select: { email: true, isActive: true } },
         siswa: { select: { id: true, kelas: { select: { id: true, nama: true } } } },
         walis: {
@@ -44,16 +45,14 @@ export async function PATCH(req: Request, ctx: Ctx) {
     if (!santri || santri.deletedAt) return fail("Santri tidak ditemukan", 404)
 
     if (op === "update") {
-      if (body.nisNo) {
-        const dup = await prisma.santri.findFirst({ where: { nisNo: body.nisNo, NOT: { id }, deletedAt: null } })
-        if (dup) return fail("NIS sudah dipakai", 400)
-      }
+      const nisNo = body.nisNo === undefined ? undefined : bersihkanNomor(body.nisNo)
+      if (nisNo) await cekNisNoSantriUnik(nisNo, id)
       const statusBerubah = body.status !== undefined && body.status !== santri.status
       await prisma.$transaction(async (tx) => {
         await tx.santri.update({
           where: { id },
           data: {
-            ...(body.nisNo !== undefined && { nisNo: body.nisNo || null }),
+            ...(nisNo !== undefined && { nisNo }),
             ...(body.tanggalMasuk !== undefined && { tanggalMasuk: body.tanggalMasuk ? new Date(body.tanggalMasuk) : null }),
             ...(body.catatan !== undefined && { catatan: body.catatan || null }),
             ...(body.status !== undefined && { status: body.status }),
@@ -90,6 +89,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
     return fail("op tidak dikenal", 400)
   } catch (e) {
     console.error(e)
+    if ((e as { code?: string })?.code === "P2002") return fail(pesanDuplikat(e, "Nomor Induk Santri sudah dipakai").message, 400)
+    if (e instanceof Error && !(e as { code?: string })?.code) return fail(e.message, 400)
     return fail("Gagal")
   }
 }

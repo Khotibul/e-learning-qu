@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
 import { upsertBiodata, type BiodataInput } from "@/lib/biodata"
+import { bersihkanNomor, cekIdentitasSiswa, cekNipUnik, pesanDuplikat } from "@/lib/identitas"
 
 // ─── DASHBOARD ───────────────────────────────────────────
 
@@ -80,6 +81,8 @@ export async function createGuru(data: {
   await requireAdmin()
   const existing = await prisma.user.findUnique({ where: { email: data.email } })
   if (existing) throw new Error("Email sudah terdaftar")
+  const nip = bersihkanNomor(data.nip)
+  await cekNipUnik(nip)
   const hashedPassword = data.password ? await bcrypt.hash(data.password, 12) : null
   const guru = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
@@ -89,7 +92,7 @@ export async function createGuru(data: {
       data: {
         nama: data.nama,
         jabatan: data.jabatan || null,
-        nip: data.nip || null,
+        nip,
         nuptk: data.nuptk || null,
         alamat: data.alamat || null,
         noTelp: data.noTelp || null,
@@ -97,7 +100,7 @@ export async function createGuru(data: {
       },
       include: { user: true },
     })
-  })
+  }).catch((e) => { throw pesanDuplikat(e, `NIP ${nip ?? ""} sudah dipakai`) })
   revalidatePath("/(dashboard)/admin/guru")
   return guru
 }
@@ -107,13 +110,15 @@ export async function updateGuru(
   data: { nama?: string; jabatan?: string; nip?: string; nuptk?: string; alamat?: string; noTelp?: string }
 ) {
   await requireAdmin()
+  const nip = data.nip === undefined ? undefined : bersihkanNomor(data.nip)
+  if (nip) await cekNipUnik(nip, id)
   const guru = await prisma.$transaction(async (tx) => {
     const updated = await tx.guru.update({
       where: { id },
       data: {
         nama: data.nama,
         jabatan: data.jabatan || null,
-        nip: data.nip,
+        nip,
         nuptk: data.nuptk,
         alamat: data.alamat,
         noTelp: data.noTelp,
@@ -127,7 +132,7 @@ export async function updateGuru(
       })
     }
     return updated
-  })
+  }).catch((e) => { throw pesanDuplikat(e, `NIP ${nip ?? ""} sudah dipakai`) })
   revalidatePath("/(dashboard)/admin/guru")
   return guru
 }
@@ -206,6 +211,9 @@ export async function createMurid(data: {
   await requireAdmin()
   const existing = await prisma.user.findUnique({ where: { email: data.email } })
   if (existing) throw new Error("Email sudah terdaftar")
+  const nis = bersihkanNomor(data.nis)
+  const nisn = bersihkanNomor(data.nisn)
+  await cekIdentitasSiswa({ nis, nisn })
   const hashedPassword = data.password ? await bcrypt.hash(data.password, 12) : null
   const siswa = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
@@ -214,8 +222,8 @@ export async function createMurid(data: {
     return tx.siswa.create({
       data: {
         nama: data.nama,
-        nis: data.nis || null,
-        nisn: data.nisn || null,
+        nis,
+        nisn,
         alamat: data.alamat || null,
         noTelp: data.noTelp || null,
         kelasId: data.kelasId || null,
@@ -224,7 +232,7 @@ export async function createMurid(data: {
       },
       include: { user: true },
     })
-  })
+  }).catch((e) => { throw pesanDuplikat(e, "NIS atau NISN sudah dipakai murid lain") })
   revalidatePath("/(dashboard)/admin/murid")
   return siswa
 }
@@ -234,8 +242,11 @@ export async function updateMurid(
   data: { nama?: string; nis?: string; nisn?: string; alamat?: string; noTelp?: string; kelasId?: string; jabatan?: string }
 ) {
   await requireAdmin()
+  const nis = data.nis === undefined ? undefined : bersihkanNomor(data.nis)
+  const nisn = data.nisn === undefined ? undefined : bersihkanNomor(data.nisn)
+  await cekIdentitasSiswa({ nis, nisn }, id)
   const siswa = await prisma.$transaction(async (tx) => {
-    const updated = await tx.siswa.update({ where: { id }, data, include: { user: true } })
+    const updated = await tx.siswa.update({ where: { id }, data: { ...data, nis, nisn }, include: { user: true } })
     if (data.nama) {
       await tx.user.update({
         where: { id: updated.userId },
@@ -243,7 +254,7 @@ export async function updateMurid(
       })
     }
     return updated
-  })
+  }).catch((e) => { throw pesanDuplikat(e, "NIS atau NISN sudah dipakai murid lain") })
   revalidatePath("/(dashboard)/admin/murid")
   return siswa
 }

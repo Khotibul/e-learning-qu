@@ -80,6 +80,13 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  static Future<dynamic> patch(String path, Map<String, dynamic> body) async {
+    final headers = await _headers();
+    final res = await _withRetry(() => _client.patch(Uri.parse("${ApiConfig.baseUrl}$path"), headers: headers, body: jsonEncode(body)).timeout(const Duration(seconds: 15)));
+    if (res.statusCode >= 400) throw Exception(_pesanError(res, "PATCH", path));
+    return res.body.isEmpty ? null : jsonDecode(res.body);
+  }
+
   static Future<dynamic> delete(String path) async {
     final headers = await _headers();
     final res = await _withRetry(() => _client.delete(Uri.parse("${ApiConfig.baseUrl}$path"), headers: headers).timeout(const Duration(seconds: 15)));

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
 import type { StatusSantri, HubunganWali, StatusKehadiranSantri, JenisStatusLog } from "@prisma/client"
 import { upsertBiodata, type BiodataInput } from "@/lib/biodata"
+import { bersihkanNomor, cekNisNoSantriUnik, pesanDuplikat } from "@/lib/identitas"
 
 async function requireAdmin() {
   const session = await auth()
@@ -71,20 +72,18 @@ export async function createSantriDariSiswa(data: { siswaId: string; nisNo?: str
   const siswa = await prisma.siswa.findUnique({ where: { id: data.siswaId }, include: { santri: { select: { id: true } } } })
   if (!siswa || siswa.deletedAt) throw new Error("Siswa tidak ditemukan")
   if (siswa.santri) throw new Error("Siswa ini sudah terdaftar sebagai santri")
-  if (data.nisNo) {
-    const dup = await prisma.santri.findFirst({ where: { nisNo: data.nisNo, deletedAt: null } })
-    if (dup) throw new Error("Nomor Induk Santri sudah dipakai")
-  }
+  const nisNo = bersihkanNomor(data.nisNo)
+  await cekNisNoSantriUnik(nisNo)
   const santri = await prisma.santri.create({
     data: {
       userId: siswa.userId,
       siswaId: siswa.id,
-      nisNo: data.nisNo || null,
+      nisNo,
       nama: siswa.nama,
       tanggalMasuk: data.tanggalMasuk ? new Date(data.tanggalMasuk) : null,
       catatan: data.catatan || null,
     },
-  })
+  }).catch((e) => { throw pesanDuplikat(e, `Nomor Induk Santri ${nisNo ?? ""} sudah dipakai`) })
   revalidatePath("/admin/santri")
   return santri
 }
@@ -103,10 +102,8 @@ export async function createSantriNonformal(data: {
   if (data.password.length < 6) throw new Error("Password minimal 6 karakter")
   const existing = await prisma.user.findUnique({ where: { email: data.email } })
   if (existing) throw new Error("Email sudah terdaftar")
-  if (data.nisNo) {
-    const dup = await prisma.santri.findFirst({ where: { nisNo: data.nisNo, deletedAt: null } })
-    if (dup) throw new Error("Nomor Induk Santri sudah dipakai")
-  }
+  const nisNo = bersihkanNomor(data.nisNo)
+  await cekNisNoSantriUnik(nisNo)
   const hash = await bcrypt.hash(data.password, 12)
   const santri = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
@@ -115,13 +112,13 @@ export async function createSantriNonformal(data: {
     return tx.santri.create({
       data: {
         userId: user.id,
-        nisNo: data.nisNo || null,
+        nisNo,
         nama: data.nama,
         tanggalMasuk: data.tanggalMasuk ? new Date(data.tanggalMasuk) : null,
         catatan: data.catatan || null,
       },
     })
-  })
+  }).catch((e) => { throw pesanDuplikat(e, `Nomor Induk Santri ${nisNo ?? ""} sudah dipakai`) })
   revalidatePath("/admin/santri")
   return santri
 }
@@ -133,16 +130,14 @@ export async function updateSantri(
   const actorId = await requireAdmin()
   const santri = await prisma.santri.findUnique({ where: { id } })
   if (!santri || santri.deletedAt) throw new Error("Santri tidak ditemukan")
-  if (data.nisNo) {
-    const dup = await prisma.santri.findFirst({ where: { nisNo: data.nisNo, NOT: { id }, deletedAt: null } })
-    if (dup) throw new Error("Nomor Induk Santri sudah dipakai")
-  }
+  const nisNo = data.nisNo === undefined ? undefined : bersihkanNomor(data.nisNo)
+  if (nisNo) await cekNisNoSantriUnik(nisNo, id)
   const statusBerubah = data.status !== undefined && data.status !== santri.status
   const updated = await prisma.$transaction(async (tx) => {
     const u = await tx.santri.update({
       where: { id },
       data: {
-        ...(data.nisNo !== undefined && { nisNo: data.nisNo || null }),
+        ...(nisNo !== undefined && { nisNo }),
         ...(data.tanggalMasuk !== undefined && { tanggalMasuk: data.tanggalMasuk ? new Date(data.tanggalMasuk) : null }),
         ...(data.catatan !== undefined && { catatan: data.catatan || null }),
         ...(data.status !== undefined && { status: data.status }),
@@ -154,7 +149,7 @@ export async function updateSantri(
       })
     }
     return u
-  })
+  }).catch((e) => { throw pesanDuplikat(e, `Nomor Induk Santri ${nisNo ?? ""} sudah dipakai`) })
   revalidatePath("/admin/santri")
   return updated
 }

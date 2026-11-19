@@ -16,6 +16,7 @@
     "db:reset": "prisma migrate reset --force",
     "postinstall": "prisma generate",
     "test": "echo 'Tests configured'",
+    "test:identitas": "tsx --test scripts/uji-identitas.test.ts",
     "format": "prettier --write ."
   },
   "dependencies": {

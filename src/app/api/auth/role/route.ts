@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { Prisma } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { bersihkanNomor, cekIdentitasSiswa, cekNipUnik } from "@/lib/identitas"
 import { roleSelectionSchema } from "@/validators/auth"
 import { z } from "zod"
 
@@ -72,6 +73,12 @@ export const POST = auth(async (req) => {
       return NextResponse.json({ error: "User tidak ditemukan. Silakan daftar ulang." }, { status: 404 })
     }
 
+    if (role === "GURU") {
+      await cekNipUnik(bersihkanNomor(nip))
+    } else {
+      await cekIdentitasSiswa({ nis, nisn })
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: userId },
@@ -83,7 +90,7 @@ export const POST = auth(async (req) => {
           data: {
             userId,
             nama,
-            nip: nip || null,
+            nip: bersihkanNomor(nip),
             noTelp: noTelp || null,
             alamat: alamat || null,
           },
@@ -93,8 +100,8 @@ export const POST = auth(async (req) => {
           data: {
             userId,
             nama,
-            nis: nis || null,
-            nisn: nisn || null,
+            nis: bersihkanNomor(nis),
+            nisn: bersihkanNomor(nisn),
             kelasId: kelasId || null,
             noTelp: noTelp || null,
             alamat: alamat || null,
@@ -114,7 +121,13 @@ export const POST = auth(async (req) => {
         if (target.includes("nis")) {
           return NextResponse.json({ error: "NIS sudah terdaftar" }, { status: 409 })
         }
+        if (target.includes("nisn")) {
+          return NextResponse.json({ error: "NISN sudah terdaftar" }, { status: 409 })
+        }
       }
+    }
+    if (error instanceof Error && !(error instanceof Prisma.PrismaClientKnownRequestError)) {
+      return NextResponse.json({ error: error.message }, { status: 409 })
     }
     console.error("Error updating role:", error)
     return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 })

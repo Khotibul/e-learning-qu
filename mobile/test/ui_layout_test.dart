@@ -1,5 +1,9 @@
 import 'package:e_learning_qu/providers/auth_provider.dart';
 import 'package:e_learning_qu/screens/guru/dashboard.dart';
+import 'package:e_learning_qu/screens/guru/pengaturan.dart';
+import 'package:e_learning_qu/screens/admin/murid_page.dart';
+import 'package:e_learning_qu/screens/admin/santri_page.dart';
+import 'package:e_learning_qu/screens/auth/login_screen.dart';
 import 'package:e_learning_qu/screens/siswa/absensi_harian.dart';
 import 'package:e_learning_qu/screens/siswa/dashboard.dart';
 import 'package:e_learning_qu/screens/siswa/pengaturan.dart';
@@ -63,6 +67,26 @@ void main() {
 
   testWidgets("form profil siswa (data diri & keluarga) rapi di 320dp", (tester) async {
     await pumpDiLayar(tester, const SiswaPengaturanNew(), 320, withAuth: true);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets("form profil guru (data diri & keluarga) rapi di 320dp", (tester) async {
+    await pumpDiLayar(tester, const GuruPengaturan(), 320, withAuth: true);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets("daftar murid admin rapi di 320dp", (tester) async {
+    await pumpDiLayar(tester, const AdminMuridPage(), 320, withAuth: true);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets("login dengan pilihan peran Admin rapi di 320dp", (tester) async {
+    await pumpDiLayar(tester, const LoginScreen(), 320, withAuth: true);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets("daftar santri admin rapi di 320dp", (tester) async {
+    await pumpDiLayar(tester, const AdminSantriPage(), 320, withAuth: true);
     expect(tester.takeException(), isNull);
   });
 

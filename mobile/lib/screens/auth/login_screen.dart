@@ -177,6 +177,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               selected: _role == Role.guru,
                               onTap: () => setState(() => _role = Role.guru),
                             ),
+                            _RoleTab(
+                              label: "Admin",
+                              icon: Icons.admin_panel_settings_outlined,
+                              selected: _role == Role.admin,
+                              onTap: () => setState(() => _role = Role.admin),
+                            ),
                           ],
                         ),
                       ),
@@ -188,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         autocorrect: false,
                         decoration: InputDecoration(
                           labelText: "Email",
-                          hintText: _role == Role.siswa ? "siswa@sekolah.id" : "guru@sekolah.id",
+                          hintText: _role == Role.siswa ? "siswa@sekolah.id" : (_role == Role.guru ? "guru@sekolah.id" : "admin@sekolah.id"),
                           prefixIcon: const Icon(Icons.mail_outline, size: 20),
                         ),
                       ),
@@ -211,9 +217,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 18),
                       _GradientButton(
                         loading: _loading,
-                        label: _role == Role.siswa ? "Masuk sebagai Siswa" : "Masuk sebagai Guru",
+                        label: "Masuk sebagai ${_role == Role.siswa ? "Siswa" : (_role == Role.guru ? "Guru" : "Admin")}",
                         onTap: _loading ? null : _masuk,
                       ),
+                      if (_role != Role.admin) ...[
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -239,6 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                       ),
+                      ],
                       const SizedBox(height: 10),
                       TextButton.icon(
                         onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VerifikasiSuratPage())),
@@ -246,13 +254,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         label: const Text("Cek keaslian surat izin (QR)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                       ),
                       const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        runSpacing: 6,
                         children: const [
                           _TrustBadge(icon: Icons.verified_user_outlined, label: "Satu database"),
-                          SizedBox(width: 8),
                           _TrustBadge(icon: Icons.bolt_outlined, label: "Stabil"),
-                          SizedBox(width: 8),
                           _TrustBadge(icon: Icons.school_outlined, label: "Edukasi"),
                         ],
                       ),
@@ -297,13 +305,17 @@ class _RoleTab extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 17, color: selected ? Colors.white : AppColors.inkMuted),
-              const SizedBox(width: 7),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : AppColors.inkSoft,
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : AppColors.inkSoft,
+                  ),
                 ),
               ),
             ],
@@ -343,7 +355,15 @@ class _GradientButton extends StatelessWidget {
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.white)),
+                        Flexible(
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.white),
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         const Icon(Icons.arrow_forward_rounded, size: 18, color: Colors.white),
                       ],

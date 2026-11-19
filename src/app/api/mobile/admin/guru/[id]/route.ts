@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { requireAdmin, ok, fail, options } from "../../_lib";
+import { bersihkanNomor, cekNipUnik, pesanDuplikat } from "@/lib/identitas";
 
 export { options };
 
@@ -44,7 +45,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       return ok({ success: true });
     }
     // default update
-    const { nama, jabatan, nip, nuptk, alamat, noTelp } = body;
+    const { nama, jabatan, nuptk, alamat, noTelp } = body;
+    const nip = body.nip === undefined ? undefined : bersihkanNomor(body.nip);
+    if (nip) await cekNipUnik(nip, id);
     const updated = await prisma.$transaction(async (tx) => {
       const u = await tx.guru.update({
         where: { id },
@@ -62,10 +65,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         await tx.user.update({ where: { id: u.userId }, data: { name: nama } });
       }
       return u;
-    });
+    }).catch((e) => { throw pesanDuplikat(e, `NIP ${nip ?? ""} sudah dipakai`); });
     return ok(updated);
   } catch (e) {
     console.error(e);
-    return fail("Gagal");
+    const pesan = e instanceof Error && !("code" in e) ? e.message : "Gagal";
+    return fail(pesan, 400);
   }
 }

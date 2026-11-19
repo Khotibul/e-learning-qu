@@ -11,6 +11,7 @@ import { trackMateriOpened, trackMateriCompleted, trackAssessmentDimulai, trackA
 import { getKebijakanHarian, ajukanAbsensiManual } from "@/lib/absensi-harian"
 import { isAssessmentLocked } from "@/lib/assessment-guard"
 import { upsertBiodata, type BiodataInput } from "@/lib/biodata"
+import { bersihkanNomor, cekIdentitasSiswa } from "@/lib/identitas"
 
 export async function getCurrentSiswa() {
   const session = await auth()
@@ -597,13 +598,18 @@ export async function updateSiswaProfile(data: {
   const session = await auth()
   if (!session?.user?.id) redirect("/login")
 
+  const sendiri = await prisma.siswa.findUnique({ where: { userId: session.user.id }, select: { id: true } })
+  const nis = data.nis === undefined ? undefined : bersihkanNomor(data.nis)
+  const nisn = data.nisn === undefined ? undefined : bersihkanNomor(data.nisn)
+  await cekIdentitasSiswa({ nis, nisn }, sendiri?.id)
+
   const result = await prisma.$transaction(async (tx) => {
     const siswa = await tx.siswa.update({
       where: { userId: session.user.id },
       data: {
         ...(data.nama !== undefined && { nama: data.nama }),
-        ...(data.nis !== undefined && { nis: data.nis || null }),
-        ...(data.nisn !== undefined && { nisn: data.nisn || null }),
+        ...(nis !== undefined && { nis }),
+        ...(nisn !== undefined && { nisn }),
         ...(data.alamat !== undefined && { alamat: data.alamat || null }),
         ...(data.noTelp !== undefined && { noTelp: data.noTelp || null }),
       },

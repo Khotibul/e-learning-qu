@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
+import { bersihkanNomor, cekNisNoSantriUnik, pesanDuplikat } from "@/lib/identitas"
 import { requireAdmin, ok, fail, options } from "../_lib"
 
 export { options }
@@ -74,15 +75,13 @@ export async function POST(req: Request) {
       const siswa = await prisma.siswa.findUnique({ where: { id: body.siswaId }, include: { santri: { select: { id: true } } } })
       if (!siswa || siswa.deletedAt) return fail("Siswa tidak ditemukan", 404)
       if (siswa.santri) return fail("Siswa ini sudah terdaftar sebagai santri", 400)
-      if (body.nisNo) {
-        const dup = await prisma.santri.findFirst({ where: { nisNo: body.nisNo, deletedAt: null } })
-        if (dup) return fail("Nomor Induk Santri sudah dipakai", 400)
-      }
+      const nisNo = bersihkanNomor(body.nisNo)
+      await cekNisNoSantriUnik(nisNo)
       const row = await prisma.santri.create({
         data: {
           userId: siswa.userId,
           siswaId: siswa.id,
-          nisNo: body.nisNo || null,
+          nisNo,
           nama: siswa.nama,
           tanggalMasuk: body.tanggalMasuk ? new Date(body.tanggalMasuk) : null,
           catatan: body.catatan || null,
@@ -98,17 +97,15 @@ export async function POST(req: Request) {
       if (password.length < 6) return fail("Password minimal 6 karakter", 400)
       const exists = await prisma.user.findUnique({ where: { email } })
       if (exists) return fail("Email sudah terdaftar", 400)
-      if (body.nisNo) {
-        const dup = await prisma.santri.findFirst({ where: { nisNo: body.nisNo, deletedAt: null } })
-        if (dup) return fail("Nomor Induk Santri sudah dipakai", 400)
-      }
+      const nisNo = bersihkanNomor(body.nisNo)
+      await cekNisNoSantriUnik(nisNo)
       const row = await prisma.$transaction(async (tx) => {
         const hash = await bcrypt.hash(password, 12)
         const user = await tx.user.create({ data: { email, name: nama, password: hash, role: "SISWA" } })
         return tx.santri.create({
           data: {
             userId: user.id,
-            nisNo: body.nisNo || null,
+            nisNo,
             nama,
             tanggalMasuk: body.tanggalMasuk ? new Date(body.tanggalMasuk) : null,
             catatan: body.catatan || null,
@@ -128,6 +125,8 @@ export async function POST(req: Request) {
     return fail("op tidak dikenal", 400)
   } catch (e) {
     console.error(e)
+    // Jaring pengaman bila dua permintaan menyimpan nomor yang sama bersamaan.
+    if ((e as { code?: string })?.code === "P2002") return fail(pesanDuplikat(e, "Nomor Induk Santri sudah dipakai").message, 400)
     return fail("Gagal")
   }
 }
