@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Plus, Edit, Trash2, Upload, Download, FileSpreadsheet, Eye, Copy, FileText, Loader2, Pencil } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Upload, Download, FileSpreadsheet, Eye, Copy, FileText, Loader2, Pencil, Sparkles } from "lucide-react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
 import { getSoals, deleteSoal, duplicateSoal, getGuruMapelRefs, createSoal } from "../../actions"
+import { GenerateSoalDialog } from "./generate-soal-dialog"
 import Link from "next/link"
 import { formatDate } from "@/lib/utils"
 
@@ -105,6 +106,7 @@ export function SoalManagementClient() {
   const [importSaveTingkat, setImportSaveTingkat] = useState("MUDAH")
   const [ocrSavePoin, setOcrSavePoin] = useState(10)
   const [importSavePoin, setImportSavePoin] = useState(10)
+  const [generateOpen, setGenerateOpen] = useState(false)
 
   const ocrInputRef = useRef<HTMLInputElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -307,6 +309,12 @@ export function SoalManagementClient() {
           <p className="text-muted-foreground mt-1">Total {total} soal</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => setGenerateOpen(true)} size="sm" className="sm:hidden p-2" title="Generate Soal AI">
+            <Sparkles className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={() => setGenerateOpen(true)} className="hidden sm:inline-flex">
+            <Sparkles className="h-4 w-4 mr-2" /> Generate AI
+          </Button>
           <Button variant="outline" onClick={handleOcrClick} disabled={ocrLoading} size="sm" className="sm:hidden p-2" title="OCR Kamera">
             {ocrLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           </Button>
@@ -491,6 +499,8 @@ export function SoalManagementClient() {
           </div>
         </div>
       )}
+
+      <GenerateSoalDialog open={generateOpen} onOpenChange={setGenerateOpen} mapels={mapels} onSaved={fetchData} />
 
       <Dialog open={!!previewSoal} onOpenChange={(open) => !open && setPreviewSoal(null)}>
         <DialogContent className="max-w-2xl">

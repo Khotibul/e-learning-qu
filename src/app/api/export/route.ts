@@ -16,12 +16,17 @@ export async function GET(req: Request) {
   try {
     switch (type) {
       case "guru":
-      case "murid": {
-        // Data kepegawaian/peserta didik → hanya ADMIN
+      case "murid":
+      case "santri": {
+        // Data kepegawaian/peserta didik/santri → hanya ADMIN
         if (role !== "ADMIN") {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
-        return type === "guru" ? await exportGuru(format) : await exportMurid(format)
+        return type === "guru"
+          ? await exportGuru(format)
+          : type === "santri"
+            ? await exportSantri(format)
+            : await exportMurid(format)
       }
       case "nilai": {
         if (role !== "ADMIN" && role !== "GURU") {
@@ -264,22 +269,29 @@ async function exportGuru(format: string) {
   const data = await prisma.guru.findMany({
     where: { deletedAt: null },
     orderBy: { nama: "asc" },
-    select: { nip: true, nuptk: true, nama: true, noTelp: true, createdAt: true },
+    include: { user: { select: { email: true, biodata: true } } },
     take: 10000,
   })
 
-  const headers = ["NIP", "NUPTK", "Nama", "No Telp", "Terdaftar"]
+  const headers = ["NIP", "NUPTK", "Nama", "Jabatan", "Email", "No Telp", "Alamat", "Jenis Kelamin", "Agama", "Tempat Lahir", "Tanggal Lahir", "Terdaftar"]
   const rows: Row[] = data.map((g) => ({
     NIP: g.nip || "-",
     NUPTK: g.nuptk || "-",
     Nama: g.nama,
+    Jabatan: g.jabatan || "-",
+    Email: g.user?.email || "-",
     "No Telp": g.noTelp || "-",
+    Alamat: g.alamat || g.user?.biodata?.alamat || "-",
+    "Jenis Kelamin": g.user?.biodata?.jenisKelamin || "-",
+    Agama: g.user?.biodata?.agama || "-",
+    "Tempat Lahir": g.user?.biodata?.tempatLahir || "-",
+    "Tanggal Lahir": g.user?.biodata?.tanggalLahir ? g.user.biodata.tanggalLahir.toLocaleDateString("id-ID") : "-",
     Terdaftar: g.createdAt.toLocaleDateString("id-ID"),
   }))
 
   const ext = format === "pdf" ? "pdf" : format === "csv" ? "csv" : "xls"
   const out = format === "pdf"
-    ? toPdf("Data Guru", [{ title: "", headers, rows, colWidths: [20, 20, 30, 15, 15] }])
+    ? toPdf("Data Guru", [{ title: "", headers, rows, colWidths: [12, 12, 22, 12, 18, 12, 18, 10, 10, 12, 12, 12] }])
     : format === "csv"
       ? toCsv(headers, rows)
       : toExcel("Data Guru", [{ title: "", headers, rows }])
@@ -291,27 +303,82 @@ async function exportMurid(format: string) {
   const data = await prisma.siswa.findMany({
     where: { deletedAt: null },
     orderBy: { nama: "asc" },
-    include: { kelas: { select: { nama: true } } },
+    include: { kelas: { select: { nama: true } }, user: { select: { email: true, biodata: true } } },
     take: 10000,
   })
 
-  const headers = ["NIS", "NISN", "Nama", "Kelas", "No Telp"]
+  const headers = ["NIS", "NISN", "Nama", "Kelas", "Email", "No Telp", "Alamat", "Jenis Kelamin", "Agama", "Tempat Lahir", "Tanggal Lahir", "Anak Ke", "Status Keluarga", "Nama Ayah", "Nama Ibu", "Pekerjaan Ayah", "Pekerjaan Ibu", "Asal Sekolah", "No Telp Wali"]
   const rows: Row[] = data.map((s) => ({
     NIS: s.nis || "-",
     NISN: s.nisn || "-",
     Nama: s.nama,
     Kelas: s.kelas?.nama || "-",
+    Email: s.user?.email || "-",
     "No Telp": s.noTelp || "-",
+    Alamat: s.alamat || s.user?.biodata?.alamat || "-",
+    "Jenis Kelamin": s.user?.biodata?.jenisKelamin || "-",
+    Agama: s.user?.biodata?.agama || "-",
+    "Tempat Lahir": s.user?.biodata?.tempatLahir || "-",
+    "Tanggal Lahir": s.user?.biodata?.tanggalLahir ? s.user.biodata.tanggalLahir.toLocaleDateString("id-ID") : "-",
+    "Anak Ke": s.user?.biodata?.anakKe ?? "-",
+    "Status Keluarga": s.user?.biodata?.statusKeluarga || "-",
+    "Nama Ayah": s.user?.biodata?.namaAyah || "-",
+    "Nama Ibu": s.user?.biodata?.namaIbu || "-",
+    "Pekerjaan Ayah": s.user?.biodata?.pekerjaanAyah || "-",
+    "Pekerjaan Ibu": s.user?.biodata?.pekerjaanIbu || "-",
+    "Asal Sekolah": s.user?.biodata?.asalSekolah || "-",
+    "No Telp Wali": s.user?.biodata?.noTelpWali || "-",
   }))
 
   const ext = format === "pdf" ? "pdf" : format === "csv" ? "csv" : "xls"
   const out = format === "pdf"
-    ? toPdf("Data Murid", [{ title: "", headers, rows, colWidths: [15, 15, 30, 20, 20] }])
+    ? toPdf("Data Murid", [{ title: "", headers, rows, colWidths: [8, 10, 18, 12, 16, 12, 18, 10, 10, 12, 12, 6, 12, 14, 14, 12, 12, 14, 12] }])
     : format === "csv"
       ? toCsv(headers, rows)
       : toExcel("Data Murid", [{ title: "", headers, rows }])
 
   return respond(out, format, `murid_${new Date().toISOString().split("T")[0]}.${ext}`)
+}
+
+async function exportSantri(format: string) {
+  const data = await prisma.santri.findMany({
+    where: { deletedAt: null },
+    orderBy: { nama: "asc" },
+    include: { user: { select: { email: true, biodata: true } }, siswa: { select: { kelas: { select: { nama: true } } } } },
+    take: 10000,
+  })
+
+  const headers = ["NISantri", "Nama", "Status", "Keberadaan", "Tanggal Masuk", "Catatan", "Email", "Kelas", "Jenis Kelamin", "Agama", "Tempat Lahir", "Tanggal Lahir", "Alamat", "Anak Ke", "Status Keluarga", "Nama Ayah", "Nama Ibu", "Asal Sekolah", "No Telp Wali"]
+  const rows: Row[] = data.map((s) => ({
+    NISantri: s.nisNo || "-",
+    Nama: s.nama,
+    Status: s.status,
+    Keberadaan: s.keberadaan,
+    "Tanggal Masuk": s.tanggalMasuk ? s.tanggalMasuk.toLocaleDateString("id-ID") : "-",
+    Catatan: s.catatan || "-",
+    Email: s.user?.email || "-",
+    Kelas: s.siswa?.kelas?.nama || "-",
+    "Jenis Kelamin": s.user?.biodata?.jenisKelamin || "-",
+    Agama: s.user?.biodata?.agama || "-",
+    "Tempat Lahir": s.user?.biodata?.tempatLahir || "-",
+    "Tanggal Lahir": s.user?.biodata?.tanggalLahir ? s.user.biodata.tanggalLahir.toLocaleDateString("id-ID") : "-",
+    Alamat: s.user?.biodata?.alamat || "-",
+    "Anak Ke": s.user?.biodata?.anakKe ?? "-",
+    "Status Keluarga": s.user?.biodata?.statusKeluarga || "-",
+    "Nama Ayah": s.user?.biodata?.namaAyah || "-",
+    "Nama Ibu": s.user?.biodata?.namaIbu || "-",
+    "Asal Sekolah": s.user?.biodata?.asalSekolah || "-",
+    "No Telp Wali": s.user?.biodata?.noTelpWali || "-",
+  }))
+
+  const ext = format === "pdf" ? "pdf" : format === "csv" ? "csv" : "xls"
+  const out = format === "pdf"
+    ? toPdf("Data Santri", [{ title: "", headers, rows, colWidths: [10, 18, 10, 12, 12, 16, 18, 12, 10, 10, 12, 12, 18, 6, 12, 14, 14, 14, 12] }])
+    : format === "csv"
+      ? toCsv(headers, rows)
+      : toExcel("Data Santri", [{ title: "", headers, rows }])
+
+  return respond(out, format, `santri_${new Date().toISOString().split("T")[0]}.${ext}`)
 }
 
 async function exportNilai(format: string, ujianId: string | null) {
@@ -426,15 +493,21 @@ async function exportSoal(format: string, guruId: string | null) {
     take: 10000,
   })
 
-  const headers = ["Pertanyaan", "Jenis", "Tingkat", "Mapel", "Jawaban", "Poin", "Bab"]
+  const headers = ["Pertanyaan", "Jenis", "Tingkat", "Mapel", "Jawaban", "Poin", "Bab", "Tags"]
   const rows: Row[] = data.map((s) => ({
     Pertanyaan: s.pertanyaan,
-    Jenis: s.jenisSoal === "ESSAY" ? "Essay" : "Pilihan Ganda",
+    Jenis: s.jenisSoal === "PILIHAN_GANDA" ? "Pilihan Ganda"
+      : s.jenisSoal === "ESSAY" ? "Essay"
+      : s.jenisSoal === "TRUE_FALSE" ? "Benar/Salah"
+      : s.jenisSoal === "ISIAN_SINGKAT" ? "Isian Singkat"
+      : s.jenisSoal === "MATCHING" ? "Menjodohkan"
+      : s.jenisSoal,
     Tingkat: s.tingkatKesulitan,
     Mapel: s.mataPelajaran.nama,
     Jawaban: s.jawaban,
     Poin: s.poin,
     Bab: s.bab || "",
+    Tags: s.tags || "",
   }))
 
   const ext = format === "pdf" ? "pdf" : format === "csv" ? "csv" : "xls"

@@ -188,6 +188,38 @@ export async function createSoal(data: {
   return soal
 }
 
+export async function simpanSoalGenerate(items: {
+  pertanyaan: string
+  jenisSoal: string
+  tingkatKesulitan: string
+  pilihanGanda?: { label: string; text: string }[]
+  trueFalse?: boolean
+  jawaban: string
+  poin: number
+  mataPelajaranId: string
+  bab?: string
+  tags?: string
+}[]) {
+  const guru = await getCurrentGuru()
+  if (!Array.isArray(items) || items.length === 0) return { success: 0 }
+  const data = items.map((it) => ({
+    pertanyaan: it.pertanyaan,
+    jenisSoal: it.jenisSoal as any,
+    tingkatKesulitan: it.tingkatKesulitan as any,
+    pilihanGanda: it.pilihanGanda && it.pilihanGanda.length > 0 ? it.pilihanGanda : undefined,
+    trueFalse: it.trueFalse ?? undefined,
+    jawaban: it.jawaban,
+    poin: it.poin,
+    bab: it.bab || null,
+    tags: it.tags || null,
+    mataPelajaranId: it.mataPelajaranId,
+    guruId: guru.id,
+  }))
+  const res = await prisma.soal.createMany({ data: data as any })
+  revalidatePath("/guru/soal")
+  return { success: res.count }
+}
+
 export async function updateSoal(
   id: string,
   data: {

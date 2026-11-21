@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   type ColumnDef,
@@ -111,6 +111,8 @@ export function GuruManagement({
   const [search, setSearch] = useState(initialSearch)
   const [includeDeleted, setIncludeDeleted] = useState(initialIncludeDeleted)
   const [loading, setLoading] = useState(false)
+  const [importLoading, setImportLoading] = useState(false)
+  const importInputRef = useRef<HTMLInputElement>(null)
   const [sorting, setSorting] = useState<SortingState>([])
 
   const debouncedSearch = useDebounce(search, 500)
@@ -332,6 +334,23 @@ if (editingGuru) {
     }
   }
 
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportLoading(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch("/api/import?type=guru", { method: "POST", body: fd })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error || "Import gagal"); return }
+      toast.success(`Import selesai: ${data.success} berhasil, ${data.failed} gagal`)
+      if (data.errors?.length) console.warn(data.errors)
+      fetchData()
+    } catch { toast.error("Gagal import") }
+    finally { setImportLoading(false); if (e.target) e.target.value = "" }
+  }
+
   const handleExport = async (format: "excel" | "pdf") => {
     try {
       const res = await fetch(`/api/export?type=guru&format=${format}`)
@@ -362,10 +381,11 @@ function resetForm() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Data Guru</h1>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" className="sm:hidden p-2" title="Import">
+          <input type="file" ref={importInputRef} accept=".csv" className="hidden" onChange={handleImportFile} />
+          <Button variant="outline" size="sm" className="sm:hidden p-2" title="Import" onClick={() => importInputRef.current?.click()} disabled={importLoading}>
             <Upload className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" className="hidden sm:inline-flex">
+          <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => importInputRef.current?.click()} disabled={importLoading}>
             <Upload className="h-4 w-4 mr-1" /> Import
           </Button>
           <Button variant="outline" size="sm" className="sm:hidden p-2" title="Excel" onClick={() => handleExport("excel")}>
