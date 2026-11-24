@@ -25,6 +25,14 @@ type Props = {
   admin: string
   berlakuSampai: string
   perangkat: "ANDROID" | "DESKTOP" | "WEB"
+  lokasi?: {
+    lat: number | null
+    lng: number | null
+    radiusMeter: number
+    akurasiMaksMeter: number
+    gpsWajib?: boolean
+    lokasiNama?: string | null
+  } | null
 }
 
 type HasilKiosk = {
@@ -42,7 +50,7 @@ const METODE_LABEL: Record<MetodeKiosk, string> = {
   NIS_NIP: "Cadangan NIS/NIP",
 }
 
-export function KioskAbsensi({ admin, berlakuSampai, perangkat }: Props) {
+export function KioskAbsensi({ admin, berlakuSampai, perangkat, lokasi }: Props) {
   const [jam, setJam] = useState("--:--:--")
   const [tab, setTab] = useState("wajah")
   const [hasil, setHasil] = useState<HasilKiosk | null>(null)
@@ -139,6 +147,7 @@ export function KioskAbsensi({ admin, berlakuSampai, perangkat }: Props) {
                   <WajahVerifikator
                     key={sesi}
                     perangkat={perangkat}
+                    lokasi={lokasi ?? null}
                     autoMulai
                     sembunyikanHasil
                     labelTombol="Absen Sekarang"

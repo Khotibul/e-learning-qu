@@ -3,6 +3,7 @@ import { cookies, headers } from "next/headers"
 import Link from "next/link"
 import { Fingerprint, ScanFace, ShieldCheck } from "lucide-react"
 import { prisma } from "@/lib/prisma"
+import { getKebijakanAbsensi } from "@/lib/absensi-guru"
 import { KIOSK_COOKIE, verifyKioskToken } from "@/lib/wajah-token"
 import { KioskAbsensi } from "./_components/kiosk-absensi"
 
@@ -73,11 +74,13 @@ export default async function KioskPage() {
     ? new Date(payload.exp * 1000).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })
     : "-"
 
+  const kebijakan = await getKebijakanAbsensi()
   return (
     <KioskAbsensi
       admin={admin.name || admin.email}
       berlakuSampai={berlakuSampai}
       perangkat={deteksiPerangkat(hdr.get("user-agent") ?? "")}
+      lokasi={kebijakan.lokasi}
     />
   )
 }

@@ -231,7 +231,8 @@ class _SiswaAbsensiHarianState extends State<SiswaAbsensiHarian> {
               _permintaanSection(),
               const SizedBox(height: 16),
             ],
-            const AbsensiWajahCard(
+            AbsensiWajahCard(
+              kebijakan: _kehadiran["kebijakan"] is Map ? Map<String, dynamic>.from(_kehadiran["kebijakan"] as Map) : null,
               keterangan: "Absen masuk/pulang dengan verifikasi wajah lewat kamera depan perangkat.",
             ),
             const SizedBox(height: 20),

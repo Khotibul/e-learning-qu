@@ -461,7 +461,8 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
           const SizedBox(height: 10),
           _guruHadirCard(),
           const SizedBox(height: 10),
-          const AbsensiWajahCard(
+          AbsensiWajahCard(
+            kebijakan: kebijakan,
             keterangan: "Kehadiran harian guru dengan verifikasi wajah — kamera depan Android/desktop.",
           ),
           const SizedBox(height: 10),

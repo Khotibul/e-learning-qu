@@ -12,6 +12,14 @@ type Props = {
   perangkat: "ANDROID" | "DESKTOP" | "WEB"
   terdaftar: boolean
   berlakuSampai: string
+  lokasi?: {
+    lat: number | null
+    lng: number | null
+    radiusMeter: number
+    akurasiMaksMeter: number
+    gpsWajib?: boolean
+    lokasiNama?: string | null
+  } | null
 }
 
 const labelRole: Record<string, string> = {
@@ -23,7 +31,7 @@ const labelRole: Record<string, string> = {
   USTADZ_PONDOK: "Ustadz Pondok",
 }
 
-export function KioskWajah({ token, nama, role, perangkat, terdaftar, berlakuSampai }: Props) {
+export function KioskWajah({ token, nama, role, perangkat, terdaftar, berlakuSampai, lokasi }: Props) {
   return (
     <main className="min-h-dvh bg-slate-950 px-4 py-6 text-slate-100">
       <div className="mx-auto w-full max-w-xl space-y-4">
@@ -57,6 +65,7 @@ export function KioskWajah({ token, nama, role, perangkat, terdaftar, berlakuSam
           <WajahVerifikator
             token={token}
             perangkat={perangkat}
+            lokasi={lokasi ?? null}
             autoMulai
             labelTombol="Absen Sekarang"
             petunjuk="Pastikan pencahayaan cukup dan hanya satu wajah di kamera. Tekan tombol setelah wajah terdeteksi."

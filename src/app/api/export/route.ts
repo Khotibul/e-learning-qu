@@ -26,7 +26,7 @@ export async function GET(req: Request) {
           ? await exportGuru(format)
           : type === "santri"
             ? await exportSantri(format)
-            : await exportMurid(format)
+            : await exportMurid(format, searchParams.get("kelasId"))
       }
       case "nilai": {
         if (role !== "ADMIN" && role !== "GURU") {
@@ -299,9 +299,11 @@ async function exportGuru(format: string) {
   return respond(out, format, `guru_${new Date().toISOString().split("T")[0]}.${ext}`)
 }
 
-async function exportMurid(format: string) {
+async function exportMurid(format: string, kelasId: string | null) {
+  const where: any = { deletedAt: null }
+  if (kelasId) where.kelasId = kelasId
   const data = await prisma.siswa.findMany({
-    where: { deletedAt: null },
+    where,
     orderBy: { nama: "asc" },
     include: { kelas: { select: { nama: true } }, user: { select: { email: true, biodata: true } } },
     take: 10000,

@@ -330,7 +330,8 @@ const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string; re
 
   const handleExport = async (format: "excel" | "pdf") => {
     try {
-      const res = await fetch(`/api/export?type=murid&format=${format}`)
+      const kelasParam = kelasId ? `&kelasId=${encodeURIComponent(kelasId)}` : ""
+    const res = await fetch(`/api/export?type=murid&format=${format}${kelasParam}`)
       if (!res.ok) throw new Error("Gagal mengekspor data")
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)

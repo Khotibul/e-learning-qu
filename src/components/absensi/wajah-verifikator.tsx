@@ -6,7 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { bukaKamera, deskriptorRataRataVideo, deteksiWajah, hentikanKamera, type DeteksiWajah } from "@/lib/wajah-browser"
 import { AMBANG_WAJAH, labelTipeWajah } from "@/lib/wajah-matematika"
+import { haversineMeter } from "@/lib/absensi-metode"
 import type { KartuIdentitas } from "@/lib/kiosk-absensi"
+
+type LokasiConfig = {
+  lat: number | null
+  lng: number | null
+  radiusMeter: number
+  akurasiMaksMeter: number
+  gpsWajib?: boolean
+  lokasiNama?: string | null
+} | null
 
 export type HasilVerifikasi = {
   status: "SUKSES" | "DUPLIKAT" | "TIDAK_DIKENAL" | "DITOLAK" | "GAGAL"
@@ -36,6 +46,8 @@ type Props = {
   compact?: boolean
   /** Sembunyikan kartu hasil bawaan (kiosk menampilkan kartu identitas sendiri). */
   sembunyikanHasil?: boolean
+  /** Konfigurasi lokasi Admin (opsional). Jika ada, kamera hanya aktif bila posisi sesuai. */
+  lokasi?: LokasiConfig
 }
 
 export function WajahVerifikator({
@@ -49,6 +61,7 @@ export function WajahVerifikator({
   autoMulai = false,
   compact = false,
   sembunyikanHasil = false,
+  lokasi = null,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -74,10 +87,46 @@ export function WajahVerifikator({
     if (c) c.getContext("2d")?.clearRect(0, 0, c.width, c.height)
   }, [])
 
+  const cekLokasi = useCallback(async (): Promise<boolean> => {
+    if (!lokasi) return true
+    const cfgLat = lokasi.lat
+    const cfgLng = lokasi.lng
+    if (cfgLat == null || cfgLng == null) {
+      setGalat("Titik lokasi belum ditentukan Admin")
+      return false
+    }
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGalat("Perangkat tidak mendukung GPS")
+      return false
+    }
+    const pos = await new Promise<GeolocationPosition | null>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (p) => resolve(p),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+      )
+    })
+    if (!pos) {
+      setGalat("Izin lokasi ditolak — aktifkan izin GPS pada peramban")
+      return false
+    }
+    const d = haversineMeter(pos.coords.latitude, pos.coords.longitude, cfgLat, cfgLng)
+    const radius = lokasi.radiusMeter ?? 100
+    const akurasiMaks = lokasi.akurasiMaksMeter ?? 50
+    const akurasiOk = pos.coords.accuracy <= akurasiMaks
+    if (d > radius || !akurasiOk) {
+      setGalat("Lokasi tidak sesuai / anda tidak di area lokasi")
+      return false
+    }
+    return true
+  }, [lokasi])
+
   const mulaiKamera = useCallback(async () => {
     const video = videoRef.current
     if (!video) return
     setGalat(null)
+    const lokasiOk = await cekLokasi()
+    if (!lokasiOk) return
     setMemuatMesin(true)
     try {
       const stream = await bukaKamera(video)
@@ -136,6 +185,8 @@ export function WajahVerifikator({
   const absen = useCallback(async () => {
     const video = videoRef.current
     if (!video || sibukRef.current) return
+    const lokasiOk = await cekLokasi()
+    if (!lokasiOk) return
     sibukRef.current = true
     setSibuk(true)
     setGalat(null)
@@ -159,7 +210,7 @@ export function WajahVerifikator({
       sibukRef.current = false
       setSibuk(false)
     }
-  }, [token, tujuan, targetProfilId, perangkat, onHasil])
+  }, [token, tujuan, targetProfilId, perangkat, onHasil, cekLokasi])
 
   const statusWarna =
     hasil?.status === "SUKSES"

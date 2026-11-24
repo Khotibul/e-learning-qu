@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { headers } from "next/headers"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
+import { getKebijakanAbsensi } from "@/lib/absensi-guru"
 import { verifyWajahToken } from "@/lib/wajah-token"
 import { KioskWajah } from "./_components/kiosk-wajah"
 
@@ -64,6 +65,8 @@ export default async function KioskWajahPage({
     ? new Date(payload.exp * 1000).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
     : "-"
 
+  const kebijakan = await getKebijakanAbsensi()
+
   return (
     <KioskWajah
       token={token}
@@ -72,6 +75,7 @@ export default async function KioskWajahPage({
       perangkat={deteksiPerangkat(hdr.get("user-agent") ?? "")}
       terdaftar={!!profil}
       berlakuSampai={berlakuSampai}
+      lokasi={kebijakan.lokasi}
     />
   )
 }
