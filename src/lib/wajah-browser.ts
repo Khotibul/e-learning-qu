@@ -169,7 +169,13 @@ export async function bukaKamera(video: HTMLVideoElement): Promise<MediaStream> 
   video.srcObject = stream
   video.muted = true
   video.playsInline = true
-  await video.play()
+  try {
+    await video.play()
+  } catch (e) {
+    hentikanKamera(stream)
+    video.srcObject = null
+    throw e
+  }
   return stream
 }
 

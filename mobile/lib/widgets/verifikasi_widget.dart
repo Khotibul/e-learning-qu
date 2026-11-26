@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../services/api_service.dart';
 
@@ -94,6 +95,17 @@ class _VerifikasiWidgetState extends State<VerifikasiWidget> {
   Future<void> _ambilFoto() async {
     setState(() => proses = true);
     try {
+      // ImagePicker tidak meminta izin sendiri. Karena aplikasi mendeklarasikan
+      // CAMERA di manifest, izin runtime harus diminta sebelum membuka kamera.
+      final izin = await Permission.camera.request();
+      if (!izin.isGranted) {
+        _toast(
+          izin.isPermanentlyDenied
+              ? "Izin kamera diblokir. Buka Pengaturan aplikasi, lalu izinkan Kamera."
+              : "Izin kamera ditolak. Selfie wajah memerlukan akses kamera.",
+        );
+        return;
+      }
       final picker = ImagePicker();
       // FOTO = verifikasi wajah: gunakan kamera depan (selfie), bukan kamera belakang.
       final XFile? file = await picker.pickImage(

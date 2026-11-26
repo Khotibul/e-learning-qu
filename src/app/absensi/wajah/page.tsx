@@ -75,7 +75,7 @@ export default async function KioskWajahPage({
       perangkat={deteksiPerangkat(hdr.get("user-agent") ?? "")}
       terdaftar={!!profil}
       berlakuSampai={berlakuSampai}
-      lokasi={kebijakan.lokasi}
+      lokasi={kebijakan.lokasi.gpsWajib ? kebijakan.lokasi : null}
     />
   )
 }

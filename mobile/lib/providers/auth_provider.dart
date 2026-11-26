@@ -20,7 +20,15 @@ class AuthProvider extends ChangeNotifier {
     if (raw != null) {
       try {
         final Map<String, dynamic> j = jsonDecode(raw) as Map<String, dynamic>;
-        _user = User.fromJson(j);
+        final user = User.fromJson(j);
+        // Android hanya untuk Guru dan Murid. Sesi Admin/Researcher lama
+        // dibersihkan agar tidak bisa masuk lewat sesi tersimpan.
+        if (user.role == Role.admin || user.role == Role.researcher) {
+          await prefs.remove("auth_user");
+          await prefs.remove("auth_token");
+        } else {
+          _user = user;
+        }
       } catch (_) {}
     }
     _loading = false;
@@ -40,7 +48,11 @@ class AuthProvider extends ChangeNotifier {
         if (v != null) merged[key] = v;
       }
     }
-    _user = User.fromJson(merged);
+    final user = User.fromJson(merged);
+    if (user.role == Role.admin || user.role == Role.researcher) {
+      throw Exception("Aplikasi Android hanya untuk Siswa dan Guru");
+    }
+    _user = user;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString("auth_user", jsonEncode(merged));
     notifyListeners();
@@ -54,7 +66,11 @@ class AuthProvider extends ChangeNotifier {
         if (v != null) merged[key] = v;
       }
     }
-    _user = User.fromJson(merged);
+    final user = User.fromJson(merged);
+    if (user.role == Role.admin || user.role == Role.researcher) {
+      throw Exception("Aplikasi Android hanya untuk Siswa dan Guru");
+    }
+    _user = user;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString("auth_user", jsonEncode(merged));
     notifyListeners();

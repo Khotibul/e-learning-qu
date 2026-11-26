@@ -14,8 +14,6 @@ import 'screens/guru/murid_detail.dart';
 import 'screens/guru/absensi.dart';
 import 'screens/guru/analitik.dart';
 import 'screens/guru/ujian.dart';
-import 'screens/admin/murid_page.dart';
-import 'screens/admin/santri_page.dart';
 import 'models/user.dart';
 
 void main() async {
@@ -72,10 +70,8 @@ class _RoleScaffoldState extends State<RoleScaffold> {
   @override
   Widget build(BuildContext context) {
     final isSiswa = widget.role == Role.siswa;
-    final isGuru = widget.role == Role.guru;
-    final isAdmin = widget.role == Role.admin;
 
-    // Fitur disesuaikan dengan website — Siswa, Guru, dan Admin (data murid/santri)
+    // Aplikasi Android hanya untuk Siswa dan Guru; halaman admin tidak disertakan.
     final siswaPages = [
       const SiswaDashboard(),
       const SiswaUjian(),
@@ -90,18 +86,8 @@ class _RoleScaffoldState extends State<RoleScaffold> {
       const GuruAbsensi(), // absensi sesi mengajar + absensi siswa per mapel
       const GuruAnalitik(), // analitik guru
     ];
-    final adminPages = [
-      const AdminMuridPage(),
-      const AdminSantriPage(),
-    ];
-
-    final pages = isSiswa ? siswaPages : (isGuru ? guruPages : adminPages);
-    final items = isAdmin
-        ? const [
-            NavigationDestination(icon: Icon(Icons.people_outline, size: 20), selectedIcon: Icon(Icons.people, size: 20), label: "Murid"),
-            NavigationDestination(icon: Icon(Icons.school_outlined, size: 20), selectedIcon: Icon(Icons.school, size: 20), label: "Santri"),
-          ]
-        : isSiswa
+    final pages = isSiswa ? siswaPages : guruPages;
+    final items = isSiswa
         ? const [
             NavigationDestination(icon: Icon(Icons.dashboard_outlined, size: 20), selectedIcon: Icon(Icons.dashboard, size: 20), label: "Beranda"),
             NavigationDestination(icon: Icon(Icons.quiz_outlined, size: 20), selectedIcon: Icon(Icons.quiz, size: 20), label: "Ujian"),

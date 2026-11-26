@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
@@ -36,6 +37,8 @@ class _AbsensiWajahCardState extends State<AbsensiWajahCard> {
   }
 
   Future<bool> _cekLokasi() async {
+    // Lokasi hanya wajib bila kebijakan Admin mengaktifkannya.
+    if (_lokasi["gpsWajib"] != true) return true;
     final cfgLat = double.tryParse("${_lokasi["lat"] ?? ""}");
     final cfgLng = double.tryParse("${_lokasi["lng"] ?? ""}");
     if (cfgLat == null || cfgLng == null) {
@@ -76,7 +79,12 @@ class _AbsensiWajahCardState extends State<AbsensiWajahCard> {
 
       final cam = await Permission.camera.request();
       if (!cam.isGranted) {
-        _snack("Izin kamera ditolak", AppColors.danger);
+        _snack(
+          cam.isPermanentlyDenied
+              ? "Izin kamera diblokir. Buka Pengaturan aplikasi, lalu izinkan Kamera."
+              : "Izin kamera ditolak",
+          AppColors.danger,
+        );
         return;
       }
 
@@ -212,13 +220,39 @@ class _WajahWebViewDialogState extends State<_WajahWebViewDialog> {
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
+    _controller = WebViewController(
+      onPermissionRequest: (request) async {
+        if (request.types.contains(WebViewPermissionResourceType.camera)) {
+          final izin = await Permission.camera.request();
+          if (izin.isGranted) {
+            await request.grant();
+            return;
+          }
+        }
+        await request.deny();
+      },
+    )
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(NavigationDelegate(
         onPageStarted: (_) => setState(() => _loading = true),
         onPageFinished: (_) => setState(() => _loading = false),
       ))
       ..loadRequest(Uri.parse(widget.url));
+
+    // Android WebView menolak GPS secara default. Izinkan origin halaman ini
+    // selama izin lokasi aplikasi sudah diberikan.
+    final platform = _controller.platform;
+    if (platform is AndroidWebViewController) {
+      platform.setGeolocationPermissionsPromptCallbacks(
+        onShowPrompt: (_) async {
+          final izin = await Permission.locationWhenInUse.request();
+          return GeolocationPermissionsResponse(
+            allow: izin.isGranted,
+            retain: true,
+          );
+        },
+      );
+    }
   }
 
   @override

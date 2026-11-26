@@ -177,12 +177,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               selected: _role == Role.guru,
                               onTap: () => setState(() => _role = Role.guru),
                             ),
-                            _RoleTab(
-                              label: "Admin",
-                              icon: Icons.admin_panel_settings_outlined,
-                              selected: _role == Role.admin,
-                              onTap: () => setState(() => _role = Role.admin),
-                            ),
                           ],
                         ),
                       ),
@@ -194,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         autocorrect: false,
                         decoration: InputDecoration(
                           labelText: "Email",
-                          hintText: _role == Role.siswa ? "siswa@sekolah.id" : (_role == Role.guru ? "guru@sekolah.id" : "admin@sekolah.id"),
+                          hintText: _role == Role.siswa ? "siswa@sekolah.id" : "guru@sekolah.id",
                           prefixIcon: const Icon(Icons.mail_outline, size: 20),
                         ),
                       ),
@@ -217,10 +211,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 18),
                       _GradientButton(
                         loading: _loading,
-                        label: "Masuk sebagai ${_role == Role.siswa ? "Siswa" : (_role == Role.guru ? "Guru" : "Admin")}",
+                        label: "Masuk sebagai ${_role == Role.siswa ? "Siswa" : "Guru"}",
                         onTap: _loading ? null : _masuk,
                       ),
-                      if (_role != Role.admin) ...[
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -246,7 +239,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                       ),
-                      ],
                       const SizedBox(height: 10),
                       TextButton.icon(
                         onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VerifikasiSuratPage())),
