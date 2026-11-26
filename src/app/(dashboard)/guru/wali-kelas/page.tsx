@@ -1473,53 +1473,112 @@ export default function WaliKelasPage() {
 
             {/* KEHADIRAN HARIAN (FINGERPRINT) */}
             <TabsContent value="kehadiran" className="space-y-4 mt-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Label className="text-sm">Tanggal</Label>
-                <Input type="date" value={kehadiranTanggal} className="w-40"
-                  onChange={(e) => { setKehadiranTanggal(e.target.value); loadKehadiran({ tanggal: e.target.value }) }} />
-                <Label className="text-sm ml-2">Periode Rekap</Label>
-                <Select value={periodeMode} onValueChange={(v) => { const m = v as "minggu" | "bulan" | "semester"; setPeriodeMode(m); loadKehadiran({ mode: m }) }}>
-                  <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="minggu">Minggu Ini</SelectItem>
-                    <SelectItem value="bulan">Bulan Ini</SelectItem>
-                    <SelectItem value="semester">Semester</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Label className="text-sm ml-2">Filter Status</Label>
-                <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
-                  <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SEMUA">Semua Status</SelectItem>
-                    <SelectItem value="BELUM">Belum Masuk</SelectItem>
-                    <SelectItem value="TERLAMBAT">Terlambat</SelectItem>
-                    <SelectItem value="IZIN">Izin</SelectItem>
-                    <SelectItem value="SAKIT">Sakit</SelectItem>
-                    <SelectItem value="PULANG">Sudah Pulang</SelectItem>
-                    <SelectItem value="AWAL">Pulang Awal</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" size="sm" onClick={() => loadKehadiran()} disabled={kehadiranLoading}>
-                  {kehadiranLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4 mr-1.5" />} Muat Ulang
-                </Button>
-                <Button size="sm" onClick={bukaSusulan} disabled={!tanggalBoleh}
-                  title={tanggalBoleh ? "Isi absensi yang terlewat" : "Pilih tanggal hari ini atau sebelumnya"}>
-                  <Save className="h-4 w-4 mr-1.5" /> Input Susulan
-                </Button>
+              <div className="rounded-lg border bg-card p-3 sm:p-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="tanggal-kehadiran" className="text-xs text-muted-foreground">Tanggal</Label>
+                    <Input id="tanggal-kehadiran" type="date" value={kehadiranTanggal} className="h-9 w-full"
+                      onChange={(e) => { setKehadiranTanggal(e.target.value); loadKehadiran({ tanggal: e.target.value }) }} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Periode Rekap</Label>
+                    <Select value={periodeMode} onValueChange={(v) => { const m = v as "minggu" | "bulan" | "semester"; setPeriodeMode(m); loadKehadiran({ mode: m }) }}>
+                      <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="minggu">Minggu Ini</SelectItem>
+                        <SelectItem value="bulan">Bulan Ini</SelectItem>
+                        <SelectItem value="semester">Semester</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Filter Status</Label>
+                    <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
+                      <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SEMUA">Semua Status</SelectItem>
+                        <SelectItem value="BELUM">Belum Masuk</SelectItem>
+                        <SelectItem value="TERLAMBAT">Terlambat</SelectItem>
+                        <SelectItem value="IZIN">Izin</SelectItem>
+                        <SelectItem value="SAKIT">Sakit</SelectItem>
+                        <SelectItem value="PULANG">Sudah Pulang</SelectItem>
+                        <SelectItem value="AWAL">Pulang Awal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row md:items-end">
+                    <Button variant="outline" className="h-9 w-full sm:flex-1 xl:w-auto" onClick={() => loadKehadiran()} disabled={kehadiranLoading}>
+                      {kehadiranLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4 mr-1.5" />} Muat Ulang
+                    </Button>
+                    <Button className="h-9 w-full sm:flex-1 xl:w-auto" onClick={bukaSusulan} disabled={!tanggalBoleh}
+                      title={tanggalBoleh ? "Isi absensi yang terlewat" : "Pilih tanggal hari ini atau sebelumnya"}>
+                      <Save className="h-4 w-4 mr-1.5" /> Input Susulan
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               <Dialog open={susulanOpen} onOpenChange={setSusulanOpen}>
-                <DialogContent className="max-w-3xl">
+                <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-3xl overflow-y-auto p-4 sm:p-6">
                   <DialogHeader>
-                    <DialogTitle>Input Absensi Susulan — {kehadiran?.tanggal}</DialogTitle>
+                    <DialogTitle className="text-base sm:text-lg">Input Absensi Susulan — {kehadiran?.tanggal}</DialogTitle>
                   </DialogHeader>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground sm:text-sm">
                     {tanggalLampau
                       ? "Isi jam masuk/pulang untuk siswa yang belum tercatat. Status hadir/terlambat dihitung otomatis dari jam masuk."
                       : "Untuk hari ini jam diisi oleh fingerprint/wajah. Di sini Anda hanya dapat menandai Izin atau Sakit."}
                     {" "}Pilih Izin/Sakit agar rekap tidak dihitung sebagai belum masuk.
                   </p>
-                  <div className="max-h-[55vh] overflow-y-auto rounded-md border">
+
+                  {/* Mobile: kartu per siswa */}
+                  <div className="max-h-[55vh] space-y-2 overflow-y-auto md:hidden">
+                    {(kehadiran?.rows ?? []).map((r: any) => (
+                      <div key={r.siswaId} className="rounded-lg border p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{r.nama}</p>
+                            <p className="text-[11px] text-muted-foreground">NIS {r.nis ?? "-"}</p>
+                          </div>
+                          <Select value={susulanDraft[r.siswaId]?.statusHarian ?? ""}
+                            onValueChange={(v) => setSusulanDraft((d) => ({
+                              ...d,
+                              [r.siswaId]: {
+                                ...d[r.siswaId],
+                                statusHarian: v,
+                                ...(v === "IZIN" || v === "SAKIT" ? { jamMasuk: "", jamPulang: "" } : {}),
+                              },
+                            }))}>
+                            <SelectTrigger className="h-8 w-28 shrink-0"><SelectValue placeholder="Belum" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="HADIR">Hadir</SelectItem>
+                              <SelectItem value="IZIN">Izin</SelectItem>
+                              <SelectItem value="SAKIT">Sakit</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">Jam Masuk</Label>
+                            <Input type="time" className="h-8 w-full" disabled={!tanggalLampau || susulanDraft[r.siswaId]?.statusHarian === "IZIN" || susulanDraft[r.siswaId]?.statusHarian === "SAKIT"}
+                              value={susulanDraft[r.siswaId]?.jamMasuk ?? ""}
+                              onChange={(e) => setSusulanDraft((d) => ({ ...d, [r.siswaId]: { ...d[r.siswaId], jamMasuk: e.target.value } }))} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">Jam Pulang</Label>
+                            <Input type="time" className="h-8 w-full" disabled={!tanggalLampau || susulanDraft[r.siswaId]?.statusHarian === "IZIN" || susulanDraft[r.siswaId]?.statusHarian === "SAKIT"}
+                              value={susulanDraft[r.siswaId]?.jamPulang ?? ""}
+                              onChange={(e) => setSusulanDraft((d) => ({ ...d, [r.siswaId]: { ...d[r.siswaId], jamPulang: e.target.value } }))} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {(kehadiran?.rows ?? []).length === 0 && (
+                      <p className="py-6 text-center text-sm text-muted-foreground">Tidak ada siswa di kelas ini</p>
+                    )}
+                  </div>
+
+                  {/* Desktop: tabel */}
+                  <div className="hidden max-h-[55vh] overflow-y-auto rounded-md border md:block">
                     <table className="w-full text-sm">
                       <thead className="sticky top-0 bg-background">
                         <tr className="border-b text-left text-xs text-muted-foreground">
@@ -1569,9 +1628,9 @@ export default function WaliKelasPage() {
                       </tbody>
                     </table>
                   </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setSusulanOpen(false)} disabled={susulanSaving}>Batal</Button>
-                    <Button onClick={simpanSusulan} disabled={susulanSaving}>
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <Button variant="outline" className="w-full sm:w-auto" onClick={() => setSusulanOpen(false)} disabled={susulanSaving}>Batal</Button>
+                    <Button className="w-full sm:w-auto" onClick={simpanSusulan} disabled={susulanSaving}>
                       {susulanSaving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />} Simpan
                     </Button>
                   </div>
@@ -1580,90 +1639,143 @@ export default function WaliKelasPage() {
 
               {kehadiran && (
                 <>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
-                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Sudah Masuk</p>
-                      <p className="text-xl font-bold text-emerald-600">{kehadiran.summary.masuk} / {kehadiran.summary.total}</p></CardContent></Card>
-                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Belum Masuk</p>
-                      <p className="text-xl font-bold text-slate-500">{kehadiran.summary.belumMasuk}</p></CardContent></Card>
-                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Terlambat</p>
-                      <p className="text-xl font-bold text-amber-600">{kehadiran.summary.terlambat}</p></CardContent></Card>
-                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Izin</p>
-                      <p className="text-xl font-bold text-sky-600">{kehadiran.summary.izin}</p></CardContent></Card>
-                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Sakit</p>
-                      <p className="text-xl font-bold text-violet-600">{kehadiran.summary.sakit}</p></CardContent></Card>
-                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Sudah Pulang</p>
-                      <p className="text-xl font-bold text-sky-600">{kehadiran.summary.pulang}</p></CardContent></Card>
-                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Alpa di Pelajaran</p>
-                      <p className="text-xl font-bold text-rose-600">{kehadiran.summary.alpaPelajaran}</p></CardContent></Card>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-7">
+                    <Card><CardContent className="p-3 sm:p-4"><p className="text-[11px] text-muted-foreground sm:text-xs">Sudah Masuk</p>
+                      <p className="mt-1 text-lg font-bold text-emerald-600 sm:text-xl">{kehadiran.summary.masuk} <span className="text-sm font-medium text-muted-foreground">/ {kehadiran.summary.total}</span></p></CardContent></Card>
+                    <Card><CardContent className="p-3 sm:p-4"><p className="text-[11px] text-muted-foreground sm:text-xs">Belum Masuk</p>
+                      <p className="mt-1 text-lg font-bold text-slate-500 sm:text-xl">{kehadiran.summary.belumMasuk}</p></CardContent></Card>
+                    <Card><CardContent className="p-3 sm:p-4"><p className="text-[11px] text-muted-foreground sm:text-xs">Terlambat</p>
+                      <p className="mt-1 text-lg font-bold text-amber-600 sm:text-xl">{kehadiran.summary.terlambat}</p></CardContent></Card>
+                    <Card><CardContent className="p-3 sm:p-4"><p className="text-[11px] text-muted-foreground sm:text-xs">Izin</p>
+                      <p className="mt-1 text-lg font-bold text-sky-600 sm:text-xl">{kehadiran.summary.izin}</p></CardContent></Card>
+                    <Card><CardContent className="p-3 sm:p-4"><p className="text-[11px] text-muted-foreground sm:text-xs">Sakit</p>
+                      <p className="mt-1 text-lg font-bold text-violet-600 sm:text-xl">{kehadiran.summary.sakit}</p></CardContent></Card>
+                    <Card><CardContent className="p-3 sm:p-4"><p className="text-[11px] text-muted-foreground sm:text-xs">Sudah Pulang</p>
+                      <p className="mt-1 text-lg font-bold text-sky-600 sm:text-xl">{kehadiran.summary.pulang}</p></CardContent></Card>
+                    <Card className="col-span-2 sm:col-span-1"><CardContent className="p-3 sm:p-4"><p className="text-[11px] text-muted-foreground sm:text-xs">Alpa di Pelajaran</p>
+                      <p className="mt-1 text-lg font-bold text-rose-600 sm:text-xl">{kehadiran.summary.alpaPelajaran}</p></CardContent></Card>
                   </div>
 
                   <Card>
-                    <CardHeader><CardTitle className="text-base">Kehadiran Fingerprint — {kehadiran.tanggal}</CardTitle></CardHeader>
-                    <CardContent className="overflow-x-auto p-0">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b text-left text-xs text-muted-foreground">
-                            <th className="px-4 py-2">Nama</th><th className="px-2 py-2">NIS</th>
-                            <th className="px-2 py-2">Masuk</th><th className="px-2 py-2">Status</th>
-                            <th className="px-2 py-2">Pulang</th><th className="px-2 py-2">Status</th>
-                            <th className="px-2 py-2">Sumber</th><th className="px-2 py-2">Riwayat</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {kehadiranRowsTampil.length === 0 && (
-                            <tr><td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">Tidak ada siswa yang cocok dengan filter</td></tr>
-                          )}
-                          {kehadiranRowsTampil.map((r: any) => {
-                            const st = statusEfektif(r)
-                            return (
-                            <tr key={r.siswaId} className={`border-b last:border-b-0 ${!r.jamMasuk && !r.statusHarian ? "bg-rose-50/40" : ""}`}>
-                              <td className="px-4 py-2 font-medium">{r.nama}</td>
-                              <td className="px-2 py-2 text-xs">{r.nis ?? "-"}</td>
-                              <td className="px-2 py-2 font-mono text-xs">{r.jamMasuk ?? "-"}</td>
-                              <td className="px-2 py-2">
-                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                                  st === "IZIN" ? "bg-sky-100 text-sky-700"
-                                  : st === "SAKIT" ? "bg-violet-100 text-violet-700"
-                                  : !st ? "bg-slate-100 text-slate-500"
-                                  : st === "TERLAMBAT" ? "bg-amber-100 text-amber-700"
-                                  : "bg-emerald-100 text-emerald-700"}`}>
-                                  {st === "IZIN" ? "IZIN" : st === "SAKIT" ? "SAKIT" : !st ? "BELUM MASUK" : st === "TERLAMBAT" ? `TERLAMBAT ${r.terlambatMenit}M` : "HADIR"}
-                                </span>
-                              </td>
-                              <td className="px-2 py-2 font-mono text-xs">{r.jamPulang ?? "-"}</td>
-                              <td className="px-2 py-2">
-                                {r.statusHarian === "IZIN" || r.statusHarian === "SAKIT" ? (
-                                  <span className="text-[10px] text-muted-foreground">—</span>
-                                ) : (
-                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                                  !r.jamPulang ? "bg-slate-100 text-slate-400"
-                                  : r.statusPulang === "AWAL" ? "bg-rose-100 text-rose-700"
-                                  : "bg-sky-100 text-sky-700"}`}>
-                                  {!r.jamPulang ? "BELUM PULANG" : r.statusPulang === "AWAL" ? "PULANG AWAL" : "NORMAL"}
-                                </span>
-                                )}
-                              </td>
-                              <td className="px-2 py-2 text-[10px] text-muted-foreground">{r.sumber ?? "-"}</td>
-                              <td className="px-2 py-2">
-                                {r.riwayat?.length ? (
-                                  <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px]" onClick={() => setRiwayatSiswa(r)}>
-                                    <History className="h-3.5 w-3.5 mr-1" /> {r.riwayat.length}
-                                  </Button>
-                                ) : (
-                                  <span className="text-[10px] text-muted-foreground">-</span>
-                                )}
-                              </td>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
+                      <CardTitle className="text-sm sm:text-base">Kehadiran Fingerprint — {kehadiran.tanggal}</CardTitle>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">{kehadiranRowsTampil.length} siswa</span>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {/* Mobile: kartu */}
+                      <div className="space-y-2 p-3 lg:hidden">
+                        {kehadiranRowsTampil.length === 0 && (
+                          <p className="py-6 text-center text-sm text-muted-foreground">Tidak ada siswa yang cocok dengan filter</p>
+                        )}
+                        {kehadiranRowsTampil.map((r: any) => {
+                          const st = statusEfektif(r)
+                          const statusMasukLabel = st === "IZIN" ? "IZIN" : st === "SAKIT" ? "SAKIT" : !st ? "BELUM MASUK" : st === "TERLAMBAT" ? `TERLAMBAT ${r.terlambatMenit}M` : "HADIR"
+                          const statusMasukClass = st === "IZIN" ? "bg-sky-100 text-sky-700" : st === "SAKIT" ? "bg-violet-100 text-violet-700" : !st ? "bg-slate-100 text-slate-500" : st === "TERLAMBAT" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
+                          return (
+                            <div key={r.siswaId} className={`rounded-lg border p-3 ${!r.jamMasuk && !r.statusHarian ? "border-rose-200 bg-rose-50/40" : ""}`}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold">{r.nama}</p>
+                                  <p className="text-[11px] text-muted-foreground">NIS {r.nis ?? "-"} · {r.sumber ?? "-"}</p>
+                                </div>
+                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${statusMasukClass}`}>{statusMasukLabel}</span>
+                              </div>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                <div className="rounded-md bg-muted/50 p-2">
+                                  <p className="text-[10px] text-muted-foreground">Masuk</p>
+                                  <p className="font-mono text-sm">{r.jamMasuk ?? "-"}</p>
+                                </div>
+                                <div className="rounded-md bg-muted/50 p-2">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <p className="text-[10px] text-muted-foreground">Pulang</p>
+                                    {r.statusHarian === "IZIN" || r.statusHarian === "SAKIT" ? (
+                                      <span className="text-[10px] text-muted-foreground">—</span>
+                                    ) : (
+                                      <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium ${!r.jamPulang ? "bg-slate-100 text-slate-400" : r.statusPulang === "AWAL" ? "bg-rose-100 text-rose-700" : "bg-sky-100 text-sky-700"}`}>
+                                        {!r.jamPulang ? "BELUM" : r.statusPulang === "AWAL" ? "AWAL" : "NORMAL"}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="font-mono text-sm">{r.jamPulang ?? "-"}</p>
+                                </div>
+                              </div>
+                              {r.riwayat?.length > 0 && (
+                                <Button variant="ghost" size="sm" className="mt-1 h-7 px-2 text-[11px]" onClick={() => setRiwayatSiswa(r)}>
+                                  <History className="h-3.5 w-3.5 mr-1" /> Riwayat input ({r.riwayat.length})
+                                </Button>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* Desktop: tabel */}
+                      <div className="hidden overflow-x-auto lg:block">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b text-left text-xs text-muted-foreground">
+                              <th className="px-4 py-2">Nama</th><th className="px-2 py-2">NIS</th>
+                              <th className="px-2 py-2">Masuk</th><th className="px-2 py-2">Status</th>
+                              <th className="px-2 py-2">Pulang</th><th className="px-2 py-2">Status</th>
+                              <th className="px-2 py-2">Sumber</th><th className="px-2 py-2">Riwayat</th>
                             </tr>
-                          )})}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {kehadiranRowsTampil.length === 0 && (
+                              <tr><td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">Tidak ada siswa yang cocok dengan filter</td></tr>
+                            )}
+                            {kehadiranRowsTampil.map((r: any) => {
+                              const st = statusEfektif(r)
+                              return (
+                              <tr key={r.siswaId} className={`border-b last:border-b-0 ${!r.jamMasuk && !r.statusHarian ? "bg-rose-50/40" : ""}`}>
+                                <td className="px-4 py-2 font-medium">{r.nama}</td>
+                                <td className="px-2 py-2 text-xs">{r.nis ?? "-"}</td>
+                                <td className="px-2 py-2 font-mono text-xs">{r.jamMasuk ?? "-"}</td>
+                                <td className="px-2 py-2">
+                                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                    st === "IZIN" ? "bg-sky-100 text-sky-700"
+                                    : st === "SAKIT" ? "bg-violet-100 text-violet-700"
+                                    : !st ? "bg-slate-100 text-slate-500"
+                                    : st === "TERLAMBAT" ? "bg-amber-100 text-amber-700"
+                                    : "bg-emerald-100 text-emerald-700"}`}>
+                                    {st === "IZIN" ? "IZIN" : st === "SAKIT" ? "SAKIT" : !st ? "BELUM MASUK" : st === "TERLAMBAT" ? `TERLAMBAT ${r.terlambatMenit}M` : "HADIR"}
+                                  </span>
+                                </td>
+                                <td className="px-2 py-2 font-mono text-xs">{r.jamPulang ?? "-"}</td>
+                                <td className="px-2 py-2">
+                                  {r.statusHarian === "IZIN" || r.statusHarian === "SAKIT" ? (
+                                    <span className="text-[10px] text-muted-foreground">—</span>
+                                  ) : (
+                                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                    !r.jamPulang ? "bg-slate-100 text-slate-400"
+                                    : r.statusPulang === "AWAL" ? "bg-rose-100 text-rose-700"
+                                    : "bg-sky-100 text-sky-700"}`}>
+                                    {!r.jamPulang ? "BELUM PULANG" : r.statusPulang === "AWAL" ? "PULANG AWAL" : "NORMAL"}
+                                  </span>
+                                  )}
+                                </td>
+                                <td className="px-2 py-2 text-[10px] text-muted-foreground">{r.sumber ?? "-"}</td>
+                                <td className="px-2 py-2">
+                                  {r.riwayat?.length ? (
+                                    <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px]" onClick={() => setRiwayatSiswa(r)}>
+                                      <History className="h-3.5 w-3.5 mr-1" /> {r.riwayat.length}
+                                    </Button>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground">-</span>
+                                  )}
+                                </td>
+                              </tr>
+                            )})}
+                          </tbody>
+                        </table>
+                      </div>
                     </CardContent>
                   </Card>
 
                   <Dialog open={!!riwayatSiswa} onOpenChange={(v) => { if (!v) setRiwayatSiswa(null) }}>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="w-[calc(100vw-2rem)] max-w-lg p-4 sm:p-6">
                       <DialogHeader>
-                        <DialogTitle>Riwayat Input Susulan — {riwayatSiswa?.nama}</DialogTitle>
+                        <DialogTitle className="text-base sm:text-lg">Riwayat Input Susulan — {riwayatSiswa?.nama}</DialogTitle>
                       </DialogHeader>
                       <p className="text-sm text-muted-foreground">
                         {kehadiran.tanggal} • dicatat oleh wali kelas beserta waktu penyimpanannya.
@@ -1702,64 +1814,109 @@ export default function WaliKelasPage() {
                   )}
 
                   <Card>
-                    <CardHeader><CardTitle className="text-base">Rekap Absensi per Mata Pelajaran ({kehadiran.tanggal})</CardTitle></CardHeader>
-                    <CardContent className="overflow-x-auto p-0">
-                      <table className="w-full text-sm">
-                        <thead><tr className="border-b text-left text-xs text-muted-foreground">
-                          <th className="px-4 py-2">Mata Pelajaran</th><th className="px-2 py-2">Hadir</th>
-                          <th className="px-2 py-2">Izin</th><th className="px-2 py-2">Sakit</th>
-                          <th className="px-2 py-2">Alpa</th><th className="px-2 py-2">Total</th>
-                        </tr></thead>
-                        <tbody>
-                          {kehadiran.absensiPelajaran.length === 0 ? (
-                            <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Belum ada absensi per pelajaran hari ini</td></tr>
-                          ) : kehadiran.absensiPelajaran.map((a: any) => (
-                            <tr key={a.id} className="border-b last:border-b-0">
-                              <td className="px-4 py-2 font-medium">{a.mataPelajaran}</td>
-                              <td className="px-2 py-2">{a.hadir}</td>
-                              <td className="px-2 py-2">{a.izin}</td>
-                              <td className="px-2 py-2">{a.sakit}</td>
-                              <td className="px-2 py-2 text-rose-600">{a.alpa}</td>
-                              <td className="px-2 py-2">{a.total}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <CardHeader><CardTitle className="text-sm sm:text-base">Rekap Absensi per Mata Pelajaran ({kehadiran.tanggal})</CardTitle></CardHeader>
+                    <CardContent className="p-0">
+                      {/* Mobile: kartu */}
+                      <div className="sm:hidden">
+                        {kehadiran.absensiPelajaran.length === 0 ? (
+                          <p className="px-4 py-6 text-center text-sm text-muted-foreground">Belum ada absensi per pelajaran hari ini</p>
+                        ) : kehadiran.absensiPelajaran.map((a: any) => (
+                          <div key={a.id} className="border-b px-4 py-3 last:border-b-0">
+                            <p className="text-sm font-medium">{a.mataPelajaran}</p>
+                            <div className="mt-2 grid grid-cols-4 gap-1 text-center">
+                              <div><p className="text-sm font-semibold text-emerald-600">{a.hadir}</p><p className="text-[10px] text-muted-foreground">Hadir</p></div>
+                              <div><p className="text-sm font-semibold text-sky-600">{a.izin}</p><p className="text-[10px] text-muted-foreground">Izin</p></div>
+                              <div><p className="text-sm font-semibold text-violet-600">{a.sakit}</p><p className="text-[10px] text-muted-foreground">Sakit</p></div>
+                              <div><p className="text-sm font-semibold text-rose-600">{a.alpa}</p><p className="text-[10px] text-muted-foreground">Alpa</p></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Desktop: tabel */}
+                      <div className="hidden overflow-x-auto sm:block">
+                        <table className="w-full text-sm">
+                          <thead><tr className="border-b text-left text-xs text-muted-foreground">
+                            <th className="px-4 py-2">Mata Pelajaran</th><th className="px-2 py-2">Hadir</th>
+                            <th className="px-2 py-2">Izin</th><th className="px-2 py-2">Sakit</th>
+                            <th className="px-2 py-2">Alpa</th><th className="px-2 py-2">Total</th>
+                          </tr></thead>
+                          <tbody>
+                            {kehadiran.absensiPelajaran.length === 0 ? (
+                              <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Belum ada absensi per pelajaran hari ini</td></tr>
+                            ) : kehadiran.absensiPelajaran.map((a: any) => (
+                              <tr key={a.id} className="border-b last:border-b-0">
+                                <td className="px-4 py-2 font-medium">{a.mataPelajaran}</td>
+                                <td className="px-2 py-2">{a.hadir}</td>
+                                <td className="px-2 py-2">{a.izin}</td>
+                                <td className="px-2 py-2">{a.sakit}</td>
+                                <td className="px-2 py-2 text-rose-600">{a.alpa}</td>
+                                <td className="px-2 py-2">{a.total}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </CardContent>
                   </Card>
 
                   {rekapPeriode && (
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-base">
-                          {rentangPeriode(periodeMode).label} — {rekapPeriode.dari} s/d {rekapPeriode.sampai} · {rekapPeriode.hariSekolah} hari sekolah
+                        <CardTitle className="text-sm leading-snug sm:text-base">
+                          {rentangPeriode(periodeMode).label} — {rekapPeriode.dari} s/d {rekapPeriode.sampai}
+                          <span className="mt-1 block text-xs font-normal text-muted-foreground">{rekapPeriode.hariSekolah} hari sekolah</span>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="overflow-x-auto p-0">
-                        <table className="w-full text-sm">
-                          <thead><tr className="border-b text-left text-xs text-muted-foreground">
-                            <th className="px-4 py-2">Nama</th><th className="px-2 py-2">Hari Tercatat</th>
-                            <th className="px-2 py-2">Hadir</th><th className="px-2 py-2">Terlambat</th>
-                            <th className="px-2 py-2">Izin</th><th className="px-2 py-2">Sakit</th>
-                            <th className="px-2 py-2">Pulang Awal</th><th className="px-2 py-2">Belum Pulang</th>
-                            <th className="px-2 py-2">% Kehadiran</th>
-                          </tr></thead>
-                          <tbody>
-                            {rekapPeriode.rows.map((r: any) => (
-                              <tr key={r.siswaId} className="border-b last:border-b-0">
-                                <td className="px-4 py-2 font-medium">{r.nama}</td>
-                                <td className="px-2 py-2">{r.hariTercatat}</td>
-                                <td className="px-2 py-2">{r.hadir}</td>
-                                <td className="px-2 py-2 text-amber-600">{r.terlambat}</td>
-                                <td className="px-2 py-2 text-sky-600">{r.izin}</td>
-                                <td className="px-2 py-2 text-violet-600">{r.sakit}</td>
-                                <td className="px-2 py-2 text-rose-600">{r.pulangAwal}</td>
-                                <td className="px-2 py-2 text-slate-500">{r.belumPulang}</td>
-                                <td className="px-2 py-2 font-semibold">{r.persen}%</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                      <CardContent className="p-0">
+                        {/* Mobile: kartu */}
+                        <div className="lg:hidden">
+                          {rekapPeriode.rows.length === 0 ? (
+                            <p className="px-4 py-6 text-center text-sm text-muted-foreground">Belum ada data pada periode ini</p>
+                          ) : rekapPeriode.rows.map((r: any) => (
+                            <div key={r.siswaId} className="border-b px-4 py-3 last:border-b-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="truncate text-sm font-semibold">{r.nama}</p>
+                                <span className={`shrink-0 text-sm font-bold ${r.persen >= 90 ? "text-emerald-600" : r.persen >= 75 ? "text-amber-600" : "text-rose-600"}`}>{r.persen}%</span>
+                              </div>
+                              <div className="mt-2 grid grid-cols-4 gap-x-2 gap-y-2 text-center">
+                                <div><p className="text-sm font-medium">{r.hariTercatat}</p><p className="text-[10px] text-muted-foreground">Tercatat</p></div>
+                                <div><p className="text-sm font-medium text-emerald-600">{r.hadir}</p><p className="text-[10px] text-muted-foreground">Hadir</p></div>
+                                <div><p className="text-sm font-medium text-amber-600">{r.terlambat}</p><p className="text-[10px] text-muted-foreground">Terlambat</p></div>
+                                <div><p className="text-sm font-medium text-sky-600">{r.izin}</p><p className="text-[10px] text-muted-foreground">Izin</p></div>
+                                <div><p className="text-sm font-medium text-violet-600">{r.sakit}</p><p className="text-[10px] text-muted-foreground">Sakit</p></div>
+                                <div><p className="text-sm font-medium text-rose-600">{r.pulangAwal}</p><p className="text-[10px] text-muted-foreground">Pulang Awal</p></div>
+                                <div><p className="text-sm font-medium text-slate-500">{r.belumPulang}</p><p className="text-[10px] text-muted-foreground">Belum Pulang</p></div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Desktop: tabel */}
+                        <div className="hidden overflow-x-auto lg:block">
+                          <table className="w-full text-sm">
+                            <thead><tr className="border-b text-left text-xs text-muted-foreground">
+                              <th className="px-4 py-2">Nama</th><th className="px-2 py-2">Hari Tercatat</th>
+                              <th className="px-2 py-2">Hadir</th><th className="px-2 py-2">Terlambat</th>
+                              <th className="px-2 py-2">Izin</th><th className="px-2 py-2">Sakit</th>
+                              <th className="px-2 py-2">Pulang Awal</th><th className="px-2 py-2">Belum Pulang</th>
+                              <th className="px-2 py-2">% Kehadiran</th>
+                            </tr></thead>
+                            <tbody>
+                              {rekapPeriode.rows.map((r: any) => (
+                                <tr key={r.siswaId} className="border-b last:border-b-0">
+                                  <td className="px-4 py-2 font-medium">{r.nama}</td>
+                                  <td className="px-2 py-2">{r.hariTercatat}</td>
+                                  <td className="px-2 py-2">{r.hadir}</td>
+                                  <td className="px-2 py-2 text-amber-600">{r.terlambat}</td>
+                                  <td className="px-2 py-2 text-sky-600">{r.izin}</td>
+                                  <td className="px-2 py-2 text-violet-600">{r.sakit}</td>
+                                  <td className="px-2 py-2 text-rose-600">{r.pulangAwal}</td>
+                                  <td className="px-2 py-2 text-slate-500">{r.belumPulang}</td>
+                                  <td className="px-2 py-2 font-semibold">{r.persen}%</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </CardContent>
                     </Card>
                   )}
