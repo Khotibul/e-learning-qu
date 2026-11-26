@@ -51,7 +51,7 @@ import { getJadwalAdmin } from "../../jadwal/actions"
 import { getSemesterRefs } from "../../actions"
 import { AdminAbsensiSiswa } from "./admin-absensi-siswa"
 import { AdminPengecualian } from "./admin-pengecualian"
-import { DAFTAR_METODE } from "@/lib/absensi-metode"
+import { DAFTAR_METODE, wajibGps } from "@/lib/absensi-metode"
 
 const STATUS_OPTIONS = [
   { v: "HADIR", label: "Hadir" },
@@ -151,8 +151,7 @@ export function AdminAbsensiGuru() {
         search: search || undefined,
       })
       setMonitoring(data)
-      setKebijakan(data.kebijakan ?? kebijakan)
-      if (data.kebijakan?.fotoRetensiHari) setRetensiFoto(data.kebijakan.fotoRetensiHari)
+      // Jangan menimpa form kebijakan/GPS yang sedang diedit lewat auto-refresh.
     } catch (e: any) {
       toast.error(e?.message || "Gagal memuat monitoring")
     } finally {
@@ -183,9 +182,11 @@ export function AdminAbsensiGuru() {
 
   useEffect(() => {
     loadMonitoring()
+    // Polling hanya saat tab monitoring aktif agar tidak mengganggu pengeditan kebijakan.
+    if (tab !== "monitoring") return
     const id = setInterval(loadMonitoring, 30000) // real-time
     return () => clearInterval(id)
-  }, [loadMonitoring])
+  }, [loadMonitoring, tab])
 
   const loadRekap = async () => {
     setLoadingR(true)
@@ -294,22 +295,31 @@ export function AdminAbsensiGuru() {
   }
 
   const saveKebijakan = async () => {
+    const loc = kebijakan.lokasi ?? {}
+    const lat = typeof loc.lat === "number" && Number.isFinite(loc.lat) ? loc.lat : null
+    const lng = typeof loc.lng === "number" && Number.isFinite(loc.lng) ? loc.lng : null
+    const gpsAktif = !!loc.gpsWajib || wajibGps(kebijakan.metode)
+    if (gpsAktif && (lat == null || lng == null)) {
+      toast.error("Isi latitude dan longitude sebelum menyimpan kebijakan GPS")
+      return
+    }
+
     setSavingKebijakan(true)
     try {
-      const loc = kebijakan.lokasi ?? {}
       const k = await simpanKebijakanAbsensi({
         toleransiTerlambatMenit: kebijakan.toleransiTerlambatMenit,
         autoTidakHadirSetelahMenit: kebijakan.autoTidakHadirSetelahMenit,
         absensiMetode: kebijakan.metode || "TANPA",
         gpsWajib: !!loc.gpsWajib,
         gpsLokasiNama: loc.lokasiNama || null,
-        gpsLat: loc.lat,
-        gpsLng: loc.lng,
+        gpsLat: lat,
+        gpsLng: lng,
         gpsRadiusMeter: loc.radiusMeter,
         gpsAkurasiMaksMeter: loc.akurasiMaksMeter,
         fotoRetensiHari: retensiFoto,
       })
       setKebijakan(k as any)
+      if (k?.fotoRetensiHari) setRetensiFoto(k.fotoRetensiHari)
       toast.success("Kebijakan absensi & geofencing tersimpan")
       loadMonitoring()
     } catch (e: any) {
@@ -370,13 +380,13 @@ export function AdminAbsensiGuru() {
           <TabsTrigger value="kebijakan">Kebijakan &amp; GPS</TabsTrigger>
         </TabsList>
 
-        {/* â”€â”€ MONITORING â”€â”€ */}
+        {/* ── MONITORING ── */}
         <TabsContent value="monitoring" className="space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-center gap-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-primary" /> Kehadiran Guru â€” {monitoring?.hari ?? ""}
+                  <ShieldCheck className="h-4 w-4 text-primary" /> Kehadiran Guru — {monitoring?.hari ?? ""}
                 </CardTitle>
                 <div className="ml-auto flex items-center gap-2">
                   <Input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className="h-9 w-[150px]" />
@@ -479,7 +489,7 @@ export function AdminAbsensiGuru() {
                         <tr key={`${r.guruId}-${r.jadwalId}-${i}`} className={`border-t ${r.fase === "AKTIF" ? "bg-primary/5" : ""}`}>
                           <td className="p-3 whitespace-nowrap tabular-nums">
                             {r.jamMulai}-{r.jamSelesai}
-                            {r.fase === "AKTIF" && <span className="ml-1 text-[10px] font-bold text-primary">â— LIVE</span>}
+                            {r.fase === "AKTIF" && <span className="ml-1 text-[10px] font-bold text-primary">● LIVE</span>}
                           </td>
                           <td className="p-3">
                             <div className="font-medium">{r.guruNama}</div>
@@ -674,7 +684,7 @@ export function AdminAbsensiGuru() {
           </Card>
         </TabsContent>
 
-        {/* â”€â”€ PENGGANTI GURU â”€â”€ */}
+        {/* ── PENGGANTI GURU ── */}
         <TabsContent value="pengganti" className="space-y-4">
           <Card>
             <CardHeader className="pb-3">
@@ -711,7 +721,7 @@ export function AdminAbsensiGuru() {
                         <tr key={p.id} className="border-t">
                           <td className="p-3 whitespace-nowrap">{new Date(p.tanggal).toLocaleDateString("id-ID")}</td>
                           <td className="p-3">
-                            {p.jadwal?.kelas?.nama} â€¢ {p.jadwal?.mataPelajaran?.nama}
+                            {p.jadwal?.kelas?.nama} • {p.jadwal?.mataPelajaran?.nama}
                             <div className="text-[11px] text-muted-foreground">
                               {p.jadwal?.hari} {p.jadwal?.jamMulai}-{p.jadwal?.jamSelesai}
                             </div>
@@ -739,7 +749,7 @@ export function AdminAbsensiGuru() {
           </Card>
         </TabsContent>
 
-        {/* â”€â”€ KEBIJAKAN â”€â”€ */}
+        {/* ── KEBIJAKAN ── */}
         <TabsContent value="kebijakan" className="space-y-4">
           <Card>
             <CardHeader className="pb-3">
@@ -789,6 +799,7 @@ export function AdminAbsensiGuru() {
                 </Select>
                 <p className="text-xs text-muted-foreground">
                   Metode yang tidak dipilih tidak diwajibkan. Foto/GPS/sidik jari divalidasi ulang di server saat guru absen.
+                  Metode GPS mewajibkan titik lokasi diisi.
                 </p>
               </div>
 
@@ -910,7 +921,7 @@ export function AdminAbsensiGuru() {
         </TabsContent>
       </Tabs>
 
-      {/* â”€â”€ DIALOG KOREKSI â”€â”€ */}
+      {/* ── DIALOG KOREKSI ── */}
       <Dialog open={!!koreksiRow} onOpenChange={(o) => !o && setKoreksiRow(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -923,11 +934,11 @@ export function AdminAbsensiGuru() {
               <div className="rounded-lg bg-muted/50 p-3 text-sm">
                 <div className="font-medium">{koreksiRow.guruNama}</div>
                 <div className="text-xs text-muted-foreground">
-                  {koreksiRow.kelasNama} â€¢ {koreksiRow.mataPelajaranNama} â€¢ {koreksiRow.jamMulai}-{koreksiRow.jamSelesai}
+                  {koreksiRow.kelasNama} • {koreksiRow.mataPelajaranNama} • {koreksiRow.jamMulai}-{koreksiRow.jamSelesai}
                 </div>
                 {!koreksiRow.sesiId && (
                   <div className="mt-1 text-xs text-amber-600">
-                    Guru belum memiliki data absensi untuk sesi ini â€” koreksi akan membuat status baru.
+                    Guru belum memiliki data absensi untuk sesi ini — koreksi akan membuat status baru.
                   </div>
                 )}
               </div>
@@ -977,7 +988,7 @@ export function AdminAbsensiGuru() {
         </DialogContent>
       </Dialog>
 
-      {/* â”€â”€ DIALOG PENGGANTI â”€â”€ */}
+      {/* ── DIALOG PENGGANTI ── */}
       <Dialog open={dialogPengganti} onOpenChange={setDialogPengganti}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -996,7 +1007,7 @@ export function AdminAbsensiGuru() {
                   <SelectItem value={ONE}>Pilih jadwal...</SelectItem>
                   {jadwalList.map((j) => (
                     <SelectItem key={j.id} value={j.id}>
-                      {j.hari} {j.jamMulai}-{j.jamSelesai} â€¢ {j.kelas?.nama} â€¢ {j.mataPelajaran?.nama}
+                      {j.hari} {j.jamMulai}-{j.jamSelesai} • {j.kelas?.nama} • {j.mataPelajaran?.nama}
                     </SelectItem>
                   ))}
                 </SelectContent>

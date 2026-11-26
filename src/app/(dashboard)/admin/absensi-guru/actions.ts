@@ -15,6 +15,7 @@ import {
   nowMenit,
   resolveHari,
 } from "@/lib/absensi-guru"
+import { wajibGps } from "@/lib/absensi-metode"
 import type { StatusAbsensiGuruSesi } from "@prisma/client"
 
 async function requireAdmin() {
@@ -383,12 +384,15 @@ export async function simpanKebijakanAbsensi(data: {
   const radius = data.gpsRadiusMeter != null ? Math.max(10, Math.min(2000, Math.round(data.gpsRadiusMeter))) : undefined
   const akurasi = data.gpsAkurasiMaksMeter != null ? Math.max(1, Math.min(500, Math.round(data.gpsAkurasiMaksMeter))) : undefined
   const retensi = data.fotoRetensiHari != null ? Math.max(1, Math.min(3650, Math.round(data.fotoRetensiHari))) : undefined
-  const lat = data.gpsLat != null && Number.isFinite(data.gpsLat) ? Number(data.gpsLat) : undefined
-  const lng = data.gpsLng != null && Number.isFinite(data.gpsLng) ? Number(data.gpsLng) : undefined
+  const lat = data.gpsLat != null && Number.isFinite(data.gpsLat) ? Number(data.gpsLat) : null
+  const lng = data.gpsLng != null && Number.isFinite(data.gpsLng) ? Number(data.gpsLng) : null
 
-  // GPS wajib → titik lokasi & radius harus terisi
-  const gpsAktif = data.gpsWajib ?? false
-  if (gpsAktif && (lat == null || lng == null)) throw new Error("Titik lokasi (latitude/longitude) wajib diisi bila GPS diaktifkan")
+  // GPS wajib bila dicentang Admin atau metode yang dipilih memang memakai GPS.
+  const metodeEfektif = metode ?? (await getKebijakanAbsensi()).metode
+  const gpsAktif = (data.gpsWajib ?? false) || wajibGps(metodeEfektif)
+  if (gpsAktif && (lat == null || lng == null)) {
+    throw new Error("Titik lokasi (latitude/longitude) wajib diisi bila GPS diaktifkan atau metode absensi memakai GPS")
+  }
 
   const payload = {
     toleransiTerlambatMenit: toleransi,
@@ -396,8 +400,9 @@ export async function simpanKebijakanAbsensi(data: {
     ...(metode ? { absensiMetode: metode } : {}),
     ...(data.gpsWajib !== undefined ? { gpsWajib: gpsAktif } : {}),
     ...(data.gpsLokasiNama !== undefined ? { gpsLokasiNama: data.gpsLokasiNama || null } : {}),
-    ...(lat !== undefined ? { gpsLat: lat } : {}),
-    ...(lng !== undefined ? { gpsLng: lng } : {}),
+    // Kirim null secara eksplisit agar Admin dapat mengosongkan titik lokasi lama.
+    ...(data.gpsLat !== undefined ? { gpsLat: lat } : {}),
+    ...(data.gpsLng !== undefined ? { gpsLng: lng } : {}),
     ...(radius !== undefined ? { gpsRadiusMeter: radius } : {}),
     ...(akurasi !== undefined ? { gpsAkurasiMaksMeter: akurasi } : {}),
     ...(retensi !== undefined ? { fotoRetensiHari: retensi } : {}),
