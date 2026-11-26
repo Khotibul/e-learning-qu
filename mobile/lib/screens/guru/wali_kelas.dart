@@ -45,7 +45,7 @@ class _GuruWaliKelasState extends State<GuruWaliKelas> {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-    length: 4,
+    length: 5,
     child: Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -56,7 +56,7 @@ class _GuruWaliKelasState extends State<GuruWaliKelas> {
           isScrollable: true,
           labelColor: Color(0xFF0F172A),
           unselectedLabelColor: Colors.black45,
-          tabs: [Tab(text: "Struktur"), Tab(text: "Kas"), Tab(text: "Piket"), Tab(text: "Menu")],
+          tabs: [Tab(text: "Struktur"), Tab(text: "Kehadiran"), Tab(text: "Kas"), Tab(text: "Piket"), Tab(text: "Menu")],
         ),
       ),
       body: loading
@@ -77,6 +77,7 @@ class _GuruWaliKelasState extends State<GuruWaliKelas> {
                   Expanded(
                     child: TabBarView(children: [
                       _StrukturTab(kelasList: kelasList, onChanged: (msg) { _snack(msg); _load(); }),
+                      _KehadiranTab(kelasId: kelasId, onSnack: _snack),
                       _KasTab(kelasId: kelasId, onSnack: _snack),
                       _PiketTab(kelasId: kelasId, onSnack: _snack),
                       const _MenuTab(),
@@ -172,6 +173,292 @@ class _StrukturTab extends StatelessWidget {
       },
     );
   }
+}
+
+// ============================== KEHADIRAN ==============================
+
+String _ymd(DateTime d) =>
+    "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
+class _KehadiranTab extends StatefulWidget {
+  final String? kelasId;
+  final void Function(String msg, {Color color}) onSnack;
+  const _KehadiranTab({required this.kelasId, required this.onSnack});
+
+  @override
+  State<_KehadiranTab> createState() => _KehadiranTabState();
+}
+
+class _KehadiranTabState extends State<_KehadiranTab> with AutomaticKeepAliveClientMixin {
+  bool loading = true;
+  String tanggal = _ymd(DateTime.now());
+  List<dynamic> rows = [];
+  Map<String, dynamic> summary = {};
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _KehadiranTab old) {
+    super.didUpdateWidget(old);
+    if (old.kelasId != widget.kelasId) _load();
+  }
+
+  bool get _tanggalLampau => tanggal.compareTo(_ymd(DateTime.now())) < 0;
+
+  Future<void> _load() async {
+    if (widget.kelasId == null) return;
+    setState(() => loading = true);
+    try {
+      final v = await ApiService.get(
+        "/api/mobile/guru/wali-kelas?tab=kehadiran&kelasId=${widget.kelasId}&tanggal=$tanggal",
+        useCache: false,
+      );
+      if (!mounted) return;
+      setState(() {
+        rows = v is Map ? (v["rows"] as List? ?? []) : [];
+        summary = v is Map ? Map<String, dynamic>.from(v["summary"] as Map? ?? {}) : {};
+        loading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => loading = false);
+        widget.onSnack("Gagal memuat kehadiran: $e", color: const Color(0xFFEF4444));
+      }
+    }
+  }
+
+  String _status(Map r) {
+    final s = (r["statusHarian"] ?? "").toString();
+    if (s == "IZIN" || s == "SAKIT" || s == "HADIR") return s;
+    if (r["jamMasuk"] != null) return (r["statusMasuk"] ?? "HADIR").toString();
+    return "BELUM";
+  }
+
+  Color _warna(String s) {
+    switch (s) {
+      case "HADIR":
+        return const Color(0xFF10B981);
+      case "TERLAMBAT":
+        return const Color(0xFFF59E0B);
+      case "IZIN":
+        return const Color(0xFF0EA5E9);
+      case "SAKIT":
+        return const Color(0xFF8B5CF6);
+      default:
+        return const Color(0xFF94A3B8);
+    }
+  }
+
+  String _label(String s) {
+    switch (s) {
+      case "HADIR":
+        return "Hadir";
+      case "TERLAMBAT":
+        return "Terlambat";
+      case "IZIN":
+        return "Izin";
+      case "SAKIT":
+        return "Sakit";
+      default:
+        return "Belum masuk";
+    }
+  }
+
+  Future<void> _pilihTanggal() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.parse(tanggal),
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() => tanggal = _ymd(picked));
+      _load();
+    }
+  }
+
+  Future<void> _edit(Map r) async {
+    final awalStatus = (r["statusHarian"] ?? "").toString();
+    String status = ["HADIR", "IZIN", "SAKIT"].contains(awalStatus) ? awalStatus : "";
+    final masuk = TextEditingController(text: (r["jamMasuk"] ?? "").toString());
+    final pulang = TextEditingController(text: (r["jamPulang"] ?? "").toString());
+    final lampau = _tanggalLampau;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) {
+          final absen = status == "IZIN" || status == "SAKIT";
+          return AlertDialog(
+            title: Text("${r["nama"]}", style: const TextStyle(fontSize: 15)),
+            content: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: const InputDecoration(labelText: "Status kehadiran", border: OutlineInputBorder(), isDense: true),
+                  items: const [
+                    DropdownMenuItem(value: "", child: Text("Belum diisi", style: TextStyle(fontSize: 13))),
+                    DropdownMenuItem(value: "HADIR", child: Text("Hadir", style: TextStyle(fontSize: 13))),
+                    DropdownMenuItem(value: "IZIN", child: Text("Izin", style: TextStyle(fontSize: 13))),
+                    DropdownMenuItem(value: "SAKIT", child: Text("Sakit", style: TextStyle(fontSize: 13))),
+                  ],
+                  onChanged: (v) => setD(() {
+                    status = v ?? "";
+                    if (absen || v == "IZIN" || v == "SAKIT") {
+                      masuk.clear();
+                      pulang.clear();
+                    }
+                  }),
+                ),
+                const SizedBox(height: 12),
+                if (!lampau)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text("Hari ini jam diisi fingerprint/wajah. Anda hanya dapat menandai Izin/Sakit.",
+                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                  ),
+                Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: masuk,
+                      enabled: lampau && !absen,
+                      keyboardType: TextInputType.datetime,
+                      decoration: const InputDecoration(labelText: "Jam masuk", hintText: "07:00", border: OutlineInputBorder(), isDense: true),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: pulang,
+                      enabled: lampau && !absen,
+                      keyboardType: TextInputType.datetime,
+                      decoration: const InputDecoration(labelText: "Jam pulang", hintText: "15:00", border: OutlineInputBorder(), isDense: true),
+                    ),
+                  ),
+                ]),
+              ]),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Batal")),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Simpan")),
+            ],
+          );
+        },
+      ),
+    );
+    if (ok != true) return;
+
+    final re = RegExp(r"^([01]\d|2[0-3]):[0-5]\d$");
+    if (lampau && !(status == "IZIN" || status == "SAKIT")) {
+      if (masuk.text.trim().isNotEmpty && !re.hasMatch(masuk.text.trim())) {
+        widget.onSnack("Format jam masuk HH:MM", color: const Color(0xFFEF4444));
+        return;
+      }
+      if (pulang.text.trim().isNotEmpty && !re.hasMatch(pulang.text.trim())) {
+        widget.onSnack("Format jam pulang HH:MM", color: const Color(0xFFEF4444));
+        return;
+      }
+    }
+
+    try {
+      await ApiService.post("/api/mobile/guru/wali-kelas", {
+        "op": "simpanAbsensiHarian",
+        "kelasId": widget.kelasId,
+        "tanggal": tanggal,
+        "rows": [
+          {
+            "siswaId": r["siswaId"],
+            "jamMasuk": lampau && !(status == "IZIN" || status == "SAKIT") ? masuk.text.trim() : null,
+            "jamPulang": lampau && !(status == "IZIN" || status == "SAKIT") ? pulang.text.trim() : null,
+            "statusHarian": status.isEmpty ? null : status,
+          }
+        ],
+      });
+      widget.onSnack("Absensi ${r["nama"]} tersimpan");
+      await _load();
+    } catch (e) {
+      widget.onSnack("Gagal: $e", color: const Color(0xFFEF4444));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (widget.kelasId == null) return const Center(child: Text("Pilih kelas", style: TextStyle(color: Colors.black54)));
+    if (loading) return const Center(child: CircularProgressIndicator());
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.calendar_today_outlined, size: 18, color: Color(0xFF0EA5E9)),
+              title: Text(tanggal, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              subtitle: Text(_tanggalLampau ? "Dapat diisi jam & status" : "Hari ini: hanya status Izin/Sakit", style: const TextStyle(fontSize: 11)),
+              trailing: const Icon(Icons.edit, size: 16),
+              onTap: _pilihTanggal,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            _chip("Masuk ${summary["masuk"] ?? 0}/${summary["total"] ?? 0}", const Color(0xFF10B981)),
+            _chip("Belum ${summary["belumMasuk"] ?? 0}", const Color(0xFF64748B)),
+            _chip("Terlambat ${summary["terlambat"] ?? 0}", const Color(0xFFF59E0B)),
+            _chip("Izin ${summary["izin"] ?? 0}", const Color(0xFF0EA5E9)),
+            _chip("Sakit ${summary["sakit"] ?? 0}", const Color(0xFF8B5CF6)),
+          ]),
+          const SizedBox(height: 10),
+          if (rows.isEmpty)
+            const Card(child: Padding(padding: EdgeInsets.all(16), child: Center(child: Text("Tidak ada siswa", style: TextStyle(color: Colors.black54)))))
+          else
+            ...rows.map((item) {
+              final r = item as Map;
+              final st = _status(r);
+              final riwayat = (r["riwayat"] as List? ?? []);
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  dense: true,
+                  leading: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: _warna(st).withValues(alpha: 0.12),
+                    child: Text("${r["nama"]}".isNotEmpty ? "${r["nama"]}"[0].toUpperCase() : "?",
+                        style: TextStyle(fontSize: 12, color: _warna(st), fontWeight: FontWeight.bold)),
+                  ),
+                  title: Text("${r["nama"]}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                    "Masuk ${r["jamMasuk"] ?? "-"} • Pulang ${r["jamPulang"] ?? "-"}"
+                    "${riwayat.isNotEmpty ? " • diinput ${(riwayat.first as Map)["oleh"] ?? "-"}" : ""}",
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: _warna(st).withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
+                    child: Text(_label(st), style: TextStyle(fontSize: 10, color: _warna(st), fontWeight: FontWeight.bold)),
+                  ),
+                  onTap: () => _edit(r),
+                ),
+              );
+            }),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(String text, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+    child: Text(text, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+  );
 }
 
 // ============================== KAS ==============================

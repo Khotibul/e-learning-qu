@@ -1021,6 +1021,7 @@ model AbsensiHarianSiswa {
   jamPulang      String?
   statusMasuk    String?  // HADIR | TERLAMBAT
   statusPulang   String?  // NORMAL | AWAL | BELUM
+  statusHarian   String?  // HADIR | IZIN | SAKIT (status kehadiran sekolah sehari)
   terlambatMenit Int?
   sumberMasuk    String?  // FINGERPRINT | WAJAH | MANUAL | KOREKSI
   sumberPulang   String?

@@ -1,13 +1,15 @@
 ﻿import { NextResponse } from "next/server"; import { prisma } from "@/lib/prisma"; import { getMobileUser } from "@/lib/mobile-auth";
+import { getKehadiranHarianWaliData, simpanAbsensiHarianWaliData } from "@/lib/absensi-harian-wali";
+import { ymd } from "@/lib/utils";
 const corsHeaders = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"GET, POST, DELETE, OPTIONS","Access-Control-Allow-Headers":"Content-Type, Authorization"};
 
-type WaliResult = { ok: false; error: string; status: number } | { ok: true; guruId: string };
+type WaliResult = { ok: false; error: string; status: number } | { ok: true; guruId: string; userId: string };
 async function getWali(req: Request): Promise<WaliResult> {
   const user = await getMobileUser(req);
   if (!user) return { ok: false, error: "Unauthorized", status: 401 };
   const guru = await prisma.guru.findFirst({ where: { userId: user.id, deletedAt: null }, select: { id: true } });
   if (!guru) return { ok: false, error: "Bukan guru", status: 403 };
-  return { ok: true, guruId: guru.id };
+  return { ok: true, guruId: guru.id, userId: user.id };
 }
 const err = (m: string, s: number) => NextResponse.json({ error: m }, { status: s, headers: corsHeaders });
 
@@ -48,6 +50,14 @@ export async function GET(req: Request) {
     if (tab === "pengeluaran") return NextResponse.json(await prisma.pengeluaranKelas.findMany({ where: { kelasId, deletedAt: null }, orderBy: { tanggal: "desc" } }), { headers: corsHeaders });
     if (tab === "piket") return NextResponse.json(await prisma.jadwalPiket.findMany({ where: { kelasId }, include: { siswa: { select: { id: true, nama: true } } }, orderBy: [{ hari: "asc" }, { siswa: { nama: "asc" } }] }), { headers: corsHeaders });
     if (tab === "siswa") return NextResponse.json(await prisma.siswa.findMany({ where: { kelasId, deletedAt: null }, select: { id: true, nama: true, jabatan: true }, orderBy: { nama: "asc" } }), { headers: corsHeaders });
+    if (tab === "kehadiran") {
+      const tanggal = q.get("tanggal") || ymd();
+      try {
+        return NextResponse.json(await getKehadiranHarianWaliData(w.guruId, kelasId, tanggal), { headers: corsHeaders });
+      } catch (e: any) {
+        return err(e?.message || "Gagal memuat kehadiran", 400);
+      }
+    }
     return err("tab tidak dikenal", 400);
   } catch (e) { console.error(e); return err("Gagal", 500) }
 }
@@ -115,6 +125,23 @@ export async function POST(req: Request) {
       if (jumlah <= 0) return err("Nominal wajib", 400);
       await prisma.pembayaranDenda.upsert({ where: { dendaId_siswaId: { dendaId, siswaId } }, update: { jumlah, status: "LUNAS", tanggalBayar: new Date() }, create: { dendaId, siswaId, jumlah, status: "LUNAS" } });
       return NextResponse.json({ success: true }, { headers: corsHeaders });
+    }
+
+    if (op === "simpanAbsensiHarian") {
+      const kelas = await ambilKelas(w.guruId, String(body.kelasId || ""));
+      if (!kelas) return err("Kelas tidak ditemukan atau bukan wali kelas", 403);
+      try {
+        const hasil = await simpanAbsensiHarianWaliData({
+          guruId: w.guruId,
+          kelasId: kelas.id,
+          tanggal: String(body.tanggal || ""),
+          rows: Array.isArray(body.rows) ? body.rows : [],
+          actorUserId: w.userId,
+        });
+        return NextResponse.json({ success: true, ...hasil }, { headers: corsHeaders });
+      } catch (e: any) {
+        return err(e?.message || "Gagal menyimpan absensi", 400);
+      }
     }
 
     if (op === "updateJabatan") {

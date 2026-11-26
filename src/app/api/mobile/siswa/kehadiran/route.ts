@@ -65,7 +65,7 @@ export async function GET(req: Request) {
     ])
 
     const hariSekolah = Math.max(1, new Date(y, m, 0).getDate() - hariLibur)
-    const hadir = rows.filter((r) => r.statusMasuk === "HADIR").length
+    const hadir = rows.filter((r) => r.statusMasuk === "HADIR" || r.statusHarian === "HADIR").length
 
     return NextResponse.json({
       kebijakan,
@@ -76,6 +76,8 @@ export async function GET(req: Request) {
         hariTercatat: rows.length,
         hadir,
         terlambat: rows.filter((r) => r.statusMasuk === "TERLAMBAT").length,
+        izin: rows.filter((r) => r.statusHarian === "IZIN").length,
+        sakit: rows.filter((r) => r.statusHarian === "SAKIT").length,
         pulangAwal: rows.filter((r) => r.statusPulang === "AWAL").length,
         persenKehadiran: Math.round((hadir / hariSekolah) * 100),
       },
@@ -86,6 +88,7 @@ export async function GET(req: Request) {
         jamPulang: r.jamPulang,
         statusMasuk: r.statusMasuk,
         statusPulang: r.statusPulang,
+        statusHarian: r.statusHarian,
         terlambatMenit: r.terlambatMenit,
         sumber: [r.sumberMasuk, r.sumberPulang].filter(Boolean).join("/") || null,
       })),

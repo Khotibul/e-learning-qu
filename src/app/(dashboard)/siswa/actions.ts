@@ -1306,6 +1306,7 @@ export async function getKehadiranHariIni() {
           jamPulang: hariIni.jamPulang,
           statusMasuk: hariIni.statusMasuk,
           statusPulang: hariIni.statusPulang,
+          statusHarian: hariIni.statusHarian,
           terlambatMenit: hariIni.terlambatMenit,
           sumberMasuk: hariIni.sumberMasuk,
           sumberPulang: hariIni.sumberPulang,
@@ -1337,7 +1338,7 @@ export async function getRiwayatKehadiranSaya(bulan?: string) {
   ])
 
   const hariSekolah = Math.max(1, new Date(y, m, 0).getDate() - hariLibur)
-  const hadir = rows.filter((r) => r.statusMasuk === "HADIR").length
+  const hadir = rows.filter((r) => r.statusMasuk === "HADIR" || r.statusHarian === "HADIR").length
   const terlambat = rows.filter((r) => r.statusMasuk === "TERLAMBAT").length
 
   return {
@@ -1347,6 +1348,8 @@ export async function getRiwayatKehadiranSaya(bulan?: string) {
       hariTercatat: rows.length,
       hadir,
       terlambat,
+      izin: rows.filter((r) => r.statusHarian === "IZIN").length,
+      sakit: rows.filter((r) => r.statusHarian === "SAKIT").length,
       pulangAwal: rows.filter((r) => r.statusPulang === "AWAL").length,
       persenKehadiran: Math.round((hadir / hariSekolah) * 100),
     },
@@ -1356,6 +1359,7 @@ export async function getRiwayatKehadiranSaya(bulan?: string) {
       jamPulang: r.jamPulang,
       statusMasuk: r.statusMasuk,
       statusPulang: r.statusPulang,
+      statusHarian: r.statusHarian,
       terlambatMenit: r.terlambatMenit,
       sumber: [r.sumberMasuk, r.sumberPulang].filter(Boolean).join("/") || null,
     })),

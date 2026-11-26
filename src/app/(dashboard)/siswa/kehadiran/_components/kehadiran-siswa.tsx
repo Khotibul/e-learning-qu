@@ -116,12 +116,12 @@ export default function KehadiranSiswa() {
 
       {/* Status hari ini */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className={hi?.jamMasuk ? "border-emerald-200 bg-emerald-50/40" : ""}>
+        <Card className={hi?.statusHarian === "IZIN" || hi?.statusHarian === "SAKIT" ? "border-sky-200 bg-sky-50/40" : hi?.jamMasuk ? "border-emerald-200 bg-emerald-50/40" : ""}>
           <CardContent className="p-4">
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><LogIn className="h-3.5 w-3.5" /> Absen Masuk</p>
-            <p className="mt-1 text-2xl font-bold">{hi?.jamMasuk ?? "--:--"}</p>
-            <Badge className={`mt-1 ${warnaStatus(hi?.statusMasuk, "masuk")}`}>
-              {!hi?.jamMasuk ? "BELUM SCAN" : hi.statusMasuk === "TERLAMBAT" ? `TERLAMBAT ${hi.terlambatMenit} MENIT` : "HADIR"}
+            <p className="mt-1 text-2xl font-bold">{hi?.statusHarian === "IZIN" || hi?.statusHarian === "SAKIT" ? "-" : hi?.jamMasuk ?? "--:--"}</p>
+            <Badge className={`mt-1 ${hi?.statusHarian === "IZIN" ? "bg-sky-100 text-sky-700" : hi?.statusHarian === "SAKIT" ? "bg-violet-100 text-violet-700" : warnaStatus(hi?.statusMasuk, "masuk")}`}>
+              {hi?.statusHarian === "IZIN" ? "IZIN" : hi?.statusHarian === "SAKIT" ? "SAKIT" : !hi?.jamMasuk ? "BELUM SCAN" : hi.statusMasuk === "TERLAMBAT" ? `TERLAMBAT ${hi.terlambatMenit} MENIT` : "HADIR"}
             </Badge>
             {hi?.sumberMasuk && <p className="mt-1 text-[10px] text-muted-foreground">Sumber: {hi.sumberMasuk}</p>}
           </CardContent>
@@ -140,7 +140,7 @@ export default function KehadiranSiswa() {
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Kehadiran Bulan Ini</p>
             <p className="mt-1 text-2xl font-bold">{rekap.persenKehadiran ?? 0}%</p>
-            <p className="text-xs text-muted-foreground">{rekap.hadir ?? 0} hadir • {rekap.terlambat ?? 0} terlambat dari {riwayat?.hariSekolah ?? 0} hari</p>
+            <p className="text-xs text-muted-foreground">{rekap.hadir ?? 0} hadir • {rekap.terlambat ?? 0} terlambat • {rekap.izin ?? 0} izin • {rekap.sakit ?? 0} sakit dari {riwayat?.hariSekolah ?? 0} hari</p>
           </CardContent>
         </Card>
         <Card>
@@ -192,7 +192,11 @@ export default function KehadiranSiswa() {
                       <TableRow key={r.tanggal}>
                         <TableCell>{r.tanggal}</TableCell>
                         <TableCell className="font-mono">{r.jamMasuk ?? "-"}</TableCell>
-                        <TableCell><Badge className={warnaStatus(r.statusMasuk, "masuk")}>{!r.jamMasuk ? "BELUM" : r.statusMasuk === "TERLAMBAT" ? `TERLAMBAT ${r.terlambatMenit}M` : "HADIR"}</Badge></TableCell>
+                        <TableCell>{r.statusHarian === "IZIN" || r.statusHarian === "SAKIT" ? (
+                          <Badge className={r.statusHarian === "IZIN" ? "bg-sky-100 text-sky-700" : "bg-violet-100 text-violet-700"}>{r.statusHarian}</Badge>
+                        ) : (
+                          <Badge className={warnaStatus(r.statusMasuk, "masuk")}>{!r.jamMasuk ? "BELUM" : r.statusMasuk === "TERLAMBAT" ? `TERLAMBAT ${r.terlambatMenit}M` : "HADIR"}</Badge>
+                        )}</TableCell>
                         <TableCell className="font-mono">{r.jamPulang ?? "-"}</TableCell>
                         <TableCell><Badge className={warnaStatus(r.statusPulang, "pulang")}>{!r.jamPulang ? "BELUM" : r.statusPulang === "AWAL" ? "AWAL" : "NORMAL"}</Badge></TableCell>
                         <TableCell className="text-xs text-muted-foreground">{r.sumber ?? "-"}</TableCell>

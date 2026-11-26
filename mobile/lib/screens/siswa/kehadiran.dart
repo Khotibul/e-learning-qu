@@ -129,6 +129,8 @@ class _SiswaKehadiranState extends State<SiswaKehadiran> {
     final adaMenunggu = permintaan.any((p) => (p as Map)["status"] == "MENUNGGU");
     final jamMasuk = hariIni["jamMasuk"];
     final jamPulang = hariIni["jamPulang"];
+    final statusHarian = (hariIni["statusHarian"] ?? "").toString();
+    final izinSakit = statusHarian == "IZIN" || statusHarian == "SAKIT";
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -145,9 +147,9 @@ class _SiswaKehadiranState extends State<SiswaKehadiran> {
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
                 children: [
-                  _box("Absen Masuk", jamMasuk ?? "--:--", jamMasuk == null ? "BELUM SCAN" : (hariIni["statusMasuk"] == "TERLAMBAT" ? "TERLAMBAT ${hariIni["terlambatMenit"]} MENIT" : "HADIR"), _statusColor(hariIni["statusMasuk"] as String?), icon: Icons.login),
+                  _box("Absen Masuk", izinSakit ? "-" : jamMasuk ?? "--:--", izinSakit ? statusHarian : (jamMasuk == null ? "BELUM SCAN" : (hariIni["statusMasuk"] == "TERLAMBAT" ? "TERLAMBAT ${hariIni["terlambatMenit"]} MENIT" : "HADIR")), izinSakit ? _pelajaranColor(statusHarian) : _statusColor(hariIni["statusMasuk"] as String?), icon: Icons.login),
                   _box("Absen Pulang", jamPulang ?? "--:--", jamPulang == null ? "BELUM SCAN" : (hariIni["statusPulang"] == "AWAL" ? "PULANG AWAL" : "PULANG NORMAL"), _statusColor(hariIni["statusPulang"] as String?), icon: Icons.logout),
-                  _box("Kehadiran Bulan Ini", "${rekap["persenKehadiran"] ?? 0}%", "${rekap["hadir"] ?? 0} hadir • ${rekap["terlambat"] ?? 0} terlambat dari ${d["hariSekolah"] ?? 0} hari", const Color(0xFF4F46E5), icon: Icons.insights),
+                  _box("Kehadiran Bulan Ini", "${rekap["persenKehadiran"] ?? 0}%", "${rekap["hadir"] ?? 0} hadir • ${rekap["terlambat"] ?? 0} terlambat • ${rekap["izin"] ?? 0} izin • ${rekap["sakit"] ?? 0} sakit dari ${d["hariSekolah"] ?? 0} hari", const Color(0xFF4F46E5), icon: Icons.insights),
                   _box("Kebijakan Sekolah", "Masuk ≤ ${kebijakan["jamMasuk"] ?? "07:00"}", "Pulang ≥ ${kebijakan["jamPulang"] ?? "15:00"} • toleransi ${kebijakan["toleransiMasukMenit"] ?? 15} mnt", const Color(0xFF0EA5E9), icon: Icons.policy_outlined),
                 ],
               ),
@@ -181,7 +183,9 @@ class _SiswaKehadiranState extends State<SiswaKehadiran> {
                           title: Row(children: [
                             Text("Masuk ${m["jamMasuk"] ?? "-"}", style: const TextStyle(fontSize: 12)),
                             const SizedBox(width: 8),
-                            _chip(m["jamMasuk"] == null ? "BELUM" : (m["statusMasuk"] == "TERLAMBAT" ? "TERLAMBAT ${m["terlambatMenit"]}M" : "HADIR"), _statusColor(m["statusMasuk"] as String?)),
+                            m["statusHarian"] == "IZIN" || m["statusHarian"] == "SAKIT"
+                                ? _chip("${m["statusHarian"]}", _pelajaranColor(m["statusHarian"] as String?))
+                                : _chip(m["jamMasuk"] == null ? "BELUM" : (m["statusMasuk"] == "TERLAMBAT" ? "TERLAMBAT ${m["terlambatMenit"]}M" : "HADIR"), _statusColor(m["statusMasuk"] as String?)),
                           ]),
                           subtitle: Row(children: [
                             Text("Pulang ${m["jamPulang"] ?? "-"}  ", style: const TextStyle(fontSize: 11)),

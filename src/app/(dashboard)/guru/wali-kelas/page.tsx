@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Users, ClipboardList, Wallet, Trash2, Plus, Loader2, ShieldCheck,
   Banknote, Receipt, TrendingUp, TrendingDown, PiggyBank, Calendar,
-  Gavel, ClipboardCheck, ExternalLink, Check, X, Pencil, Camera, ImagePlus, BarChart3, Fingerprint,
+  Gavel, ClipboardCheck, ExternalLink, Check, X, Pencil, Camera, ImagePlus, BarChart3, Fingerprint, Save, History,
 } from "lucide-react"
 import {
   getWaliKelasInfo, updateSiswaJabatan,
@@ -34,7 +34,7 @@ import {
   getJadwalPelajaranGuru, getMapelByKelas, createJadwalPelajaranGuru, updateJadwalPelajaranGuru, deleteJadwalPelajaranGuru,
   getPelanggaran, createPelanggaran, updatePelanggaran, deletePelanggaran,
   getRekapAbsensi, getDetailAbsensiSiswa,
-  getKehadiranHarianWali, getRekapPeriodeWali,
+  getKehadiranHarianWali, getRekapPeriodeWali, simpanAbsensiHarianWali,
 } from "../actions"
 import { compressImage } from "@/lib/compress-image"
 
@@ -107,8 +107,12 @@ export default function WaliKelasPage() {
   const [kehadiranTanggal, setKehadiranTanggal] = useState(() => ymd())
   const [periodeMode, setPeriodeMode] = useState<"minggu" | "bulan" | "semester">("minggu")
   const [rekapPeriode, setRekapPeriode] = useState<any>(null)
-  const [filterStatus, setFilterStatus] = useState<"SEMUA" | "BELUM" | "TERLAMBAT" | "PULANG" | "AWAL">("SEMUA")
+  const [filterStatus, setFilterStatus] = useState<"SEMUA" | "BELUM" | "TERLAMBAT" | "PULANG" | "AWAL" | "IZIN" | "SAKIT">("SEMUA")
   const [kehadiranLoading, setKehadiranLoading] = useState(false)
+  const [susulanOpen, setSusulanOpen] = useState(false)
+  const [susulanSaving, setSusulanSaving] = useState(false)
+  const [susulanDraft, setSusulanDraft] = useState<Record<string, { jamMasuk: string; jamPulang: string; statusHarian: string }>>({})
+  const [riwayatSiswa, setRiwayatSiswa] = useState<any>(null)
 
   function rentangPeriode(mode: "minggu" | "bulan" | "semester") {
     const now = new Date()
@@ -478,9 +482,69 @@ export default function WaliKelasPage() {
     if (activeTab === "kehadiran" && selectedKelas) loadKehadiran(selectedKelas.id)
   }, [activeTab, selectedKelas])
 
+  // Jam hanya untuk tanggal lampau; status Izin/Sakit boleh untuk hari ini.
+  const tanggalLampau = !!kehadiran && kehadiran.tanggal < ymd()
+  const tanggalBoleh = !!kehadiran && kehadiran.tanggal <= ymd()
+
+  const statusEfektif = (r: any) => r.statusHarian ?? (r.jamMasuk ? (r.statusMasuk === "TERLAMBAT" ? "TERLAMBAT" : "HADIR") : null)
+  const ringkasRiwayat = (h: any) => {
+    const b = h?.baru ?? {}
+    const parts: string[] = []
+    if (b.statusHarian) parts.push(`Status ${b.statusHarian}`)
+    if (b.jamMasuk) parts.push(`Masuk ${b.jamMasuk}`)
+    if (b.jamPulang) parts.push(`Pulang ${b.jamPulang}`)
+    return parts.length ? parts.join(" • ") : "Perubahan absensi"
+  }
+
+  const bukaSusulan = () => {
+    if (!kehadiran) return
+    if (!tanggalBoleh) { toast.error("Pilih tanggal hari ini atau sebelumnya"); return }
+    const draft: Record<string, { jamMasuk: string; jamPulang: string; statusHarian: string }> = {}
+    for (const r of kehadiran.rows) {
+      draft[r.siswaId] = {
+        jamMasuk: r.jamMasuk ?? "",
+        jamPulang: r.jamPulang ?? "",
+        statusHarian: r.statusHarian ?? (r.jamMasuk ? "HADIR" : ""),
+      }
+    }
+    setSusulanDraft(draft)
+    setSusulanOpen(true)
+  }
+
+  const simpanSusulan = async () => {
+    if (!kehadiran || !selectedKelas) return
+    const rows = kehadiran.rows
+      .filter((r: any) => {
+        const d = susulanDraft[r.siswaId]
+        if (!d) return false
+        const statusLama = r.statusHarian ?? (r.jamMasuk ? "HADIR" : "")
+        return (d.jamMasuk || "") !== (r.jamMasuk || "") ||
+          (d.jamPulang || "") !== (r.jamPulang || "") ||
+          (d.statusHarian || "") !== statusLama
+      })
+      .map((r: any) => ({
+        siswaId: r.siswaId,
+        jamMasuk: susulanDraft[r.siswaId].jamMasuk || null,
+        jamPulang: susulanDraft[r.siswaId].jamPulang || null,
+        statusHarian: susulanDraft[r.siswaId].statusHarian || null,
+      }))
+    if (rows.length === 0) { toast.error("Belum ada data yang diubah"); return }
+    setSusulanSaving(true)
+    try {
+      const res = await simpanAbsensiHarianWali({ kelasId: selectedKelas.id, tanggal: kehadiran.tanggal, rows })
+      toast.success(`${res.diubah} data absensi disimpan`)
+      setSusulanOpen(false)
+      await loadKehadiran({ tanggal: kehadiran.tanggal })
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal menyimpan absensi susulan")
+    } finally { setSusulanSaving(false) }
+  }
+
   const kehadiranRowsTampil: any[] = (kehadiran?.rows ?? []).filter((r: any) =>
     filterStatus === "SEMUA" ||
-    (filterStatus === "BELUM" && !r.jamMasuk) ||
+    (filterStatus === "BELUM" && !r.jamMasuk && !r.statusHarian) ||
+    (filterStatus === "IZIN" && r.statusHarian === "IZIN") ||
+    (filterStatus === "SAKIT" && r.statusHarian === "SAKIT") ||
     (filterStatus === "TERLAMBAT" && r.statusMasuk === "TERLAMBAT") ||
     (filterStatus === "PULANG" && !!r.jamPulang) ||
     (filterStatus === "AWAL" && r.statusPulang === "AWAL")
@@ -1429,6 +1493,8 @@ export default function WaliKelasPage() {
                     <SelectItem value="SEMUA">Semua Status</SelectItem>
                     <SelectItem value="BELUM">Belum Masuk</SelectItem>
                     <SelectItem value="TERLAMBAT">Terlambat</SelectItem>
+                    <SelectItem value="IZIN">Izin</SelectItem>
+                    <SelectItem value="SAKIT">Sakit</SelectItem>
                     <SelectItem value="PULANG">Sudah Pulang</SelectItem>
                     <SelectItem value="AWAL">Pulang Awal</SelectItem>
                   </SelectContent>
@@ -1436,17 +1502,95 @@ export default function WaliKelasPage() {
                 <Button variant="outline" size="sm" onClick={() => loadKehadiran()} disabled={kehadiranLoading}>
                   {kehadiranLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4 mr-1.5" />} Muat Ulang
                 </Button>
+                <Button size="sm" onClick={bukaSusulan} disabled={!tanggalBoleh}
+                  title={tanggalBoleh ? "Isi absensi yang terlewat" : "Pilih tanggal hari ini atau sebelumnya"}>
+                  <Save className="h-4 w-4 mr-1.5" /> Input Susulan
+                </Button>
               </div>
+
+              <Dialog open={susulanOpen} onOpenChange={setSusulanOpen}>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Input Absensi Susulan — {kehadiran?.tanggal}</DialogTitle>
+                  </DialogHeader>
+                  <p className="text-sm text-muted-foreground">
+                    {tanggalLampau
+                      ? "Isi jam masuk/pulang untuk siswa yang belum tercatat. Status hadir/terlambat dihitung otomatis dari jam masuk."
+                      : "Untuk hari ini jam diisi oleh fingerprint/wajah. Di sini Anda hanya dapat menandai Izin atau Sakit."}
+                    {" "}Pilih Izin/Sakit agar rekap tidak dihitung sebagai belum masuk.
+                  </p>
+                  <div className="max-h-[55vh] overflow-y-auto rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-background">
+                        <tr className="border-b text-left text-xs text-muted-foreground">
+                          <th className="px-3 py-2">Nama</th>
+                          <th className="px-3 py-2">Status</th>
+                          <th className="px-3 py-2">Jam Masuk</th>
+                          <th className="px-3 py-2">Jam Pulang</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(kehadiran?.rows ?? []).map((r: any) => (
+                          <tr key={r.siswaId} className="border-b last:border-b-0">
+                            <td className="px-3 py-2">
+                              <p className="font-medium">{r.nama}</p>
+                              <p className="text-[11px] text-muted-foreground">{r.nis ?? "-"}</p>
+                            </td>
+                            <td className="px-3 py-2">
+                              <Select value={susulanDraft[r.siswaId]?.statusHarian ?? ""}
+                                onValueChange={(v) => setSusulanDraft((d) => ({
+                                  ...d,
+                                  [r.siswaId]: {
+                                    ...d[r.siswaId],
+                                    statusHarian: v,
+                                    ...(v === "IZIN" || v === "SAKIT" ? { jamMasuk: "", jamPulang: "" } : {}),
+                                  },
+                                }))}>
+                                <SelectTrigger className="h-8 w-28"><SelectValue placeholder="Belum" /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="HADIR">Hadir</SelectItem>
+                                  <SelectItem value="IZIN">Izin</SelectItem>
+                                  <SelectItem value="SAKIT">Sakit</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="px-3 py-2">
+                              <Input type="time" className="h-8 w-32" disabled={!tanggalLampau || susulanDraft[r.siswaId]?.statusHarian === "IZIN" || susulanDraft[r.siswaId]?.statusHarian === "SAKIT"}
+                                value={susulanDraft[r.siswaId]?.jamMasuk ?? ""}
+                                onChange={(e) => setSusulanDraft((d) => ({ ...d, [r.siswaId]: { ...d[r.siswaId], jamMasuk: e.target.value } }))} />
+                            </td>
+                            <td className="px-3 py-2">
+                              <Input type="time" className="h-8 w-32" disabled={!tanggalLampau || susulanDraft[r.siswaId]?.statusHarian === "IZIN" || susulanDraft[r.siswaId]?.statusHarian === "SAKIT"}
+                                value={susulanDraft[r.siswaId]?.jamPulang ?? ""}
+                                onChange={(e) => setSusulanDraft((d) => ({ ...d, [r.siswaId]: { ...d[r.siswaId], jamPulang: e.target.value } }))} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setSusulanOpen(false)} disabled={susulanSaving}>Batal</Button>
+                    <Button onClick={simpanSusulan} disabled={susulanSaving}>
+                      {susulanSaving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />} Simpan
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
               {kehadiran && (
                 <>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
                     <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Sudah Masuk</p>
                       <p className="text-xl font-bold text-emerald-600">{kehadiran.summary.masuk} / {kehadiran.summary.total}</p></CardContent></Card>
                     <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Belum Masuk</p>
                       <p className="text-xl font-bold text-slate-500">{kehadiran.summary.belumMasuk}</p></CardContent></Card>
                     <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Terlambat</p>
                       <p className="text-xl font-bold text-amber-600">{kehadiran.summary.terlambat}</p></CardContent></Card>
+                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Izin</p>
+                      <p className="text-xl font-bold text-sky-600">{kehadiran.summary.izin}</p></CardContent></Card>
+                    <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Sakit</p>
+                      <p className="text-xl font-bold text-violet-600">{kehadiran.summary.sakit}</p></CardContent></Card>
                     <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Sudah Pulang</p>
                       <p className="text-xl font-bold text-sky-600">{kehadiran.summary.pulang}</p></CardContent></Card>
                     <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Alpa di Pelajaran</p>
@@ -1462,42 +1606,85 @@ export default function WaliKelasPage() {
                             <th className="px-4 py-2">Nama</th><th className="px-2 py-2">NIS</th>
                             <th className="px-2 py-2">Masuk</th><th className="px-2 py-2">Status</th>
                             <th className="px-2 py-2">Pulang</th><th className="px-2 py-2">Status</th>
-                            <th className="px-2 py-2">Sumber</th>
+                            <th className="px-2 py-2">Sumber</th><th className="px-2 py-2">Riwayat</th>
                           </tr>
                         </thead>
                         <tbody>
                           {kehadiranRowsTampil.length === 0 && (
-                            <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">Tidak ada siswa yang cocok dengan filter</td></tr>
+                            <tr><td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">Tidak ada siswa yang cocok dengan filter</td></tr>
                           )}
-                          {kehadiranRowsTampil.map((r: any) => (
-                            <tr key={r.siswaId} className={`border-b last:border-b-0 ${!r.jamMasuk ? "bg-rose-50/40" : ""}`}>
+                          {kehadiranRowsTampil.map((r: any) => {
+                            const st = statusEfektif(r)
+                            return (
+                            <tr key={r.siswaId} className={`border-b last:border-b-0 ${!r.jamMasuk && !r.statusHarian ? "bg-rose-50/40" : ""}`}>
                               <td className="px-4 py-2 font-medium">{r.nama}</td>
                               <td className="px-2 py-2 text-xs">{r.nis ?? "-"}</td>
                               <td className="px-2 py-2 font-mono text-xs">{r.jamMasuk ?? "-"}</td>
                               <td className="px-2 py-2">
                                 <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                                  !r.jamMasuk ? "bg-slate-100 text-slate-500"
-                                  : r.statusMasuk === "TERLAMBAT" ? "bg-amber-100 text-amber-700"
+                                  st === "IZIN" ? "bg-sky-100 text-sky-700"
+                                  : st === "SAKIT" ? "bg-violet-100 text-violet-700"
+                                  : !st ? "bg-slate-100 text-slate-500"
+                                  : st === "TERLAMBAT" ? "bg-amber-100 text-amber-700"
                                   : "bg-emerald-100 text-emerald-700"}`}>
-                                  {!r.jamMasuk ? "BELUM MASUK" : r.statusMasuk === "TERLAMBAT" ? `TERLAMBAT ${r.terlambatMenit}M` : "HADIR"}
+                                  {st === "IZIN" ? "IZIN" : st === "SAKIT" ? "SAKIT" : !st ? "BELUM MASUK" : st === "TERLAMBAT" ? `TERLAMBAT ${r.terlambatMenit}M` : "HADIR"}
                                 </span>
                               </td>
                               <td className="px-2 py-2 font-mono text-xs">{r.jamPulang ?? "-"}</td>
                               <td className="px-2 py-2">
+                                {r.statusHarian === "IZIN" || r.statusHarian === "SAKIT" ? (
+                                  <span className="text-[10px] text-muted-foreground">—</span>
+                                ) : (
                                 <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
                                   !r.jamPulang ? "bg-slate-100 text-slate-400"
                                   : r.statusPulang === "AWAL" ? "bg-rose-100 text-rose-700"
                                   : "bg-sky-100 text-sky-700"}`}>
                                   {!r.jamPulang ? "BELUM PULANG" : r.statusPulang === "AWAL" ? "PULANG AWAL" : "NORMAL"}
                                 </span>
+                                )}
                               </td>
                               <td className="px-2 py-2 text-[10px] text-muted-foreground">{r.sumber ?? "-"}</td>
+                              <td className="px-2 py-2">
+                                {r.riwayat?.length ? (
+                                  <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px]" onClick={() => setRiwayatSiswa(r)}>
+                                    <History className="h-3.5 w-3.5 mr-1" /> {r.riwayat.length}
+                                  </Button>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground">-</span>
+                                )}
+                              </td>
                             </tr>
-                          ))}
+                          )})}
                         </tbody>
                       </table>
                     </CardContent>
                   </Card>
+
+                  <Dialog open={!!riwayatSiswa} onOpenChange={(v) => { if (!v) setRiwayatSiswa(null) }}>
+                    <DialogContent className="max-w-lg">
+                      <DialogHeader>
+                        <DialogTitle>Riwayat Input Susulan — {riwayatSiswa?.nama}</DialogTitle>
+                      </DialogHeader>
+                      <p className="text-sm text-muted-foreground">
+                        {kehadiran.tanggal} • dicatat oleh wali kelas beserta waktu penyimpanannya.
+                      </p>
+                      <div className="space-y-2 max-h-[55vh] overflow-y-auto">
+                        {riwayatSiswa?.riwayat?.length ? riwayatSiswa.riwayat.map((h: any) => (
+                          <div key={h.id} className="rounded-md border p-3 text-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-1">
+                              <span className="font-medium">{h.oleh}</span>
+                              <span className="text-[11px] text-muted-foreground">
+                                {new Date(h.waktu).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-1">{ringkasRiwayat(h)}</p>
+                          </div>
+                        )) : (
+                          <p className="text-sm text-muted-foreground">Belum ada riwayat input susulan.</p>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
 
                   {kehadiran.alpaPelajaran.length > 0 && (
                     <Card className="border-rose-200">
@@ -1553,6 +1740,7 @@ export default function WaliKelasPage() {
                           <thead><tr className="border-b text-left text-xs text-muted-foreground">
                             <th className="px-4 py-2">Nama</th><th className="px-2 py-2">Hari Tercatat</th>
                             <th className="px-2 py-2">Hadir</th><th className="px-2 py-2">Terlambat</th>
+                            <th className="px-2 py-2">Izin</th><th className="px-2 py-2">Sakit</th>
                             <th className="px-2 py-2">Pulang Awal</th><th className="px-2 py-2">Belum Pulang</th>
                             <th className="px-2 py-2">% Kehadiran</th>
                           </tr></thead>
@@ -1563,6 +1751,8 @@ export default function WaliKelasPage() {
                                 <td className="px-2 py-2">{r.hariTercatat}</td>
                                 <td className="px-2 py-2">{r.hadir}</td>
                                 <td className="px-2 py-2 text-amber-600">{r.terlambat}</td>
+                                <td className="px-2 py-2 text-sky-600">{r.izin}</td>
+                                <td className="px-2 py-2 text-violet-600">{r.sakit}</td>
                                 <td className="px-2 py-2 text-rose-600">{r.pulangAwal}</td>
                                 <td className="px-2 py-2 text-slate-500">{r.belumPulang}</td>
                                 <td className="px-2 py-2 font-semibold">{r.persen}%</td>

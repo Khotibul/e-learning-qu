@@ -8,7 +8,7 @@ import { unlink } from "fs/promises"
 import path from "path"
 import bcrypt from "bcryptjs"
 import { getSubmissionCount as getSubmissionCountGuard } from "@/lib/assessment-guard"
-import { getKebijakanHarian } from "@/lib/absensi-harian"
+import { getKehadiranHarianWaliData, simpanAbsensiHarianWaliData, type BarisAbsensiWali } from "@/lib/absensi-harian-wali"
 import { bersihkanNomor, cekIdentitasSiswa, pesanDuplikat } from "@/lib/identitas"
 import { upsertBiodata, type BiodataInput } from "@/lib/biodata"
 
@@ -2002,100 +2002,26 @@ export async function getDetailAbsensiSiswa(kelasId: string, siswaId: string) {
 
 export async function getKehadiranHarianWali(kelasId: string, tanggal: string) {
   const guru = await getCurrentGuru()
-  const kelas = await prisma.kelas.findFirst({
-    where: { id: kelasId, guruId: guru.id, deletedAt: null },
-    select: { id: true, nama: true },
+  return getKehadiranHarianWaliData(guru.id, kelasId, tanggal)
+}
+
+/** Input/koreksi absensi harian susulan oleh wali kelas. */
+export async function simpanAbsensiHarianWali(params: {
+  kelasId: string
+  tanggal: string
+  rows: BarisAbsensiWali[]
+}) {
+  const guru = await getCurrentGuru()
+  const session = await auth()
+  const hasil = await simpanAbsensiHarianWaliData({
+    guruId: guru.id,
+    kelasId: params.kelasId,
+    tanggal: params.tanggal,
+    rows: params.rows,
+    actorUserId: session?.user?.id,
   })
-  if (!kelas) throw new Error("Akses ditolak: Anda bukan wali kelas ini")
-
-  const tgl = new Date(tanggal + "T00:00:00")
-  if (Number.isNaN(tgl.getTime())) throw new Error("Tanggal tidak valid")
-  tgl.setHours(0, 0, 0, 0)
-
-  const [kebijakan, harian, siswaRows, absensiPelajaran] = await Promise.all([
-    getKebijakanHarian(),
-    prisma.absensiHarianSiswa.findMany({
-      where: { tanggal: tgl, siswa: { kelasId } },
-      include: { siswa: { select: { id: true, nama: true, nis: true, jabatan: true } } },
-      orderBy: { jamMasuk: "asc" },
-    }),
-    prisma.siswa.findMany({
-      where: { kelasId, deletedAt: null },
-      select: { id: true, nama: true, nis: true, jabatan: true },
-      orderBy: { nama: "asc" },
-    }),
-    prisma.absensi.findMany({
-      where: { kelasId, tanggal: tgl },
-      include: {
-        mataPelajaran: { select: { nama: true } },
-        siswa: { select: { siswaId: true, status: true, keterangan: true } },
-      },
-    }),
-  ])
-
-  const mapHarian = new Map(harian.map((h) => [h.siswaId, h]))
-  const rows = siswaRows.map((s) => {
-    const h = mapHarian.get(s.id)
-    return {
-      siswaId: s.id,
-      nama: s.nama,
-      nis: s.nis,
-      jabatan: s.jabatan,
-      jamMasuk: h?.jamMasuk ?? null,
-      jamPulang: h?.jamPulang ?? null,
-      statusMasuk: h?.statusMasuk ?? null,
-      statusPulang: h?.statusPulang ?? null,
-      terlambatMenit: h?.terlambatMenit ?? null,
-      sumber: [h?.sumberMasuk, h?.sumberPulang].filter(Boolean).join("/") || null,
-      adaRekap: !!h,
-    }
-  })
-
-  // Siswa hadir di sekolah (punya absen masuk) tetapi Alpa pada salah satu pelajaran
-  const hadirSet = new Set(harian.filter((h) => h.jamMasuk).map((h) => h.siswaId))
-  const alpaPelajaran: { siswaId: string; nama: string; mapel: string; status: string }[] = []
-  const namaById = new Map(siswaRows.map((s) => [s.id, s.nama]))
-  for (const a of absensiPelajaran) {
-    for (const s of a.siswa) {
-      if (hadirSet.has(s.siswaId) && s.status === "ALPA") {
-        alpaPelajaran.push({
-          siswaId: s.siswaId,
-          nama: namaById.get(s.siswaId) ?? "-",
-          mapel: a.mataPelajaran.nama,
-          status: s.status,
-        })
-      }
-    }
-  }
-
-  const summary = {
-    total: siswaRows.length,
-    masuk: rows.filter((r) => r.jamMasuk).length,
-    belumMasuk: rows.filter((r) => !r.jamMasuk).length,
-    terlambat: rows.filter((r) => r.statusMasuk === "TERLAMBAT").length,
-    pulang: rows.filter((r) => r.jamPulang).length,
-    pulangAwal: rows.filter((r) => r.statusPulang === "AWAL").length,
-    alpaPelajaran: alpaPelajaran.length,
-  }
-
-  const p = (n: number) => String(n).padStart(2, "0")
-  return {
-    kelas,
-    tanggal: `${tgl.getFullYear()}-${p(tgl.getMonth() + 1)}-${p(tgl.getDate())}`,
-    kebijakan,
-    rows,
-    summary,
-    alpaPelajaran,
-    absensiPelajaran: absensiPelajaran.map((a) => ({
-      id: a.id,
-      mataPelajaran: a.mataPelajaran.nama,
-      total: a.siswa.length,
-      hadir: a.siswa.filter((s) => s.status === "HADIR" || s.status === "TERLAMBAT").length,
-      alpa: a.siswa.filter((s) => s.status === "ALPA").length,
-      izin: a.siswa.filter((s) => s.status === "IZIN").length,
-      sakit: a.siswa.filter((s) => s.status === "SAKIT").length,
-    })),
-  }
+  revalidatePath("/guru/wali-kelas")
+  return hasil
 }
 
 export async function getRekapKehadiranBulananWali(kelasId: string, bulan: string) {
@@ -2111,19 +2037,21 @@ export async function getRekapKehadiranBulananWali(kelasId: string, bulan: strin
   const [rows, siswaRows, hariLibur] = await Promise.all([
     prisma.absensiHarianSiswa.findMany({
       where: { tanggal: { gte: start, lte: end }, siswa: { kelasId } },
-      select: { siswaId: true, statusMasuk: true, statusPulang: true, tanggal: true },
+      select: { siswaId: true, statusMasuk: true, statusPulang: true, statusHarian: true, tanggal: true },
     }),
     prisma.siswa.findMany({ where: { kelasId, deletedAt: null }, select: { id: true, nama: true, nis: true }, orderBy: { nama: "asc" } }),
     prisma.tanggalLibur.count({ where: { tanggal: { gte: start, lte: end } } }),
   ])
 
-  const per = new Map<string, { hadir: number; terlambat: number; pulangAwal: number; hari: number }>()
+  const per = new Map<string, { hadir: number; terlambat: number; pulangAwal: number; izin: number; sakit: number; hari: number }>()
   for (const r of rows) {
-    const cur = per.get(r.siswaId) ?? { hadir: 0, terlambat: 0, pulangAwal: 0, hari: 0 }
+    const cur = per.get(r.siswaId) ?? { hadir: 0, terlambat: 0, pulangAwal: 0, izin: 0, sakit: 0, hari: 0 }
     cur.hari++
-    if (r.statusMasuk === "HADIR") cur.hadir++
+    if (r.statusMasuk === "HADIR" || r.statusHarian === "HADIR") cur.hadir++
     if (r.statusMasuk === "TERLAMBAT") cur.terlambat++
     if (r.statusPulang === "AWAL") cur.pulangAwal++
+    if (r.statusHarian === "IZIN") cur.izin++
+    if (r.statusHarian === "SAKIT") cur.sakit++
     per.set(r.siswaId, cur)
   }
 
@@ -2133,7 +2061,7 @@ export async function getRekapKehadiranBulananWali(kelasId: string, bulan: strin
     kelas,
     hariSekolah,
     rows: siswaRows.map((s) => {
-      const c = per.get(s.id) ?? { hadir: 0, terlambat: 0, pulangAwal: 0, hari: 0 }
+      const c = per.get(s.id) ?? { hadir: 0, terlambat: 0, pulangAwal: 0, izin: 0, sakit: 0, hari: 0 }
       return {
         siswaId: s.id,
         nama: s.nama,
@@ -2142,6 +2070,8 @@ export async function getRekapKehadiranBulananWali(kelasId: string, bulan: strin
         hadir: c.hadir,
         terlambat: c.terlambat,
         pulangAwal: c.pulangAwal,
+        izin: c.izin,
+        sakit: c.sakit,
         persen: Math.round((c.hadir / hariSekolah) * 100),
       }
     }),
@@ -2166,20 +2096,22 @@ export async function getRekapPeriodeWali(kelasId: string, dari: string, sampai:
   const [rows, siswaRows, hariLibur] = await Promise.all([
     prisma.absensiHarianSiswa.findMany({
       where: { tanggal: { gte: start, lte: end }, siswa: { kelasId } },
-      select: { siswaId: true, statusMasuk: true, statusPulang: true, jamPulang: true },
+      select: { siswaId: true, statusMasuk: true, statusPulang: true, statusHarian: true, jamPulang: true },
     }),
     prisma.siswa.findMany({ where: { kelasId, deletedAt: null }, select: { id: true, nama: true, nis: true }, orderBy: { nama: "asc" } }),
     prisma.tanggalLibur.count({ where: { tanggal: { gte: start, lte: end } } }),
   ])
 
-  const per = new Map<string, { hadir: number; terlambat: number; pulangAwal: number; belumPulang: number; hari: number }>()
+  const per = new Map<string, { hadir: number; terlambat: number; pulangAwal: number; belumPulang: number; izin: number; sakit: number; hari: number }>()
   for (const r of rows) {
-    const cur = per.get(r.siswaId) ?? { hadir: 0, terlambat: 0, pulangAwal: 0, belumPulang: 0, hari: 0 }
+    const cur = per.get(r.siswaId) ?? { hadir: 0, terlambat: 0, pulangAwal: 0, belumPulang: 0, izin: 0, sakit: 0, hari: 0 }
     cur.hari++
-    if (r.statusMasuk === "HADIR") cur.hadir++
+    if (r.statusMasuk === "HADIR" || r.statusHarian === "HADIR") cur.hadir++
     if (r.statusMasuk === "TERLAMBAT") cur.terlambat++
     if (r.statusPulang === "AWAL") cur.pulangAwal++
-    if (!r.jamPulang) cur.belumPulang++
+    if (!r.jamPulang && r.statusHarian !== "IZIN" && r.statusHarian !== "SAKIT") cur.belumPulang++
+    if (r.statusHarian === "IZIN") cur.izin++
+    if (r.statusHarian === "SAKIT") cur.sakit++
     per.set(r.siswaId, cur)
   }
 
@@ -2192,7 +2124,7 @@ export async function getRekapPeriodeWali(kelasId: string, dari: string, sampai:
     sampai: `${end.getFullYear()}-${p(end.getMonth() + 1)}-${p(end.getDate())}`,
     hariSekolah,
     rows: siswaRows.map((s) => {
-      const c = per.get(s.id) ?? { hadir: 0, terlambat: 0, pulangAwal: 0, belumPulang: 0, hari: 0 }
+      const c = per.get(s.id) ?? { hadir: 0, terlambat: 0, pulangAwal: 0, belumPulang: 0, izin: 0, sakit: 0, hari: 0 }
       return {
         siswaId: s.id,
         nama: s.nama,
@@ -2202,6 +2134,8 @@ export async function getRekapPeriodeWali(kelasId: string, dari: string, sampai:
         terlambat: c.terlambat,
         pulangAwal: c.pulangAwal,
         belumPulang: c.belumPulang,
+        izin: c.izin,
+        sakit: c.sakit,
         persen: Math.round((c.hadir / hariSekolah) * 100),
       }
     }),
