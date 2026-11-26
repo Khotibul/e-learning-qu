@@ -28,6 +28,7 @@ interface JadwalItem {
   kelas: { id: string; nama: string }
   jamMulai: string | null; jamSelesai: string | null
   guruAbsen?: boolean
+  bolehSusulan?: boolean
 }
 
 interface AbsensiSiswaRecord {
@@ -278,7 +279,7 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Absensi</h1>
-          <p className="text-muted-foreground mt-1">Kehadiran Anda & siswa per jam pelajaran sesuai jadwal mengajar</p>
+          <p className="text-muted-foreground mt-1">Kehadiran Anda & siswa per jam pelajaran sesuai jadwal mengajar. Wali kelas dapat mengisi susulan tanggal lampau.</p>
         </div>
         <div className="w-full sm:w-56">
           <Label className="text-xs text-muted-foreground mb-1 block">Pilih Tanggal</Label>
@@ -409,7 +410,9 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
                 const ketc = keteranganForm[jd._key] || {}
                 const activeSiswa = kelasInfo.siswas || []
                 const values = Object.values(form)
-                const terkunci = jd.guruAbsen === false
+                // Wali kelas boleh mengisi susulan tanggal lampau walau sesi belum diabsen guru.
+                const susulan = jd.guruAbsen === false && jd.bolehSusulan === true
+                const terkunci = jd.guruAbsen === false && !susulan
                 const statusCount = {
                   HADIR: values.filter((s) => s === "HADIR").length,
                   TERLAMBAT: values.filter((s) => s === "TERLAMBAT").length,
@@ -427,6 +430,11 @@ export function AbsensiClient({ kelasList }: { kelasList: { id: string; nama: st
                             {terkunci && (
                               <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 text-[10px]">
                                 Terkunci — absen masuk dulu
+                              </Badge>
+                            )}
+                            {susulan && (
+                              <Badge variant="outline" className="border-sky-300 bg-sky-50 text-sky-700 text-[10px]">
+                                Input susulan wali kelas
                               </Badge>
                             )}
                           </CardTitle>

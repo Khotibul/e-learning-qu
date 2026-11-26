@@ -49,6 +49,9 @@ export async function GET(req: Request) {
     if (!isPengampu && !isWali) return NextResponse.json({ error: "Tidak mengampu" }, { status: 403, headers: corsHeaders })
 
     const date = tanggalKeDate(tanggal)
+    const sekarang = new Date()
+    const hariIni = new Date(sekarang.getFullYear(), sekarang.getMonth(), sekarang.getDate())
+    const bolehSusulan = !!isWali && date < hariIni
 
     // Sesi mengajar guru pada jam pelajaran ini — membuka fitur absensi siswa.
     let guruAbsen: boolean | null = null
@@ -88,6 +91,8 @@ export async function GET(req: Request) {
       {
         absensi: absensi ? { id: absensi.id, tanggal: absensi.tanggal, jadwalPelajaranId: absensi.jadwalPelajaranId } : null,
         guruAbsen,
+        bolehSusulan,
+        bolehIsi: guruAbsen === true || bolehSusulan,
         siswas: semuaSiswa.map((s) => {
           const rec = tercatat.get(s.id)
           return {
@@ -140,8 +145,12 @@ export async function POST(req: Request) {
     if (!isPengampu && !isWali) return NextResponse.json({ error: "Tidak mengampu" }, { status: 403, headers: corsHeaders })
 
     const date = tanggalKeDate(tanggal)
+    const sekarang = new Date()
+    const hariIni = new Date(sekarang.getFullYear(), sekarang.getMonth(), sekarang.getDate())
+    const bolehSusulanWali = !!isWali && date < hariIni
 
     // Alur per sesi: Absensi Siswa hanya terbuka setelah guru Absen Masuk pada sesi ini.
+    // Wali kelas dikecualikan untuk pengisian susulan tanggal lampau.
     if (jadwalPelajaranId) {
       const jadwal = await prisma.jadwalPelajaran.findFirst({
         where: { id: jadwalPelajaranId, kelasId, mataPelajaranId, deletedAt: null },
@@ -149,7 +158,7 @@ export async function POST(req: Request) {
       })
       if (!jadwal) return NextResponse.json({ error: "Jadwal tidak ditemukan" }, { status: 400, headers: corsHeaders })
 
-      if (isPengampu) {
+      if (isPengampu && !bolehSusulanWali) {
         const sesi = await prisma.absensiGuruSesi.findFirst({
           where: { guruId: guru.id, jadwalPelajaranId, tanggal: date },
           select: { jamMasuk: true },

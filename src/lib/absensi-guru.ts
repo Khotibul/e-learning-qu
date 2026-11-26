@@ -136,6 +136,8 @@ export type SesiAbsensi = {
   koreksiBy: string | null
   penggantiNama: string | null
   penggantiStatus: string | null
+  /** Wali kelas boleh mengisi absensi siswa pada tanggal lampau tanpa Absen Masuk sesi. */
+  bolehSusulan: boolean
   // ── Bukti verifikasi ──
   metode: string
   fotoUrl: string | null
@@ -279,7 +281,7 @@ export async function getJadwalGuruDenganStatus(guruId: string, tanggal: string)
       ],
     },
     include: {
-      kelas: { select: { id: true, nama: true } },
+      kelas: { select: { id: true, nama: true, guruId: true } },
       mataPelajaran: { select: { id: true, nama: true, kode: true } },
     },
     orderBy: [{ jamMulai: "asc" }, { kelas: { nama: "asc" } }],
@@ -289,6 +291,7 @@ export async function getJadwalGuruDenganStatus(guruId: string, tanggal: string)
 
   const sesiRows = await prisma.absensiGuruSesi.findMany({ where: { guruId, tanggal: date } })
   const sesiMap = new Map(sesiRows.map((s) => [s.jadwalPelajaranId, s]))
+  const tanggalLampau = date < dayStart(new Date())
 
   const penggantiMap = new Map<string, { nama: string; status: string; role: "ASLI" | "PENGGANTI" }>()
   for (const p of penggantiRows) {
@@ -327,6 +330,7 @@ export async function getJadwalGuruDenganStatus(guruId: string, tanggal: string)
       koreksiBy: rec?.koreksiBy ?? null,
       penggantiNama: pg?.nama ?? null,
       penggantiStatus: pg?.status ?? null,
+      bolehSusulan: tanggalLampau && j.kelas.guruId === guruId,
       metode,
       fotoUrl: rec?.fotoUrl ?? null,
       gps:

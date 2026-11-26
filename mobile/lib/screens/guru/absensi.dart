@@ -661,6 +661,8 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
       itemBuilder: (_, i) {
         final j = jadwal[i] as Map;
         final guruSudahMasuk = j["jamMasuk"] != null;
+        final bolehSusulan = j["bolehSusulan"] == true;
+        final bisaIsi = guruSudahMasuk || bolehSusulan;
         return Card(
           child: ListTile(
             leading: Container(
@@ -670,13 +672,13 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
             ),
             title: Text(j["mataPelajaranNama"] ?? "-", style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
             subtitle: Text(
-              "${j["kelasNama"]} • ${j["jamMulai"]}-${j["jamSelesai"]}${guruSudahMasuk ? "" : " • absen masuk dulu"}",
+              "${j["kelasNama"]} • ${j["jamMulai"]}-${j["jamSelesai"]}${guruSudahMasuk ? "" : bolehSusulan ? " • susulan wali kelas" : " • absen masuk dulu"}",
               style: const TextStyle(fontSize: 11, color: Colors.black54),
             ),
             trailing: Icon(
-              guruSudahMasuk ? Icons.chevron_right : Icons.lock_outline,
+              bisaIsi ? Icons.chevron_right : Icons.lock_outline,
               size: 16,
-              color: guruSudahMasuk ? const Color(0xFF94A3B8) : const Color(0xFFF59E0B),
+              color: bisaIsi ? const Color(0xFF94A3B8) : const Color(0xFFF59E0B),
             ),
             onTap: () => Navigator.push(
               context,
@@ -690,7 +692,7 @@ class _GuruAbsensiState extends State<GuruAbsensi> {
                   jadwalId: (j["jadwalId"] ?? "").toString(),
                   jamMulai: (j["jamMulai"] ?? "").toString(),
                   jamSelesai: (j["jamSelesai"] ?? "").toString(),
-                  guruSudahMasuk: guruSudahMasuk,
+                  guruSudahMasuk: bisaIsi,
                 ),
               ),
             ),

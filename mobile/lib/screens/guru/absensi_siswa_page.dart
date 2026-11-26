@@ -42,6 +42,7 @@ class _MuridAbsensiPageState extends State<MuridAbsensiPage> {
   bool saving = false;
   bool saved = false;
   bool guruSudahMasuk = false;
+  bool susulan = false;
   final searchCtrl = TextEditingController();
 
   @override
@@ -89,7 +90,8 @@ class _MuridAbsensiPageState extends State<MuridAbsensiPage> {
             keteranganMap[id] = (s["keterangan"] ?? "").toString();
           }
           saved = data["absensi"] != null;
-          guruSudahMasuk = data["guruAbsen"] == true || widget.guruSudahMasuk;
+          susulan = data["bolehSusulan"] == true && data["guruAbsen"] != true;
+          guruSudahMasuk = data["bolehIsi"] == true || data["guruAbsen"] == true || widget.guruSudahMasuk;
           loading = false;
         });
         _filter();
@@ -182,6 +184,27 @@ class _MuridAbsensiPageState extends State<MuridAbsensiPage> {
                       child: Text(
                         "Terkunci — lakukan Absen Masuk sesi ini dulu. Setelah itu absensi siswa dapat diisi.",
                         style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+                      ),
+                    ),
+                  ]),
+                ),
+              if (susulan)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F9FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFBAE6FD)),
+                  ),
+                  child: const Row(children: [
+                    Icon(Icons.history_edu, size: 16, color: Color(0xFF0369A1)),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "Mode susulan wali kelas — absensi tanggal lampau dapat diisi tanpa Absen Masuk sesi.",
+                        style: TextStyle(fontSize: 11, color: Color(0xFF0369A1)),
                       ),
                     ),
                   ]),

@@ -39,7 +39,12 @@ export async function getGuruKelasWithSiswa() {
 
 export async function getGuruJadwalByDate(tanggal: string) {
   const guru = await getCurrentGuru()
-  const dayName = new Date(tanggal + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long" })
+  const date = new Date(tanggal + "T00:00:00")
+  date.setHours(0, 0, 0, 0)
+  const hariIni = new Date()
+  hariIni.setHours(0, 0, 0, 0)
+  const tanggalLampau = date < hariIni
+  const dayName = date.toLocaleDateString("id-ID", { weekday: "long" })
   const hari = dayName.charAt(0).toUpperCase() + dayName.slice(1)
 
   // Jadwal sesuai pengajaran masing-masing guru (bukan hanya wali kelas)
@@ -47,13 +52,26 @@ export async function getGuruJadwalByDate(tanggal: string) {
     where: { guruId: guru.id, deletedAt: null },
     select: { kelasId: true, mataPelajaranId: true },
   })
-  if (pengajaran.length === 0) return []
 
-  // Ambil jadwal yang sesuai pasangan (kelas, mapel) yang diajar
-  const orConditions = pengajaran.map((p) => ({
+  // Wali kelas dapat mengisi susulan seluruh mapel kelasnya pada tanggal lampau.
+  const kelasWali = tanggalLampau
+    ? await prisma.kelas.findMany({
+        where: { guruId: guru.id, deletedAt: null },
+        select: { id: true },
+      })
+    : []
+  const waliKelasIds = new Set(kelasWali.map((k) => k.id))
+
+  // Ambil jadwal yang sesuai pasangan (kelas, mapel) yang diajar,
+  // ditambah seluruh jadwal kelas wali untuk tanggal lampau.
+  const orConditions: { kelasId: string | { in: string[] }; mataPelajaranId?: string }[] = pengajaran.map((p) => ({
     kelasId: p.kelasId,
     mataPelajaranId: p.mataPelajaranId,
   }))
+  if (waliKelasIds.size > 0) {
+    orConditions.push({ kelasId: { in: [...waliKelasIds] } })
+  }
+  if (orConditions.length === 0) return []
 
   const jadwal = await prisma.jadwalPelajaran.findMany({
     where: {
@@ -69,15 +87,18 @@ export async function getGuruJadwalByDate(tanggal: string) {
   })
 
   // Status absensi guru per sesi → membuka/terkunci fitur Absensi Siswa
-  const date = new Date(tanggal + "T00:00:00")
-  date.setHours(0, 0, 0, 0)
   const sesiGuru = await prisma.absensiGuruSesi.findMany({
     where: { guruId: guru.id, tanggal: date },
     select: { jadwalPelajaranId: true, jamMasuk: true, status: true },
   })
   const sesiMap = new Map(sesiGuru.map((s) => [s.jadwalPelajaranId, s]))
 
-  return jadwal.map((j) => ({ ...j, _key: j.id, guruAbsen: !!sesiMap.get(j.id)?.jamMasuk }))
+  return jadwal.map((j) => ({
+    ...j,
+    _key: j.id,
+    guruAbsen: !!sesiMap.get(j.id)?.jamMasuk,
+    bolehSusulan: tanggalLampau && waliKelasIds.has(j.kelas.id),
+  }))
 }
 
 export async function getAbsensiList(kelasId: string, mataPelajaranId: string) {
@@ -115,9 +136,14 @@ export async function saveAbsensi(
 
   const date = new Date(tanggal + "T00:00:00")
   date.setHours(0, 0, 0, 0)
+  const hariIni = new Date()
+  hariIni.setHours(0, 0, 0, 0)
+
+  // Wali kelas boleh mengisi susulan tanggal lampau meski belum Absen Masuk sesi.
+  const bolehSusulanWali = !!isWali && date < hariIni
 
   // ── Alur per sesi: Absensi Siswa terbuka setelah guru absen masuk pada sesi ──
-  if (jadwalPelajaranId && isPengampu) {
+  if (jadwalPelajaranId && isPengampu && !bolehSusulanWali) {
     const sesi = await prisma.absensiGuruSesi.findFirst({
       where: { guruId: guru.id, jadwalPelajaranId, tanggal: date },
       select: { jamMasuk: true },
