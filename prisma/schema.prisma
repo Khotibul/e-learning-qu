@@ -119,34 +119,34 @@ model User {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
-  guru          Guru?
-  siswa         Siswa?
-  santri        Santri?
-  biodata       BiodataOrang?
+  guru                Guru?
+  siswa               Siswa?
+  santri              Santri?
+  biodata             BiodataOrang?
   pemetaanFingerprint PemetaanFingerprint[]
   fingerprintEvents   FingerprintEvent[]
-  profilWajah        ProfilWajah?
-  logVerifikasiWajah LogVerifikasiWajah[]
-  waliSantri    WaliSantri[]
-  accounts      Account[]
-  sessions      Session[]
-  notifications Notification[]
-  auditLogs     AuditLog[]
-  pengumuman    Pengumuman[]
-  pendaftaranPpdb PendaftaranPpdb[]
-  pondokAssignments PondokStaffAssignment[]    @relation("UserPondokAssignment")
-  pondokGrants      PondokPermissionGrant[]    @relation("UserPondokGrant")
-  halaqahDibina     Halaqah[]                  @relation("HalaqahPengampu")
-  kelasDiniyahDiampu KelasDiniyah[]            @relation("KelasDiniyahPengampu")
-  kegiatanDijawab   KegiatanPondok[]           @relation("KegiatanPenanggungJawab")
-  setoranDiberikan  SetoranTahfidz[]           @relation("SetoranUstadz")
-  pembinaanDicatat  PembinaanSantri[]          @relation("PembinaanPetugas")
-  pengumumanDisetujui Pengumuman[]             @relation("PengumumanApprover")
+  profilWajah         ProfilWajah?
+  logVerifikasiWajah  LogVerifikasiWajah[]
+  waliSantri          WaliSantri[]
+  accounts            Account[]
+  sessions            Session[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+  pengumuman          Pengumuman[]
+  pendaftaranPpdb     PendaftaranPpdb[]
+  pondokAssignments   PondokStaffAssignment[] @relation("UserPondokAssignment")
+  pondokGrants        PondokPermissionGrant[] @relation("UserPondokGrant")
+  halaqahDibina       Halaqah[]               @relation("HalaqahPengampu")
+  kelasDiniyahDiampu  KelasDiniyah[]          @relation("KelasDiniyahPengampu")
+  kegiatanDijawab     KegiatanPondok[]        @relation("KegiatanPenanggungJawab")
+  setoranDiberikan    SetoranTahfidz[]        @relation("SetoranUstadz")
+  pembinaanDicatat    PembinaanSantri[]       @relation("PembinaanPetugas")
+  pengumumanDisetujui Pengumuman[]            @relation("PengumumanApprover")
 
   // Relasi modul keuangan
-  walletAccount     WalletAccount?
-  keuanganStaff     KeuanganStaff?
-  invoiceTagihan    InvoiceTagihan[]
+  walletAccount  WalletAccount?
+  keuanganStaff  KeuanganStaff?
+  invoiceTagihan InvoiceTagihan[]
 
   @@map("users")
 }
@@ -191,38 +191,40 @@ model VerificationToken {
 }
 
 model Guru {
-  id        String    @id @default(uuid()) @db.Uuid
-  userId    String    @unique @db.Uuid
-  nip       String?   @unique
-  nuptk     String?
-  nama      String
-  jabatan   String?   @db.VarChar(20)
-  alamat    String?
-  noTelp    String?
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @unique @db.Uuid
+  nip           String?   @unique
+  nuptk         String?
+  nama          String
+  jabatan       String?   @db.VarChar(20)
+  alamat        String?
+  noTelp        String?
   // Override metode absensi per guru (null = ikut SiteConfig)
   absensiMetode String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
 
-  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kelas          Kelas[]
-  soal           Soal[]
-  ujian          Ujian[]
-  penilaianEssay PenilaianEssay[]
-  materis        Materi[]
-  courses        Course[]
-  pengajaran     Pengajaran[]
-  interventions  Intervention[]
-  absensiGuru    AbsensiGuru[]
-  absensiSesi    AbsensiGuruSesi[]
-  absensiLog     AbsensiGuruLog[]
-  absensiSiswaDicatat Absensi[]       @relation("AbsensiPencatat")
-  absensiSiswaLog AbsensiSiswaLog[]
-  pengecualian   PengecualianAbsensi[]
-  penggantiAktif PenggantiGuru[] @relation("PenggantiAsli")
-  penggantiSebagai PenggantiGuru[] @relation("PenggantiGuru")
-  asramaDibina   Asrama[]
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kelas               Kelas[]
+  soal                Soal[]
+  ujian               Ujian[]
+  penilaianEssay      PenilaianEssay[]
+  materis             Materi[]
+  courses             Course[]
+  pengajaran          Pengajaran[]
+  interventions       Intervention[]
+  absensiGuru         AbsensiGuru[]
+  absensiSesi         AbsensiGuruSesi[]
+  absensiLog          AbsensiGuruLog[]
+  absensiSiswaDicatat Absensi[]             @relation("AbsensiPencatat")
+  absensiSiswaLog     AbsensiSiswaLog[]
+  pengecualian        PengecualianAbsensi[]
+  penggantiAktif      PenggantiGuru[]       @relation("PenggantiAsli")
+  penggantiSebagai    PenggantiGuru[]       @relation("PenggantiGuru")
+  asramaDibina        Asrama[]
+  komponenNilai       KomponenNilai[]
+  raportWali          Raport[]
 
   @@index([userId])
   @@index([deletedAt])
@@ -244,41 +246,43 @@ model Siswa {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kelas           Kelas?                 @relation(fields: [kelasId], references: [id])
-  jurusan         Jurusan?               @relation(fields: [jurusanId], references: [id])
-  jawabanUjian    JawabanUjian[]
-  chatSessions    ChatSession[]
-  latihanAI       LatihanAI[]
-  agentLogs       AgentLog[]
-  jawabanLatihan  JawabanLatihan[]
-  nilai           Nilai[]
-  AbsensiSiswa    AbsensiSiswa[]
-  absensiHarian   AbsensiHarianSiswa[]
-  fingerprintEvents FingerprintEvent[]
+  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kelas               Kelas?                    @relation(fields: [kelasId], references: [id])
+  jurusan             Jurusan?                  @relation(fields: [jurusanId], references: [id])
+  jawabanUjian        JawabanUjian[]
+  chatSessions        ChatSession[]
+  latihanAI           LatihanAI[]
+  agentLogs           AgentLog[]
+  jawabanLatihan      JawabanLatihan[]
+  nilai               Nilai[]
+  AbsensiSiswa        AbsensiSiswa[]
+  absensiHarian       AbsensiHarianSiswa[]
+  fingerprintEvents   FingerprintEvent[]
   pemetaanFingerprint PemetaanFingerprint[]
-  profilWajah     ProfilWajah?
-  logVerifikasiWajah LogVerifikasiWajah[]
+  profilWajah         ProfilWajah?
+  logVerifikasiWajah  LogVerifikasiWajah[]
   permintaanAbsensi   PermintaanAbsensiManual[]
-  jadwalPiket     JadwalPiket[]
-  pembayaranIuran PembayaranIuran[]
-  pembayaranDenda PembayaranDenda[]
-  pelanggaran     Pelanggaran[]
-  penguasaan      PenguasaanKompetensi[]
-  aktivitas       LearningActivity[]
-  rekomendasi     Rekomendasi[]
-  learningPaths   LearningPath[]
-  profile         StudentProfile?
-  earlyWarnings   EarlyWarning[]
-  pretestPosttest PretestPosttest[]
-  susResponses    SUSResponse[]
-  aiEvaluations   AIEvaluation[]
-  agentFeedbacks  AgentFeedback[]
-  interventions    Intervention[]
-  examSessions     ExamSession[]
-  examAuditLogs    ExamAuditLog[]
-  santri           Santri?
-  konflikIzin      IzinKonflikAbsensi[]
+  jadwalPiket         JadwalPiket[]
+  pembayaranIuran     PembayaranIuran[]
+  pembayaranDenda     PembayaranDenda[]
+  pelanggaran         Pelanggaran[]
+  penguasaan          PenguasaanKompetensi[]
+  aktivitas           LearningActivity[]
+  rekomendasi         Rekomendasi[]
+  learningPaths       LearningPath[]
+  profile             StudentProfile?
+  earlyWarnings       EarlyWarning[]
+  pretestPosttest     PretestPosttest[]
+  susResponses        SUSResponse[]
+  aiEvaluations       AIEvaluation[]
+  agentFeedbacks      AgentFeedback[]
+  interventions       Intervention[]
+  examSessions        ExamSession[]
+  examAuditLogs       ExamAuditLog[]
+  santri              Santri?
+  konflikIzin         IzinKonflikAbsensi[]
+  komponenNilai       NilaiKomponen[]
+  raports             Raport[]
 
   @@index([kelasId])
   @@index([kelasId, deletedAt])
@@ -458,6 +462,8 @@ model Kelas {
   pengeluaran     PengeluaranKelas[]
   pengajaran      Pengajaran[]
   pelanggaran     Pelanggaran[]
+  komponenNilai   KomponenNilai[]
+  raports         Raport[]
 
   @@index([guruId])
   @@index([guruId, deletedAt])
@@ -486,6 +492,8 @@ model MataPelajaran {
   pengajaran      Pengajaran[]
   kompetensis     Kompetensi[]
   pretestPosttest PretestPosttest[]
+  komponenNilai   KomponenNilai[]
+  raportNilai     RaportNilai[]
 
   @@unique([kode, semesterId])
   @@map("mata_pelajaran")
@@ -523,8 +531,8 @@ model TahunAjaran {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  semesters Semester[]
-  ujians    Ujian[]
+  semesters     Semester[]
+  ujians        Ujian[]
   gelombangPpdb GelombangPpdb[]
 
   @@map("tahun_ajaran")
@@ -539,10 +547,13 @@ model Semester {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
-  tahunAjaran    TahunAjaran     @relation(fields: [tahunAjaranId], references: [id])
-  mataPelajarans MataPelajaran[]
-  ujians         Ujian[]
-  nilai          Nilai[]
+  tahunAjaran      TahunAjaran       @relation(fields: [tahunAjaranId], references: [id])
+  mataPelajarans   MataPelajaran[]
+  ujians           Ujian[]
+  nilai            Nilai[]
+  pengaturanRaport PengaturanRaport?
+  komponenNilai    KomponenNilai[]
+  raports          Raport[]
 
   @@map("semester")
 }
@@ -598,35 +609,35 @@ model KategoriSoal {
 }
 
 model Ujian {
-  id              String      @id @default(uuid()) @db.Uuid
-  nama            String
-  deskripsi       String?     @db.Text
-  mataPelajaranId String      @db.Uuid
-  kelasId         String      @db.Uuid
-  guruId          String      @db.Uuid
-  tahunAjaranId   String      @db.Uuid
-  semesterId      String      @db.Uuid
-  jumlahSoal      Int
-  nilaiMinimum    Int         @default(0)
-  durasi          Int
-  tanggal         DateTime
-  jamMulai        DateTime
-  jamSelesai      DateTime
-  mode            String      @default("manual")
-  status          StatusUjian @default(DRAFT)
-  tipe            String      @default("REGULER")
-  isLatihan       Boolean     @default(false)
-  randomSoal      Boolean     @default(true)
-  randomJawaban   Boolean     @default(true)
-  fullscreen      Boolean     @default(true)
-  disableCopy     Boolean     @default(true)
-  disablePaste    Boolean     @default(true)
-  bisaRetake      Boolean     @default(false)
-  maxTabSwitch    Int         @default(3)
-  maxCheatingScore Int        @default(75)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  deletedAt       DateTime?
+  id               String      @id @default(uuid()) @db.Uuid
+  nama             String
+  deskripsi        String?     @db.Text
+  mataPelajaranId  String      @db.Uuid
+  kelasId          String      @db.Uuid
+  guruId           String      @db.Uuid
+  tahunAjaranId    String      @db.Uuid
+  semesterId       String      @db.Uuid
+  jumlahSoal       Int
+  nilaiMinimum     Int         @default(0)
+  durasi           Int
+  tanggal          DateTime
+  jamMulai         DateTime
+  jamSelesai       DateTime
+  mode             String      @default("manual")
+  status           StatusUjian @default(DRAFT)
+  tipe             String      @default("REGULER")
+  isLatihan        Boolean     @default(false)
+  randomSoal       Boolean     @default(true)
+  randomJawaban    Boolean     @default(true)
+  fullscreen       Boolean     @default(true)
+  disableCopy      Boolean     @default(true)
+  disablePaste     Boolean     @default(true)
+  bisaRetake       Boolean     @default(false)
+  maxTabSwitch     Int         @default(3)
+  maxCheatingScore Int         @default(75)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  deletedAt        DateTime?
 
   mataPelajaran   MataPelajaran     @relation(fields: [mataPelajaranId], references: [id])
   kelas           Kelas             @relation(fields: [kelasId], references: [id])
@@ -762,8 +773,8 @@ model JadwalPelajaran {
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
-  kelas         Kelas         @relation(fields: [kelasId], references: [id], onDelete: Cascade)
-  mataPelajaran MataPelajaran @relation(fields: [mataPelajaranId], references: [id], onDelete: Cascade)
+  kelas         Kelas             @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+  mataPelajaran MataPelajaran     @relation(fields: [mataPelajaranId], references: [id], onDelete: Cascade)
   absensiSesi   AbsensiGuruSesi[]
   pengganti     PenggantiGuru[]
   absensiSiswa  Absensi[]
@@ -878,24 +889,24 @@ model PengeluaranKelas {
 }
 
 model Pengumuman {
-  id        String    @id @default(uuid()) @db.Uuid
-  judul     String
-  isi       String    @db.Text
-  gambar    String?
-  lampiran  String?
-  tipe      String    @default("UMUM") // UMUM | KELAS | PENTING
-  status    String    @default("TERBIT") // DRAFT | MENUNGGU | TERBIT  (non-destruktif: baris lama = TERBIT)
-  userId    String    @db.Uuid
-  kelasId   String?   @db.Uuid
-  approvedBy String?  @db.Uuid // penyetuju resmi (Kepala Pondok/Admin)
+  id         String    @id @default(uuid()) @db.Uuid
+  judul      String
+  isi        String    @db.Text
+  gambar     String?
+  lampiran   String?
+  tipe       String    @default("UMUM") // UMUM | KELAS | PENTING
+  status     String    @default("TERBIT") // DRAFT | MENUNGGU | TERBIT  (non-destruktif: baris lama = TERBIT)
+  userId     String    @db.Uuid
+  kelasId    String?   @db.Uuid
+  approvedBy String?   @db.Uuid // penyetuju resmi (Kepala Pondok/Admin)
   approvedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
 
-  user     User    @relation(fields: [userId], references: [id])
-  kelas    Kelas?  @relation(fields: [kelasId], references: [id])
-  approver User?   @relation("PengumumanApprover", fields: [approvedBy], references: [id])
+  user     User   @relation(fields: [userId], references: [id])
+  kelas    Kelas? @relation(fields: [kelasId], references: [id])
+  approver User?  @relation("PengumumanApprover", fields: [approvedBy], references: [id])
 
   @@map("pengumuman")
 }
@@ -909,7 +920,7 @@ model Notification {
   isRead    Boolean  @default(false)
   link      String?
   status    String   @default("TERKIRIM") // TERKIRIM | GAGAL
-  eventKey  String?  // kunci idempotensi (cegah duplikat saat sinkronisasi ulang)
+  eventKey  String? // kunci idempotensi (cegah duplikat saat sinkronisasi ulang)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -929,19 +940,19 @@ enum StatusAbsensi {
 }
 
 model Absensi {
-  id              String   @id @default(uuid()) @db.Uuid
-  kelasId         String   @db.Uuid
-  mataPelajaranId String   @db.Uuid
-  jadwalPelajaranId String? @db.Uuid
-  guruPencatatId  String?  @db.Uuid
-  tanggal         DateTime
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(uuid()) @db.Uuid
+  kelasId           String   @db.Uuid
+  mataPelajaranId   String   @db.Uuid
+  jadwalPelajaranId String?  @db.Uuid
+  guruPencatatId    String?  @db.Uuid
+  tanggal           DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  kelas         Kelas          @relation(fields: [kelasId], references: [id])
-  mataPelajaran MataPelajaran  @relation(fields: [mataPelajaranId], references: [id])
-  jadwal        JadwalPelajaran? @relation(fields: [jadwalPelajaranId], references: [id], onDelete: SetNull)
-  guruPencatat  Guru?          @relation("AbsensiPencatat", fields: [guruPencatatId], references: [id], onDelete: SetNull)
+  kelas         Kelas             @relation(fields: [kelasId], references: [id])
+  mataPelajaran MataPelajaran     @relation(fields: [mataPelajaranId], references: [id])
+  jadwal        JadwalPelajaran?  @relation(fields: [jadwalPelajaranId], references: [id], onDelete: SetNull)
+  guruPencatat  Guru?             @relation("AbsensiPencatat", fields: [guruPencatatId], references: [id], onDelete: SetNull)
   siswa         AbsensiSiswa[]
   logs          AbsensiSiswaLog[]
 
@@ -971,14 +982,14 @@ model AbsensiSiswa {
 
 // Audit koreksi absensi siswa per sesi (alasan wajib)
 model AbsensiSiswaLog {
-  id         String   @id @default(uuid()) @db.Uuid
-  absensiId  String   @db.Uuid
-  actorGuruId String? @db.Uuid
-  aksi       String
-  alasan     String
-  dataLama   Json?
-  dataBaru   Json?
-  createdAt  DateTime @default(now())
+  id          String   @id @default(uuid()) @db.Uuid
+  absensiId   String   @db.Uuid
+  actorGuruId String?  @db.Uuid
+  aksi        String
+  alasan      String
+  dataLama    Json?
+  dataBaru    Json?
+  createdAt   DateTime @default(now())
 
   absensi Absensi @relation(fields: [absensiId], references: [id], onDelete: Cascade)
   actor   Guru?   @relation(fields: [actorGuruId], references: [id], onDelete: SetNull)
@@ -995,7 +1006,7 @@ model PengecualianAbsensi {
   guruId            String   @db.Uuid
   jadwalPelajaranId String?  @db.Uuid
   tanggal           DateTime
-  jenis             String   // LOKASI | BIOMETRIK | FOTO
+  jenis             String // LOKASI | BIOMETRIK | FOTO
   alasan            String
   status            String   @default("MENUNGGU") // MENUNGGU | DISETUJUI | DITOLAK
   catatanAdmin      String?
@@ -1014,29 +1025,29 @@ model PengecualianAbsensi {
 // ── ABSENSI HARIAN SISWA (fingerprint masuk/pulang sekolah) ────────
 // Rekaman terpisah dari Absensi per mata pelajaran (tidak saling mengisi).
 model AbsensiHarianSiswa {
-  id             String   @id @default(uuid()) @db.Uuid
-  siswaId        String   @db.Uuid
-  tanggal        DateTime // hari sekolah (00:00)
-  jamMasuk       String?  // HH:MM (waktu server)
-  jamPulang      String?
-  statusMasuk    String?  // HADIR | TERLAMBAT
-  statusPulang   String?  // NORMAL | AWAL | BELUM
-  statusHarian   String?  // HADIR | IZIN | SAKIT (status kehadiran sekolah sehari)
-  terlambatMenit Int?
-  sumberMasuk    String?  // FINGERPRINT | WAJAH | MANUAL | KOREKSI
-  sumberPulang   String?
+  id               String   @id @default(uuid()) @db.Uuid
+  siswaId          String   @db.Uuid
+  tanggal          DateTime // hari sekolah (00:00)
+  jamMasuk         String? // HH:MM (waktu server)
+  jamPulang        String?
+  statusMasuk      String? // HADIR | TERLAMBAT
+  statusPulang     String? // NORMAL | AWAL | BELUM
+  statusHarian     String? // HADIR | IZIN | SAKIT (status kehadiran sekolah sehari)
+  terlambatMenit   Int?
+  sumberMasuk      String? // FINGERPRINT | WAJAH | MANUAL | KOREKSI
+  sumberPulang     String?
   // Bukti verifikasi wajah (face recognition) — jarak euclidean descriptor
-  wajahMasuk       Boolean @default(false)
+  wajahMasuk       Boolean  @default(false)
   wajahJarakMasuk  Float?
-  wajahPulang      Boolean @default(false)
+  wajahPulang      Boolean  @default(false)
   wajahJarakPulang Float?
-  eventMasukId   String?  @unique @db.Uuid
-  eventPulangId  String?  @unique @db.Uuid
-  koreksiAlasan  String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  eventMasukId     String?  @unique @db.Uuid
+  eventPulangId    String?  @unique @db.Uuid
+  koreksiAlasan    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  siswa       Siswa           @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  siswa       Siswa             @relation(fields: [siswaId], references: [id], onDelete: Cascade)
   eventMasuk  FingerprintEvent? @relation("EventMasuk", fields: [eventMasukId], references: [id], onDelete: SetNull)
   eventPulang FingerprintEvent? @relation("EventPulang", fields: [eventPulangId], references: [id], onDelete: SetNull)
 
@@ -1052,7 +1063,7 @@ model PerangkatFingerprint {
   kode       String    @unique // kode unik mesin (serial/IMEI)
   nama       String
   lokasi     String?
-  apiKeyHash String    // SHA-256 API key (teks asli hanya ditampilkan sekali)
+  apiKeyHash String // SHA-256 API key (teks asli hanya ditampilkan sekali)
   status     String    @default("AKTIF") // AKTIF | NONAKTIF
   lastSeenAt DateTime?
   lastSyncAt DateTime?
@@ -1073,7 +1084,7 @@ model PemetaanFingerprint {
   perangkatId     String   @db.Uuid
   siswaId         String?  @db.Uuid // null untuk pemetaan non-siswa (guru/pegawai via userId)
   userId          String?  @db.Uuid // identitas non-siswa (guru/pegawai); null untuk pemetaan siswa
-  perangkatUserId String   // UID di mesin, BUKAN template sidik jari
+  perangkatUserId String // UID di mesin, BUKAN template sidik jari
   createdAt       DateTime @default(now())
 
   perangkat PerangkatFingerprint @relation(fields: [perangkatId], references: [id], onDelete: Cascade)
@@ -1090,23 +1101,23 @@ model PemetaanFingerprint {
 
 // Log setiap scan — idempoten via eventKey (scan ulang tidak menggandakan absensi)
 model FingerprintEvent {
-  id           String    @id @default(uuid()) @db.Uuid
-  eventKey     String    @unique // `${kodePerangkat}:${scanId}` dari perangkat
-  perangkatId  String?   @db.Uuid
-  siswaId      String?   @db.Uuid
-  userId       String?   @db.Uuid // identitas non-siswa (guru/pegawai) bila dipetakan via userId
-  tipe         String    // MASUK | PULANG
-  status       String    @default("DIPROSES") // DIPROSES | SUKSES | DUPLIKAT | TIDAK_DIKENAL | DITOLAK | GAGAL
-  pesan        String?
-  deviceAt     DateTime? // timestamp perangkat (informatif)
-  serverAt     DateTime  @default(now()) // sumber waktu utama
-  createdAt    DateTime  @default(now())
+  id          String    @id @default(uuid()) @db.Uuid
+  eventKey    String    @unique // `${kodePerangkat}:${scanId}` dari perangkat
+  perangkatId String?   @db.Uuid
+  siswaId     String?   @db.Uuid
+  userId      String?   @db.Uuid // identitas non-siswa (guru/pegawai) bila dipetakan via userId
+  tipe        String // MASUK | PULANG
+  status      String    @default("DIPROSES") // DIPROSES | SUKSES | DUPLIKAT | TIDAK_DIKENAL | DITOLAK | GAGAL
+  pesan       String?
+  deviceAt    DateTime? // timestamp perangkat (informatif)
+  serverAt    DateTime  @default(now()) // sumber waktu utama
+  createdAt   DateTime  @default(now())
 
-  perangkat   PerangkatFingerprint? @relation(fields: [perangkatId], references: [id], onDelete: SetNull)
-  siswa       Siswa?                @relation(fields: [siswaId], references: [id], onDelete: SetNull)
-  user        User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
-  absensiMasuk  AbsensiHarianSiswa? @relation("EventMasuk")
-  absensiPulang AbsensiHarianSiswa? @relation("EventPulang")
+  perangkat     PerangkatFingerprint? @relation(fields: [perangkatId], references: [id], onDelete: SetNull)
+  siswa         Siswa?                @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  user          User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  absensiMasuk  AbsensiHarianSiswa?   @relation("EventMasuk")
+  absensiPulang AbsensiHarianSiswa?   @relation("EventPulang")
 
   @@index([siswaId, serverAt])
   @@index([userId, serverAt])
@@ -1130,7 +1141,7 @@ model PermintaanAbsensiManual {
   id           String   @id @default(uuid()) @db.Uuid
   siswaId      String   @db.Uuid
   tanggal      DateTime
-  tipe         String   // MASUK | PULANG
+  tipe         String // MASUK | PULANG
   alasan       String
   status       String   @default("MENUNGGU") // MENUNGGU | DISETUJUI | DITOLAK
   catatanAdmin String?
@@ -1146,18 +1157,18 @@ model PermintaanAbsensiManual {
 }
 
 model AbsensiGuru {
-  id         String        @id @default(uuid()) @db.Uuid
-  guruId     String        @db.Uuid
-  tanggal    DateTime
-  status     StatusAbsensi @default(HADIR)
-  keterangan String?
-  jamMasuk   String?
+  id            String        @id @default(uuid()) @db.Uuid
+  guruId        String        @db.Uuid
+  tanggal       DateTime
+  status        StatusAbsensi @default(HADIR)
+  keterangan    String?
+  jamMasuk      String?
   // Bukti verifikasi wajah (face recognition) untuk absensi harian guru
-  wajahVerified Boolean @default(false)
+  wajahVerified Boolean       @default(false)
   wajahJarak    Float?
-  wajahFotoId   String? @db.Uuid
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  wajahFotoId   String?       @db.Uuid
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   guru Guru @relation(fields: [guruId], references: [id], onDelete: Cascade)
 
@@ -1191,7 +1202,7 @@ model AbsensiGuruSesi {
   koreksiAlasan     String?
   koreksiBy         String?
   // ── Bukti verifikasi (metode yang ditentukan Admin) ──
-  metodeDigunakan   String?   // TANPA | FOTO | SIDIK_JARI | FOTO_SIDIK_JARI | GPS_FOTO | GPS_SIDIK_JARI | GPS_FOTO_SIDIK_JARI
+  metodeDigunakan   String? // TANPA | FOTO | SIDIK_JARI | FOTO_SIDIK_JARI | GPS_FOTO | GPS_SIDIK_JARI | GPS_FOTO_SIDIK_JARI
   fotoUrl           String?
   gpsLat            Float?
   gpsLng            Float?
@@ -1200,15 +1211,15 @@ model AbsensiGuruSesi {
   gpsValid          Boolean?
   gpsDiLuarRadius   Boolean?
   mockLocation      Boolean?
-  sidikJariVerified Boolean   @default(false)
+  sidikJariVerified Boolean               @default(false)
   sidikJariProvider String?
-  verifikasiCatatan String?   // mis. "dengan pengecualian LOKASI (DISETUJUI)"
+  verifikasiCatatan String? // mis. "dengan pengecualian LOKASI (DISETUJUI)"
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
 
-  guru     Guru     @relation(fields: [guruId], references: [id], onDelete: Cascade)
-  jadwal   JadwalPelajaran @relation(fields: [jadwalPelajaranId], references: [id], onDelete: Cascade)
-  logs     AbsensiGuruLog[]
+  guru   Guru             @relation(fields: [guruId], references: [id], onDelete: Cascade)
+  jadwal JadwalPelajaran  @relation(fields: [jadwalPelajaranId], references: [id], onDelete: Cascade)
+  logs   AbsensiGuruLog[]
 
   @@unique([guruId, jadwalPelajaranId, tanggal])
   @@index([guruId, tanggal])
@@ -1246,9 +1257,9 @@ model PenggantiGuru {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  jadwal     JadwalPelajaran @relation(fields: [jadwalPelajaranId], references: [id], onDelete: Cascade)
-  asliGuru   Guru            @relation("PenggantiAsli", fields: [asliGuruId], references: [id], onDelete: Cascade)
-  pengganti  Guru            @relation("PenggantiGuru", fields: [penggantiGuruId], references: [id], onDelete: Cascade)
+  jadwal    JadwalPelajaran @relation(fields: [jadwalPelajaranId], references: [id], onDelete: Cascade)
+  asliGuru  Guru            @relation("PenggantiAsli", fields: [asliGuruId], references: [id], onDelete: Cascade)
+  pengganti Guru            @relation("PenggantiGuru", fields: [penggantiGuruId], references: [id], onDelete: Cascade)
 
   @@unique([jadwalPelajaranId, tanggal])
   @@index([tanggal])
@@ -1438,33 +1449,33 @@ model AgentLog {
 }
 
 model SiteConfig {
-  id          String   @id @default(uuid()) @db.Uuid
-  siteName    String   @default("E-Learning Agent AI")
-  tagline     String   @default("Platform E-Learning Modern")
-  description String   @default("Platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
-  logoUrl     String?
-  faviconUrl  String?
-  toleransiTerlambatMenit   Int      @default(15)
-  autoTidakHadirSetelahMenit Int     @default(60)
+  id                         String   @id @default(uuid()) @db.Uuid
+  siteName                   String   @default("E-Learning Agent AI")
+  tagline                    String   @default("Platform E-Learning Modern")
+  description                String   @default("Platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
+  logoUrl                    String?
+  faviconUrl                 String?
+  toleransiTerlambatMenit    Int      @default(15)
+  autoTidakHadirSetelahMenit Int      @default(60)
   // ── Metode absensi (ditentukan Admin) ──
-  absensiMetode String  @default("TANPA") // TANPA | FOTO | SIDIK_JARI | FOTO_SIDIK_JARI | GPS_FOTO | GPS_SIDIK_JARI | GPS_FOTO_SIDIK_JARI
+  absensiMetode              String   @default("TANPA") // TANPA | FOTO | SIDIK_JARI | FOTO_SIDIK_JARI | GPS_FOTO | GPS_SIDIK_JARI | GPS_FOTO_SIDIK_JARI
   // ── Geofencing ──
-  gpsWajib          Boolean  @default(false)
-  gpsLokasiNama     String?  // nama unit/sekolah lokasi absensi
-  gpsLat            Float?
-  gpsLng            Float?
-  gpsRadiusMeter    Int      @default(100) // 50–200 m
-  gpsAkurasiMaksMeter Int    @default(50)  // toleransi akurasi GPS
-  fotoRetensiHari   Int      @default(90)  // retensi foto bukti
+  gpsWajib                   Boolean  @default(false)
+  gpsLokasiNama              String? // nama unit/sekolah lokasi absensi
+  gpsLat                     Float?
+  gpsLng                     Float?
+  gpsRadiusMeter             Int      @default(100) // 50–200 m
+  gpsAkurasiMaksMeter        Int      @default(50) // toleransi akurasi GPS
+  fotoRetensiHari            Int      @default(90) // retensi foto bukti
   // ── Absensi harian siswa (fingerprint masuk/pulang) ──
-  siswaJamMasuk          String @default("07:00") // batas jam masuk (setelah ini = terlambat)
-  siswaJamPulang         String @default("15:00") // jam pulang resmi (sebelum ini = pulang awal)
-  siswaToleransiMenit    Int    @default(15)      // toleransi masuk (dalam batas ini tetap HADIR)
-  siswaPulangToleransiMenit Int  @default(0)      // toleransi pulang awal
-  aboutTitle  String   @default("Tentang Kami")
-  aboutText   String   @default("E-Learning Agent AI adalah platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  siswaJamMasuk              String   @default("07:00") // batas jam masuk (setelah ini = terlambat)
+  siswaJamPulang             String   @default("15:00") // jam pulang resmi (sebelum ini = pulang awal)
+  siswaToleransiMenit        Int      @default(15) // toleransi masuk (dalam batas ini tetap HADIR)
+  siswaPulangToleransiMenit  Int      @default(0) // toleransi pulang awal
+  aboutTitle                 String   @default("Tentang Kami")
+  aboutText                  String   @default("E-Learning Agent AI adalah platform pembelajaran digital modern yang menghubungkan Guru dan Siswa dalam ekosistem belajar yang interaktif, terstruktur, dan menyenangkan.")
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
   @@map("site_config")
 }
@@ -1521,25 +1532,25 @@ model Pelanggaran {
 // Menyimpan descriptor 128-d (rata-rata sampel), bukan foto mentah.
 // Identitas orang = User; siswaId untuk absensi harian siswa.
 model ProfilWajah {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String?  @unique @db.Uuid
-  siswaId     String?  @unique @db.Uuid
-  deskriptor  Json // number[128]
-  fotoId      String?  @db.Uuid // Upload.id foto referensi (bukti visual)
-  sampel      Int      @default(1)
-  sumber      String   @default("UPLOAD") // UPLOAD | WEBCAM
-  aktif       Boolean  @default(true)
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String?  @unique @db.Uuid
+  siswaId         String?  @unique @db.Uuid
+  deskriptor      Json // number[128]
+  fotoId          String?  @db.Uuid // Upload.id foto referensi (bukti visual)
+  sampel          Int      @default(1)
+  sumber          String   @default("UPLOAD") // UPLOAD | WEBCAM
+  aktif           Boolean  @default(true)
   // Alur pendaftaran mandiri (siswa/guru dari HP) → perlu persetujuan Admin.
-  status          String  @default("AKTIF") // AKTIF | MENUNGGU | DITOLAK
-  diajukanSendiri Boolean @default(false)
+  status          String   @default("AKTIF") // AKTIF | MENUNGGU | DITOLAK
+  diajukanSendiri Boolean  @default(false)
   catatanAdmin    String? // alasan penolakan / catatan verifikasi
-  fotoPengajuan   String? @db.Text // data URL JPEG tangkapan kamera (hanya selama pengajuan)
-  dibuatOleh  String?  @db.Uuid // Admin yang mendaftarkan
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  fotoPengajuan   String?  @db.Text // data URL JPEG tangkapan kamera (hanya selama pengajuan)
+  dibuatOleh      String?  @db.Uuid // Admin yang mendaftarkan
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  user  User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  siswa Siswa? @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  user  User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  siswa Siswa?               @relation(fields: [siswaId], references: [id], onDelete: Cascade)
   logs  LogVerifikasiWajah[]
 
   @@index([aktif])
@@ -1581,7 +1592,7 @@ model Upload {
   akses     String   @default("PRIVAT") // PRIVAT (pemilik+Admin) | INTERNAL (semua user login) | PUBLIK (tanpa login)
   createdAt DateTime @default(now())
 
-  berkasPpdb BerkasPpdb[]
+  berkasPpdb   BerkasPpdb[]
   izinLampiran IzinSantri[]
 
   @@index([userId])
@@ -1801,10 +1812,10 @@ model ExamSession {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  ujian           Ujian           @relation(fields: [ujianId], references: [id], onDelete: Cascade)
-  siswa           Siswa           @relation(fields: [siswaId], references: [id], onDelete: Cascade)
-  cheatingEvents  CheatingEvent[]
-  auditLogs       ExamAuditLog[]
+  ujian          Ujian           @relation(fields: [ujianId], references: [id], onDelete: Cascade)
+  siswa          Siswa           @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  cheatingEvents CheatingEvent[]
+  auditLogs      ExamAuditLog[]
 
   @@unique([ujianId, siswaId])
   @@index([ujianId])
@@ -1814,15 +1825,15 @@ model ExamSession {
 }
 
 model CheatingEvent {
-  id              String          @id @default(uuid()) @db.Uuid
-  sessionId       String          @db.Uuid
+  id              String           @id @default(uuid()) @db.Uuid
+  sessionId       String           @db.Uuid
   type            CheatingType
   severity        CheatingSeverity @default(MEDIUM)
-  message         String          @db.Text
+  message         String           @db.Text
   detail          Json?
-  timestamp       DateTime        @default(now())
+  timestamp       DateTime         @default(now())
   clientTimestamp DateTime?
-  createdAt       DateTime        @default(now())
+  createdAt       DateTime         @default(now())
 
   session ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
@@ -1857,20 +1868,20 @@ enum ExamAuditAction {
 }
 
 model ExamAuditLog {
-  id          String          @id @default(uuid()) @db.Uuid
-  ujianId     String          @db.Uuid
-  siswaId     String?         @db.Uuid
-  sessionId   String?         @db.Uuid
-  action      ExamAuditAction
-  actorId     String          @db.Uuid
-  actorRole   String          @db.VarChar(20)
-  detail      Json?
-  ipAddress   String?
-  createdAt   DateTime        @default(now())
+  id        String          @id @default(uuid()) @db.Uuid
+  ujianId   String          @db.Uuid
+  siswaId   String?         @db.Uuid
+  sessionId String?         @db.Uuid
+  action    ExamAuditAction
+  actorId   String          @db.Uuid
+  actorRole String          @db.VarChar(20)
+  detail    Json?
+  ipAddress String?
+  createdAt DateTime        @default(now())
 
-  ujian   Ujian         @relation(fields: [ujianId], references: [id], onDelete: Cascade)
-  siswa   Siswa?        @relation(fields: [siswaId], references: [id], onDelete: SetNull)
-  session ExamSession?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  ujian   Ujian        @relation(fields: [ujianId], references: [id], onDelete: Cascade)
+  siswa   Siswa?       @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  session ExamSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   @@index([ujianId])
   @@index([siswaId])
@@ -1919,32 +1930,32 @@ enum JenisStatusLog {
 }
 
 model Santri {
-  id           String               @id @default(uuid()) @db.Uuid
-  userId       String               @unique @db.Uuid
-  siswaId      String?              @unique @db.Uuid // null = santri nonformal (tanpa sekolah formal)
-  nisNo        String?              @unique // Nomor Induk Santri (NISantri)
-  nama         String
-  status       StatusSantri         @default(AKTIF) // status administrasi
-  keberadaan   StatusKehadiranSantri @default(DI_PONDOK) // status keberadaan fisik (terpisah dari administrasi)
-  asramaId     String?              @db.Uuid // 1 DB — tempat tinggal santri
-  kamarId      String?              @db.Uuid
-  halaqahId    String?              @db.Uuid // penugasan halaqah tahfidz (opsional)
-  kelasDiniyahId String?            @db.Uuid // penugasan kelas diniyah (opsional)
-  tanggalMasuk DateTime?
-  catatan      String?
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
-  deletedAt    DateTime?
+  id             String                @id @default(uuid()) @db.Uuid
+  userId         String                @unique @db.Uuid
+  siswaId        String?               @unique @db.Uuid // null = santri nonformal (tanpa sekolah formal)
+  nisNo          String?               @unique // Nomor Induk Santri (NISantri)
+  nama           String
+  status         StatusSantri          @default(AKTIF) // status administrasi
+  keberadaan     StatusKehadiranSantri @default(DI_PONDOK) // status keberadaan fisik (terpisah dari administrasi)
+  asramaId       String?               @db.Uuid // 1 DB — tempat tinggal santri
+  kamarId        String?               @db.Uuid
+  halaqahId      String?               @db.Uuid // penugasan halaqah tahfidz (opsional)
+  kelasDiniyahId String?               @db.Uuid // penugasan kelas diniyah (opsional)
+  tanggalMasuk   DateTime?
+  catatan        String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  deletedAt      DateTime?
 
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  siswa     Siswa?            @relation(fields: [siswaId], references: [id], onDelete: SetNull)
-  asrama    Asrama?           @relation(fields: [asramaId], references: [id], onDelete: SetNull)
-  kamar     Kamar?            @relation(fields: [kamarId], references: [id], onDelete: SetNull)
-  halaqah   Halaqah?          @relation(fields: [halaqahId], references: [id], onDelete: SetNull)
-  kelasDiniyah KelasDiniyah?  @relation(fields: [kelasDiniyahId], references: [id], onDelete: SetNull)
-  walis     SantriWali[]
-  statusLog SantriStatusLog[]
-  izins     IzinSantri[]
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  siswa           Siswa?                  @relation(fields: [siswaId], references: [id], onDelete: SetNull)
+  asrama          Asrama?                 @relation(fields: [asramaId], references: [id], onDelete: SetNull)
+  kamar           Kamar?                  @relation(fields: [kamarId], references: [id], onDelete: SetNull)
+  halaqah         Halaqah?                @relation(fields: [halaqahId], references: [id], onDelete: SetNull)
+  kelasDiniyah    KelasDiniyah?           @relation(fields: [kelasDiniyahId], references: [id], onDelete: SetNull)
+  walis           SantriWali[]
+  statusLog       SantriStatusLog[]
+  izins           IzinSantri[]
   absensiKegiatan AbsensiKegiatanPondok[]
   absensiDiniyah  AbsensiDiniyah[]
   setoranTahfidz  SetoranTahfidz[]
@@ -1956,14 +1967,14 @@ model Santri {
 }
 
 model SantriStatusLog {
-  id         String            @id @default(uuid()) @db.Uuid
-  santriId   String            @db.Uuid
+  id         String         @id @default(uuid()) @db.Uuid
+  santriId   String         @db.Uuid
   jenis      JenisStatusLog
-  dari       String            // status lama
-  ke         String            // status baru
+  dari       String // status lama
+  ke         String // status baru
   alasan     String?
-  verifiedBy String?           @db.Uuid // petugas yang memverifikasi (user.id)
-  createdAt  DateTime          @default(now())
+  verifiedBy String?        @db.Uuid // petugas yang memverifikasi (user.id)
+  createdAt  DateTime       @default(now())
 
   santri Santri @relation(fields: [santriId], references: [id], onDelete: Cascade)
 
@@ -1973,25 +1984,25 @@ model SantriStatusLog {
 }
 
 model WaliSantri {
-  id        String       @id @default(uuid()) @db.Uuid
-  userId    String?      @unique @db.Uuid // akun login wali (diisi saat Portal Wali Santri aktif)
-  nama      String
-  hubungan  HubunganWali
-  noTelp    String?
-  alamat    String?
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String?      @unique @db.Uuid // akun login wali (diisi saat Portal Wali Santri aktif)
+  nama         String
+  hubungan     HubunganWali
+  noTelp       String?
+  alamat       String?
   // ── master biodata wali (opsional; wali belum tentu punya akun) ──
-  email          String?
-  pekerjaan      String?
-  pendidikan     String?
-  tempatLahir    String?
-  tanggalLahir   DateTime?
-  statusHidup    String?  // HIDUP | ALMARHUM | TIDAK_DIKETAHUI
-  fotoUploadId   String?  @db.Uuid
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  deletedAt DateTime?
+  email        String?
+  pekerjaan    String?
+  pendidikan   String?
+  tempatLahir  String?
+  tanggalLahir DateTime?
+  statusHidup  String? // HIDUP | ALMARHUM | TIDAK_DIKETAHUI
+  fotoUploadId String?      @db.Uuid
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
 
-  user  User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user  User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   anak  SantriWali[]
   topup TopupRequest[]
 
@@ -1999,20 +2010,20 @@ model WaliSantri {
 }
 
 model SantriWali {
-  id        String   @id @default(uuid()) @db.Uuid
-  santriId  String   @db.Uuid
-  waliId    String   @db.Uuid
-  isPrimary Boolean  @default(false) // wali utama untuk notifikasi/persetujuan
+  id               String   @id @default(uuid()) @db.Uuid
+  santriId         String   @db.Uuid
+  waliId           String   @db.Uuid
+  isPrimary        Boolean  @default(false) // wali utama untuk notifikasi/persetujuan
   // ── hak akses eksplisit (default ketat: TIDAK otomatis berhak) ──
-  aksesProfil        Boolean @default(false) // melihat biodata anak
-  aksesAbsensi       Boolean @default(false) // melihat riwayat absensi
-  aksesTagihan       Boolean @default(false) // melihat tagihan/iuran
-  aksesTopup         Boolean @default(false) // mengajukan top-up dompet
-  bolehNotifikasi    Boolean @default(false) // menerima notifikasi kehadiran/dll
-  bolehSetujuiIzin   Boolean @default(false) // menyetujui izin keluar
-  bolehUploadFoto    Boolean @default(false) // mengunggah foto profil anak
-  kontakDarurat      Boolean @default(false) // ditampilkan sebagai kontak darurat
-  createdAt DateTime @default(now())
+  aksesProfil      Boolean  @default(false) // melihat biodata anak
+  aksesAbsensi     Boolean  @default(false) // melihat riwayat absensi
+  aksesTagihan     Boolean  @default(false) // melihat tagihan/iuran
+  aksesTopup       Boolean  @default(false) // mengajukan top-up dompet
+  bolehNotifikasi  Boolean  @default(false) // menerima notifikasi kehadiran/dll
+  bolehSetujuiIzin Boolean  @default(false) // menyetujui izin keluar
+  bolehUploadFoto  Boolean  @default(false) // mengunggah foto profil anak
+  kontakDarurat    Boolean  @default(false) // ditampilkan sebagai kontak darurat
+  createdAt        DateTime @default(now())
 
   santri Santri     @relation(fields: [santriId], references: [id], onDelete: Cascade)
   wali   WaliSantri @relation(fields: [waliId], references: [id], onDelete: Cascade)
@@ -2038,30 +2049,30 @@ enum StatusGelombang {
 }
 
 model GelombangPpdb {
-  id            String           @id @default(uuid()) @db.Uuid
-  tahunAjaranId String           @db.Uuid
-  nama          String // contoh: "Gelombang 1 - Masuk Sekolah"
-  unit          String? // satuan pendidikan: SMK / SMP / MTs / Pondok (bebas teks, disesuaikan satuan)
-  jenjang       String? // contoh: Kelas X / Kelas 7 / Umum
-  program       String? // contoh: Reguler / Tahfidz / Kejuruan
-  tanggalBuka  DateTime
-  tanggalTutup  DateTime
-  status        StatusGelombang  @default(DRAFT)
-  kuota         Int? // null = tanpa batas
-  biayaDaftar   Int? // rupiah, null = gratis/belum ditetapkan
-  jadwalSeleksi    DateTime?
-  jadwalPengumuman DateTime?
-  jadwalDaftarUlang DateTime?
-  deskripsi         String? @db.Text
+  id                 String          @id @default(uuid()) @db.Uuid
+  tahunAjaranId      String          @db.Uuid
+  nama               String // contoh: "Gelombang 1 - Masuk Sekolah"
+  unit               String? // satuan pendidikan: SMK / SMP / MTs / Pondok (bebas teks, disesuaikan satuan)
+  jenjang            String? // contoh: Kelas X / Kelas 7 / Umum
+  program            String? // contoh: Reguler / Tahfidz / Kejuruan
+  tanggalBuka        DateTime
+  tanggalTutup       DateTime
+  status             StatusGelombang @default(DRAFT)
+  kuota              Int? // null = tanpa batas
+  biayaDaftar        Int? // rupiah, null = gratis/belum ditetapkan
+  jadwalSeleksi      DateTime?
+  jadwalPengumuman   DateTime?
+  jadwalDaftarUlang  DateTime?
+  deskripsi          String?         @db.Text
   // template persyaratan dokumen: [{ nama, wajib, deskripsi }] — dikonsumsi upload berkas (STEP 9)
   persyaratanDokumen Json?
   // template surat/bukti pendaftaran (URL upload atau teks) — dipakai STEP 11
   templateSurat      String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  deletedAt      DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  deletedAt          DateTime?
 
-  tahunAjaran TahunAjaran    @relation(fields: [tahunAjaranId], references: [id])
+  tahunAjaran TahunAjaran       @relation(fields: [tahunAjaranId], references: [id])
   jalur       JalurPpdb[]
   pendaftaran PendaftaranPpdb[]
 
@@ -2072,19 +2083,19 @@ model GelombangPpdb {
 }
 
 model JalurPpdb {
-  id           String         @id @default(uuid()) @db.Uuid
-  gelombangId  String         @db.Uuid
-  nama         String // Domisili / Afirmasi / Prestasi / Mutasi / Reguler / Tahfidz / Beasiswa / Undangan
-  deskripsi    String?
-  kuota        Int? // null = tanpa batas
-  isActive     Boolean        @default(true)
+  id          String   @id @default(uuid()) @db.Uuid
+  gelombangId String   @db.Uuid
+  nama        String // Domisili / Afirmasi / Prestasi / Mutasi / Reguler / Tahfidz / Beasiswa / Undangan
+  deskripsi   String?
+  kuota       Int? // null = tanpa batas
+  isActive    Boolean  @default(true)
   // persyaratan khusus jalur (Json) — divalidasi saat pendaftaran
-  persyaratan  Json?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  persyaratan Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  gelombang GelombangPpdb   @relation(fields: [gelombangId], references: [id], onDelete: Cascade)
-  pilihan   PilihanPpdb[]
+  gelombang   GelombangPpdb     @relation(fields: [gelombangId], references: [id], onDelete: Cascade)
+  pilihan     PilihanPpdb[]
   pendaftaran PendaftaranPpdb[]
 
   @@unique([gelombangId, nama])
@@ -2130,27 +2141,27 @@ enum HasilKeputusan {
 }
 
 model PendaftaranPpdb {
-  id             String            @id @default(uuid()) @db.Uuid
-  userId         String            @db.Uuid // satu identitas utama
-  gelombangId    String            @db.Uuid
-  jalurId        String?           @db.Uuid // jalur utama (ringkas; detail di PilihanPpdb)
-  jenis          JenisPendaftaran
-  status         StatusPendaftaran @default(DRAFT)
-  noPendaftaran  String?           @unique // generate saat submit (STEP 11)
+  id            String            @id @default(uuid()) @db.Uuid
+  userId        String            @db.Uuid // satu identitas utama
+  gelombangId   String            @db.Uuid
+  jalurId       String?           @db.Uuid // jalur utama (ringkas; detail di PilihanPpdb)
+  jenis         JenisPendaftaran
+  status        StatusPendaftaran @default(DRAFT)
+  noPendaftaran String?           @unique // generate saat submit (STEP 11)
   // snapshot data formulir (biodata + formulir santri) — dikunci saat submit
-  data           Json?
-  dataSantri     Json?
-  submittedAt    DateTime?
+  data          Json?
+  dataSantri    Json?
+  submittedAt   DateTime?
   // hasil aktivasi (STEP 16) — relasi ke identitas siswa/santri yang dibuat
-  siswaId        String?           @db.Uuid
-  santriId       String?           @db.Uuid
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  deletedAt      DateTime?
+  siswaId       String?           @db.Uuid
+  santriId      String?           @db.Uuid
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deletedAt     DateTime?
 
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  gelombang GelombangPpdb    @relation(fields: [gelombangId], references: [id])
-  jalur     JalurPpdb?       @relation(fields: [jalurId], references: [id], onDelete: SetNull)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gelombang GelombangPpdb   @relation(fields: [gelombangId], references: [id])
+  jalur     JalurPpdb?      @relation(fields: [jalurId], references: [id], onDelete: SetNull)
   pilihan   PilihanPpdb[]
   keputusan KeputusanPpdb[]
   berkas    BerkasPpdb[]
@@ -2164,12 +2175,12 @@ model PendaftaranPpdb {
 }
 
 model PilihanPpdb {
-  id           String   @id @default(uuid()) @db.Uuid
-  pendaftaranId String  @db.Uuid
-  jalurId      String   @db.Uuid
-  urutan       Int // 1 = pilihan utama
-  catatan      String?
-  createdAt    DateTime @default(now())
+  id            String   @id @default(uuid()) @db.Uuid
+  pendaftaranId String   @db.Uuid
+  jalurId       String   @db.Uuid
+  urutan        Int // 1 = pilihan utama
+  catatan       String?
+  createdAt     DateTime @default(now())
 
   pendaftaran PendaftaranPpdb @relation(fields: [pendaftaranId], references: [id], onDelete: Cascade)
   jalur       JalurPpdb       @relation(fields: [jalurId], references: [id], onDelete: Cascade)
@@ -2180,17 +2191,17 @@ model PilihanPpdb {
 }
 
 model KeputusanPpdb {
-  id           String         @id @default(uuid()) @db.Uuid
-  pendaftaranId String        @db.Uuid
-  domain       DomainKeputusan
-  hasil        HasilKeputusan @default(DALAM_PROSES)
-  nilaiAkhir   Float?
-  peringkat    Int?
-  catatan      String?
-  decidedBy    String?        @db.Uuid // petugas panitia
-  decidedAt    DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id            String          @id @default(uuid()) @db.Uuid
+  pendaftaranId String          @db.Uuid
+  domain        DomainKeputusan
+  hasil         HasilKeputusan  @default(DALAM_PROSES)
+  nilaiAkhir    Float?
+  peringkat     Int?
+  catatan       String?
+  decidedBy     String?         @db.Uuid // petugas panitia
+  decidedAt     DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   pendaftaran PendaftaranPpdb @relation(fields: [pendaftaranId], references: [id], onDelete: Cascade)
 
@@ -2212,18 +2223,18 @@ enum StatusBerkas {
 }
 
 model BerkasPpdb {
-  id            String        @id @default(uuid()) @db.Uuid
-  pendaftaranId String        @db.Uuid
-  uploadId      String?       @db.Uuid // null = belum unggah (baris placeholder wajib)
+  id               String       @id @default(uuid()) @db.Uuid
+  pendaftaranId    String       @db.Uuid
+  uploadId         String?      @db.Uuid // null = belum unggah (baris placeholder wajib)
   // nama item dari persyaratanDokumen gelombang: "Kartu Keluarga", "Akta", dll
-  namaDokumen   String
-  wajib         Boolean       @default(true)
-  status        StatusBerkas  @default(TIDAK_LENGKAP)
-  catatanPenolakan String?    @db.Text // alasan ditolak panitia (opsional)
-  verifiedBy    String?       @db.Uuid
-  verifiedAt    DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  namaDokumen      String
+  wajib            Boolean      @default(true)
+  status           StatusBerkas @default(TIDAK_LENGKAP)
+  catatanPenolakan String?      @db.Text // alasan ditolak panitia (opsional)
+  verifiedBy       String?      @db.Uuid
+  verifiedAt       DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   pendaftaran PendaftaranPpdb @relation(fields: [pendaftaranId], references: [id], onDelete: Cascade)
   upload      Upload?         @relation(fields: [uploadId], references: [id], onDelete: SetNull)
@@ -2241,13 +2252,13 @@ enum JenisTokenPpdb {
 }
 
 model PpdbToken {
-  id        String          @id @default(uuid()) @db.Uuid
+  id        String         @id @default(uuid()) @db.Uuid
   email     String
-  token     String          @unique
+  token     String         @unique
   jenis     JenisTokenPpdb
   expires   DateTime
   usedAt    DateTime?
-  createdAt DateTime        @default(now())
+  createdAt DateTime       @default(now())
 
   @@index([email, jenis])
   @@index([expires])
@@ -2261,17 +2272,17 @@ model PpdbToken {
 // status administrasi tetap StatusSantri.AKTIF selama izin berlangsung.
 
 model Asrama {
-  id          String   @id @default(uuid()) @db.Uuid
-  nama        String   @unique
-  deskripsi   String?
-  musyrifId   String?  @db.Uuid // Guru pembina asrama (jabatan MUSYRIF)
-  aktif       Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid()) @db.Uuid
+  nama      String   @unique
+  deskripsi String?
+  musyrifId String?  @db.Uuid // Guru pembina asrama (jabatan MUSYRIF)
+  aktif     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  musyrif Guru?   @relation(fields: [musyrifId], references: [id], onDelete: SetNull)
-  kamars  Kamar[]
-  santris Santri[]
+  musyrif          Guru?                   @relation(fields: [musyrifId], references: [id], onDelete: SetNull)
+  kamars           Kamar[]
+  santris          Santri[]
   staffAssignments PondokStaffAssignment[]
   halaqahs         Halaqah[]
 
@@ -2280,12 +2291,12 @@ model Asrama {
 }
 
 model Kamar {
-  id         String   @id @default(uuid()) @db.Uuid
-  asramaId   String   @db.Uuid
-  nama       String
-  kapasitas  Int?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid()) @db.Uuid
+  asramaId  String   @db.Uuid
+  nama      String
+  kapasitas Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   asrama  Asrama   @relation(fields: [asramaId], references: [id], onDelete: Cascade)
   santris Santri[]
@@ -2332,52 +2343,52 @@ enum TahapIzin {
 }
 
 model IzinSantri {
-  id              String            @id @default(uuid()) @db.Uuid
-  santriId        String            @db.Uuid
-  jenis           JenisIzin
-  alasan          String            @db.Text
-  rencanaKeluar   DateTime
-  rencanaKembali  DateTime
-  alamatTujuan    String            @db.Text
-  namaPenjemput   String
+  id                String           @id @default(uuid()) @db.Uuid
+  santriId          String           @db.Uuid
+  jenis             JenisIzin
+  alasan            String           @db.Text
+  rencanaKeluar     DateTime
+  rencanaKembali    DateTime
+  alamatTujuan      String           @db.Text
+  namaPenjemput     String
   hubunganPenjemput HubunganWali
-  noTelpPenjemput String
-  lampiranId      String?           @db.Uuid // lampiran surat/dokumen (opsional, reuse Upload)
-  status          StatusIzinSantri  @default(DRAFT)
-  alasanKeputusan String?           @db.Text // alasan penolakan/pembatalan
+  noTelpPenjemput   String
+  lampiranId        String?          @db.Uuid // lampiran surat/dokumen (opsional, reuse Upload)
+  status            StatusIzinSantri @default(DRAFT)
+  alasanKeputusan   String?          @db.Text // alasan penolakan/pembatalan
 
   // jejak persetujuan (null = tahap tidak wajib / belum dilalui)
   waliApprovedAt     DateTime?
-  waliApprovedBy     String?      @db.Uuid
+  waliApprovedBy     String?   @db.Uuid
   pengurusApprovedAt DateTime?
-  pengurusApprovedBy String?      @db.Uuid
+  pengurusApprovedBy String?   @db.Uuid
   musyrifApprovedAt  DateTime?
-  musyrifApprovedBy  String?      @db.Uuid
+  musyrifApprovedBy  String?   @db.Uuid
   kepalaApprovedAt   DateTime?
-  kepalaApprovedBy   String?      @db.Uuid
+  kepalaApprovedBy   String?   @db.Uuid
   adminApprovedAt    DateTime?
-  adminApprovedBy    String?      @db.Uuid
+  adminApprovedBy    String?   @db.Uuid
 
   // surat izin digital + QR (diterbitkan saat DISETUJUI)
-  suratNomor     String?    @unique // contoh: IZIN/2026/10/0001
-  suratToken     String?    @unique // token aman untuk QR verifikasi
+  suratNomor     String?   @unique // contoh: IZIN/2026/10/0001
+  suratToken     String?   @unique // token aman untuk QR verifikasi
   suratExpiresAt DateTime? // batas validitas QR = rencanaKembali + grace
 
   // check-out / check-in gerbang (waktu server, transaksi)
-  checkoutAt       DateTime?
-  checkoutBy       String?    @db.Uuid
-  penjemputVerifiedAt DateTime?
-  penjemputVerifiedBy String? @db.Uuid
-  checkinAt        DateTime?
-  checkinBy        String?    @db.Uuid
+  checkoutAt            DateTime?
+  checkoutBy            String?   @db.Uuid
+  penjemputVerifiedAt   DateTime?
+  penjemputVerifiedBy   String?   @db.Uuid
+  checkinAt             DateTime?
+  checkinBy             String?   @db.Uuid
   perjalananConfirmedAt DateTime? // konfirmasi "tiba di rumah" (opsional)
   terlambatNotifiedAt   DateTime? // penanda notifikasi keterlambatan terkirim
 
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  santri   Santri            @relation(fields: [santriId], references: [id], onDelete: Cascade)
-  lampiran Upload?           @relation(fields: [lampiranId], references: [id], onDelete: SetNull)
+  santri    Santri               @relation(fields: [santriId], references: [id], onDelete: Cascade)
+  lampiran  Upload?              @relation(fields: [lampiranId], references: [id], onDelete: SetNull)
   approvals IzinApprovalLog[]
   konflik   IzinKonflikAbsensi[]
 
@@ -2388,13 +2399,13 @@ model IzinSantri {
 }
 
 model IzinApprovalLog {
-  id          String     @id @default(uuid()) @db.Uuid
-  izinId      String     @db.Uuid
+  id          String    @id @default(uuid()) @db.Uuid
+  izinId      String    @db.Uuid
   tahap       TahapIzin
   keputusan   String // DISETUJUI | DITOLAK | DIAJUKU | CHECKOUT | CHECKIN | DIBATALKAN | KEDALUWARSA
-  actorUserId String?    @db.Uuid // petugas/akun yang melakukan
-  catatan     String?    @db.Text
-  createdAt   DateTime   @default(now())
+  actorUserId String?   @db.Uuid // petugas/akun yang melakukan
+  catatan     String?   @db.Text
+  createdAt   DateTime  @default(now())
 
   izin IzinSantri @relation(fields: [izinId], references: [id], onDelete: Cascade)
 
@@ -2405,15 +2416,15 @@ model IzinApprovalLog {
 
 // Pengaturan per jenis izin: butuh tahap persetujuan mana (admin atur).
 model IzinPengaturan {
-  id            String   @id @default(uuid()) @db.Uuid
+  id            String    @id @default(uuid()) @db.Uuid
   jenis         JenisIzin @unique
-  butuhWali     Boolean  @default(true)
-  butuhPengurus Boolean  @default(false)
-  butuhMusyrif  Boolean  @default(true)
-  butuhKepala   Boolean  @default(false)
-  butuhAdmin    Boolean  @default(true)
-  aktif         Boolean  @default(true) // false = jenis izin tidak dapat diajukan
-  updatedAt     DateTime @updatedAt
+  butuhWali     Boolean   @default(true)
+  butuhPengurus Boolean   @default(false)
+  butuhMusyrif  Boolean   @default(true)
+  butuhKepala   Boolean   @default(false)
+  butuhAdmin    Boolean   @default(true)
+  aktif         Boolean   @default(true) // false = jenis izin tidak dapat diajukan
+  updatedAt     DateTime  @updatedAt
 
   @@map("izin_pengaturan")
 }
@@ -2421,15 +2432,15 @@ model IzinPengaturan {
 // Penanda konflik: santri tercatat HADIR di absensi padahal sedang
 // checkout izin (diperiksa admin; absensi aktual tidak ditimpa).
 model IzinKonflikAbsensi {
-  id            String   @id @default(uuid()) @db.Uuid
-  izinId        String   @db.Uuid
-  siswaId       String   @db.Uuid
-  absensiSiswaId String? @db.Uuid // baris absensi yang konflik (jika ada)
-  tanggal       DateTime @db.Date
-  catatan       String   @db.Text
-  resolvedAt    DateTime?
-  resolvedBy    String?  @db.Uuid
-  createdAt     DateTime @default(now())
+  id             String    @id @default(uuid()) @db.Uuid
+  izinId         String    @db.Uuid
+  siswaId        String    @db.Uuid
+  absensiSiswaId String?   @db.Uuid // baris absensi yang konflik (jika ada)
+  tanggal        DateTime  @db.Date
+  catatan        String    @db.Text
+  resolvedAt     DateTime?
+  resolvedBy     String?   @db.Uuid
+  createdAt      DateTime  @default(now())
 
   izin  IzinSantri @relation(fields: [izinId], references: [id], onDelete: Cascade)
   siswa Siswa      @relation(fields: [siswaId], references: [id], onDelete: Cascade)
@@ -2447,23 +2458,23 @@ model IzinKonflikAbsensi {
 // Penugasan aktif staf pondok — sumber multi-role + scope akses.
 // default deny: tanpa assignment aktif, staf tidak melihat santri/kelas tertentu.
 model PondokStaffAssignment {
-  id             String       @id @default(uuid()) @db.Uuid
-  userId         String       @db.Uuid
+  id             String      @id @default(uuid()) @db.Uuid
+  userId         String      @db.Uuid
   tipe           PondokTugas
-  asramaId       String?      @db.Uuid // scope asrama (musyrif/pengurus asrama)
-  kamarId        String?      @db.Uuid // scope kamar (opsional, lebih sempit)
-  halaqahId      String?      @db.Uuid // scope halaqah (ustadz tahfidz)
-  kelasDiniyahId String?      @db.Uuid // scope kelas diniyah (ustadz diniyah)
-  unit           String?      @db.VarChar(50) // scope unit pondok (opsional)
-  aktif          Boolean      @default(true)
+  asramaId       String?     @db.Uuid // scope asrama (musyrif/pengurus asrama)
+  kamarId        String?     @db.Uuid // scope kamar (opsional, lebih sempit)
+  halaqahId      String?     @db.Uuid // scope halaqah (ustadz tahfidz)
+  kelasDiniyahId String?     @db.Uuid // scope kelas diniyah (ustadz diniyah)
+  unit           String?     @db.VarChar(50) // scope unit pondok (opsional)
+  aktif          Boolean     @default(true)
   keterangan     String?
-  createdBy      String?      @db.Uuid
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdBy      String?     @db.Uuid
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
-  user         User         @relation("UserPondokAssignment", fields: [userId], references: [id], onDelete: Cascade)
-  asrama       Asrama?      @relation(fields: [asramaId], references: [id], onDelete: SetNull)
-  halaqah      Halaqah?     @relation(fields: [halaqahId], references: [id], onDelete: SetNull)
+  user         User          @relation("UserPondokAssignment", fields: [userId], references: [id], onDelete: Cascade)
+  asrama       Asrama?       @relation(fields: [asramaId], references: [id], onDelete: SetNull)
+  halaqah      Halaqah?      @relation(fields: [halaqahId], references: [id], onDelete: SetNull)
   kelasDiniyah KelasDiniyah? @relation(fields: [kelasDiniyahId], references: [id], onDelete: SetNull)
 
   @@index([userId, aktif])
@@ -2477,7 +2488,7 @@ model PondokPermissionGrant {
   userId     String    @db.Uuid
   permission String // kode dari PONDOK_PERMISSIONS
   scopeType  String? // ASRAMA | HALAQAH | KELAS_DINIYAH | KAMAR | UNIT
-  scopeId    String?  @db.Uuid
+  scopeId    String?   @db.Uuid
   aktif      Boolean   @default(true)
   grantedBy  String?   @db.Uuid
   expiresAt  DateTime?
@@ -2502,10 +2513,10 @@ model Halaqah {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  pengampu  User?     @relation("HalaqahPengampu", fields: [pengampuId], references: [id], onDelete: SetNull)
-  asrama    Asrama?   @relation(fields: [asramaId], references: [id], onDelete: SetNull)
-  santris   Santri[]
-  setoran   SetoranTahfidz[]
+  pengampu    User?                   @relation("HalaqahPengampu", fields: [pengampuId], references: [id], onDelete: SetNull)
+  asrama      Asrama?                 @relation(fields: [asramaId], references: [id], onDelete: SetNull)
+  santris     Santri[]
+  setoran     SetoranTahfidz[]
   assignments PondokStaffAssignment[]
 
   @@map("halaqah")
@@ -2513,19 +2524,19 @@ model Halaqah {
 
 // Kelas diniyah (pengajaran pondok non-sekolah).
 model KelasDiniyah {
-  id          String   @id @default(uuid()) @db.Uuid
-  nama        String
-  tingkat     String?
-  hari        String? // Senin..Jumat
-  jam         String? // "16:00-17:00"
-  pengampuId  String?  @db.Uuid
-  aktif       Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(uuid()) @db.Uuid
+  nama       String
+  tingkat    String?
+  hari       String? // Senin..Jumat
+  jam        String? // "16:00-17:00"
+  pengampuId String?  @db.Uuid
+  aktif      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  pengampu  User?     @relation("KelasDiniyahPengampu", fields: [pengampuId], references: [id], onDelete: SetNull)
-  santris   Santri[]
-  absensi   AbsensiDiniyah[]
+  pengampu    User?                   @relation("KelasDiniyahPengampu", fields: [pengampuId], references: [id], onDelete: SetNull)
+  santris     Santri[]
+  absensi     AbsensiDiniyah[]
   assignments PondokStaffAssignment[]
 
   @@map("kelas_diniyah")
@@ -2533,20 +2544,20 @@ model KelasDiniyah {
 
 // Kegiatan pondok harian/event (subuh, dzuhur berjamaah, pengajian, olahraga, dsb).
 model KegiatanPondok {
-  id              String   @id @default(uuid()) @db.Uuid
-  nama            String
-  tipe            String   @default("HARIAN") // HARIAN | EVENT | PEMBINAAN
-  tanggal         DateTime @db.Date
-  jamMulai        String? // "04:30"
-  jamSelesai      String?
-  lokasi          String?
-  deskripsi       String? @db.Text
-  wajib           Boolean  @default(false) // kegiatan wajib → izin bentrok
-  penanggungJawabId String? @db.Uuid
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(uuid()) @db.Uuid
+  nama              String
+  tipe              String   @default("HARIAN") // HARIAN | EVENT | PEMBINAAN
+  tanggal           DateTime @db.Date
+  jamMulai          String? // "04:30"
+  jamSelesai        String?
+  lokasi            String?
+  deskripsi         String?  @db.Text
+  wajib             Boolean  @default(false) // kegiatan wajib → izin bentrok
+  penanggungJawabId String?  @db.Uuid
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  penanggungJawab User?     @relation("KegiatanPenanggungJawab", fields: [penanggungJawabId], references: [id], onDelete: SetNull)
+  penanggungJawab User?                   @relation("KegiatanPenanggungJawab", fields: [penanggungJawabId], references: [id], onDelete: SetNull)
   absensi         AbsensiKegiatanPondok[]
 
   @@index([tanggal])
@@ -2555,17 +2566,17 @@ model KegiatanPondok {
 
 // Absensi kegiatan pondok (per kegiatan × tanggal × santri).
 model AbsensiKegiatanPondok {
-  id          String        @id @default(uuid()) @db.Uuid
-  kegiatanId  String        @db.Uuid
-  tanggal     DateTime      @db.Date
-  santriId    String        @db.Uuid
-  status      StatusAbsensi
-  keterangan  String?
-  pencatatId  String?       @db.Uuid
-  koreksiAlasan String?     @db.Text // audit koreksi
-  koreksiBy   String?       @db.Uuid
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String        @id @default(uuid()) @db.Uuid
+  kegiatanId    String        @db.Uuid
+  tanggal       DateTime      @db.Date
+  santriId      String        @db.Uuid
+  status        StatusAbsensi
+  keterangan    String?
+  pencatatId    String?       @db.Uuid
+  koreksiAlasan String?       @db.Text // audit koreksi
+  koreksiBy     String?       @db.Uuid
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   kegiatan KegiatanPondok @relation(fields: [kegiatanId], references: [id], onDelete: Cascade)
   santri   Santri         @relation(fields: [santriId], references: [id], onDelete: Cascade)
@@ -2578,17 +2589,17 @@ model AbsensiKegiatanPondok {
 
 // Absensi diniyah (per kelas × tanggal × santri).
 model AbsensiDiniyah {
-  id            String        @id @default(uuid()) @db.Uuid
-  kelasDiniyahId String       @db.Uuid
-  tanggal       DateTime      @db.Date
-  santriId      String        @db.Uuid
-  status        StatusAbsensi
-  keterangan    String?
-  pencatatId    String?       @db.Uuid
-  koreksiAlasan String?       @db.Text
-  koreksiBy     String?       @db.Uuid
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id             String        @id @default(uuid()) @db.Uuid
+  kelasDiniyahId String        @db.Uuid
+  tanggal        DateTime      @db.Date
+  santriId       String        @db.Uuid
+  status         StatusAbsensi
+  keterangan     String?
+  pencatatId     String?       @db.Uuid
+  koreksiAlasan  String?       @db.Text
+  koreksiBy      String?       @db.Uuid
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   kelasDiniyah KelasDiniyah @relation(fields: [kelasDiniyahId], references: [id], onDelete: Cascade)
   santri       Santri       @relation(fields: [santriId], references: [id], onDelete: Cascade)
@@ -2601,21 +2612,21 @@ model AbsensiDiniyah {
 
 // Setoran tahfidz / murajaah + penilaian tajwid & kelancaran.
 model SetoranTahfidz {
-  id          String              @id @default(uuid()) @db.Uuid
-  halaqahId   String              @db.Uuid
-  santriId    String              @db.Uuid
-  tanggal     DateTime            @default(now())
-  surah       String
-  ayatMulai   Int
-  ayatAkhir   Int
-  juz         Int?
-  tipe        String              @default("SETORAN") // SETORAN | MURAJAAH
-  status      StatusSetoranTahfidz @default(DITERIMA)
-  tajwid      Int? // 0–100
-  kelancaran  Int? // 0–100
-  catatan     String?             @db.Text
-  ustadzId    String?             @db.Uuid // userId ustadz penilai
-  createdAt   DateTime            @default(now())
+  id         String               @id @default(uuid()) @db.Uuid
+  halaqahId  String               @db.Uuid
+  santriId   String               @db.Uuid
+  tanggal    DateTime             @default(now())
+  surah      String
+  ayatMulai  Int
+  ayatAkhir  Int
+  juz        Int?
+  tipe       String               @default("SETORAN") // SETORAN | MURAJAAH
+  status     StatusSetoranTahfidz @default(DITERIMA)
+  tajwid     Int? // 0–100
+  kelancaran Int? // 0–100
+  catatan    String?              @db.Text
+  ustadzId   String?              @db.Uuid // userId ustadz penilai
+  createdAt  DateTime             @default(now())
 
   halaqah Halaqah @relation(fields: [halaqahId], references: [id], onDelete: Cascade)
   santri  Santri  @relation(fields: [santriId], references: [id], onDelete: Cascade)
@@ -2643,8 +2654,8 @@ model PembinaanSantri {
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
 
-  santri   Santri @relation(fields: [santriId], references: [id], onDelete: Cascade)
-  petugas  User?  @relation("PembinaanPetugas", fields: [petugasId], references: [id], onDelete: SetNull)
+  santri  Santri @relation(fields: [santriId], references: [id], onDelete: Cascade)
+  petugas User?  @relation("PembinaanPetugas", fields: [petugasId], references: [id], onDelete: SetNull)
 
   @@index([santriId, tipe])
   @@index([status])
@@ -2745,29 +2756,29 @@ model WalletAccount {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
-  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ledger     WalletLedger[]
-  topups     TopupRequest[]
-  transaksi  KantinTransaksi[]
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledger    WalletLedger[]
+  topups    TopupRequest[]
+  transaksi KantinTransaksi[]
 
   @@index([status])
   @@map("wallet_account")
 }
 
 model WalletLedger {
-  id              String           @id @default(uuid()) @db.Uuid
-  accountId       String           @db.Uuid
-  idempotencyKey  String           @unique // cegah double proses (webhook/POST ulang)
-  tipe            TipeLedgerDompet
-  jumlah          Int // positif = kredit (masuk), negatif = debit (keluar)
-  saldoSebelum    Int // snapshot konsistensi
-  saldoSesudah    Int
-  refType         String? // TopupRequest | KantinTransaksi | InvoiceTagihan | manual
-  refId           String? @db.Uuid
-  deskripsi       String?
-  actorUserId     String? @db.Uuid // petugas/wali yang memicu
-  meta            Json?
-  createdAt       DateTime         @default(now())
+  id             String           @id @default(uuid()) @db.Uuid
+  accountId      String           @db.Uuid
+  idempotencyKey String           @unique // cegah double proses (webhook/POST ulang)
+  tipe           TipeLedgerDompet
+  jumlah         Int // positif = kredit (masuk), negatif = debit (keluar)
+  saldoSebelum   Int // snapshot konsistensi
+  saldoSesudah   Int
+  refType        String? // TopupRequest | KantinTransaksi | InvoiceTagihan | manual
+  refId          String?          @db.Uuid
+  deskripsi      String?
+  actorUserId    String?          @db.Uuid // petugas/wali yang memicu
+  meta           Json?
+  createdAt      DateTime         @default(now())
 
   account WalletAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -2777,20 +2788,20 @@ model WalletLedger {
 }
 
 model TopupRequest {
-  id             String        @id @default(uuid()) @db.Uuid
-  accountId      String        @db.Uuid
-  waliId         String?       @db.Uuid // WaliSantri.id yang mengajukan (bila via portal wali)
+  id             String           @id @default(uuid()) @db.Uuid
+  accountId      String           @db.Uuid
+  waliId         String?          @db.Uuid // WaliSantri.id yang mengajukan (bila via portal wali)
   jumlah         Int // nominal rupiah, > 0
   metode         MetodePembayaran @default(TRANSFER_BANK)
-  status         StatusTopup   @default(MENUNGGU)
+  status         StatusTopup      @default(MENUNGGU)
   buktiUrl       String? // URL unggahan bukti transfer (opsional)
   refGateway     String? // id referensi payment gateway bila dipakai
-  idempotencyKey String        @unique // cek topup ganda
-  verifiedBy     String?       @db.Uuid // bendahara/admin yang memverifikasi
+  idempotencyKey String           @unique // cek topup ganda
+  verifiedBy     String?          @db.Uuid // bendahara/admin yang memverifikasi
   verifiedAt     DateTime?
-  catatan        String? @db.Text
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  catatan        String?          @db.Text
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   account WalletAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   wali    WaliSantri?   @relation(fields: [waliId], references: [id], onDelete: SetNull)
@@ -2811,8 +2822,8 @@ model KeuanganStaff {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  outlet KantinOutlet?  @relation(fields: [outletId], references: [id], onDelete: SetNull)
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outlet KantinOutlet? @relation(fields: [outletId], references: [id], onDelete: SetNull)
 
   @@index([peran, aktif])
   @@map("keuangan_staff")
@@ -2843,7 +2854,7 @@ model KantinKategori {
   nama      String
   createdAt DateTime @default(now())
 
-  outlet KantinOutlet  @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  outlet KantinOutlet   @relation(fields: [outletId], references: [id], onDelete: Cascade)
   produk KantinProduk[]
 
   @@unique([outletId, nama])
@@ -2866,9 +2877,9 @@ model KantinProduk {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  outlet    KantinOutlet      @relation(fields: [outletId], references: [id], onDelete: Cascade)
-  kategori  KantinKategori?   @relation(fields: [kategoriId], references: [id], onDelete: SetNull)
-  item      KantinTransaksiItem[]
+  outlet      KantinOutlet            @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  kategori    KantinKategori?         @relation(fields: [kategoriId], references: [id], onDelete: SetNull)
+  item        KantinTransaksiItem[]
   penyesuaian KantinPenyesuaianStok[]
 
   @@unique([outletId, sku])
@@ -2877,14 +2888,14 @@ model KantinProduk {
 }
 
 model KantinPenyesuaianStok {
-  id         String   @id @default(uuid()) @db.Uuid
-  produkId   String   @db.Uuid
-  delta      Int // + masuk/restock, - keluar/koreksi
-  alasan     String
-  refType    String? // Opname | Restock | Rusak
-  refId      String? @db.Uuid
-  actorUserId String? @db.Uuid
-  createdAt  DateTime @default(now())
+  id          String   @id @default(uuid()) @db.Uuid
+  produkId    String   @db.Uuid
+  delta       Int // + masuk/restock, - keluar/koreksi
+  alasan      String
+  refType     String? // Opname | Restock | Rusak
+  refId       String?  @db.Uuid
+  actorUserId String?  @db.Uuid
+  createdAt   DateTime @default(now())
 
   produk KantinProduk @relation(fields: [produkId], references: [id], onDelete: Cascade)
 
@@ -2897,18 +2908,18 @@ model KantinShift {
   outletId     String    @db.Uuid
   kasirUserId  String    @db.Uuid
   nomorShift   Int // nomor urut shift hari itu per outlet
-  saldoAwal    Int      @default(0) // kas awal (tunai)
+  saldoAwal    Int       @default(0) // kas awal (tunai)
   status       String    @default("AKTIF") // AKTIF | TUTUP
-  dibukaPada   DateTime @default(now())
+  dibukaPada   DateTime  @default(now())
   ditutupPada  DateTime?
   kasAkhir     Int? // kas fisik saat closing
   kasHarusnya  Int? // perhitungan sistem
   selisih      Int? // kasAkhir - kasHarusnya
   catatanTutup String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  outlet    KantinOutlet       @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  outlet    KantinOutlet      @relation(fields: [outletId], references: [id], onDelete: Cascade)
   transaksi KantinTransaksi[]
 
   @@unique([outletId, kasirUserId, nomorShift])
@@ -2917,29 +2928,29 @@ model KantinShift {
 }
 
 model KantinTransaksi {
-  id           String               @id @default(uuid()) @db.Uuid
-  nomorStruk   String               @unique // STR-YYYYMMDD-XXXX
-  outletId     String               @db.Uuid
-  shiftId      String?              @db.Uuid
-  kasirUserId  String               @db.Uuid
-  accountId    String?              @db.Uuid // dompet siswa (null bila tunai)
-  metode       MetodePembayaran     @default(EWALLET)
-  subtotal     Int
-  diskon       Int                  @default(0)
-  total        Int // subtotal - diskon
-  hppTotal     Int                  @default(0) // total harga modal snapshot
-  status       StatusTransaksiKantin @default(SELESAI)
-  alasanBatal  String? @db.Text
-  batalBy      String?              @db.Uuid
-  batalPada    DateTime?
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
+  id          String                @id @default(uuid()) @db.Uuid
+  nomorStruk  String                @unique // STR-YYYYMMDD-XXXX
+  outletId    String                @db.Uuid
+  shiftId     String?               @db.Uuid
+  kasirUserId String                @db.Uuid
+  accountId   String?               @db.Uuid // dompet siswa (null bila tunai)
+  metode      MetodePembayaran      @default(EWALLET)
+  subtotal    Int
+  diskon      Int                   @default(0)
+  total       Int // subtotal - diskon
+  hppTotal    Int                   @default(0) // total harga modal snapshot
+  status      StatusTransaksiKantin @default(SELESAI)
+  alasanBatal String?               @db.Text
+  batalBy     String?               @db.Uuid
+  batalPada   DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
 
-  outlet   KantinOutlet          @relation(fields: [outletId], references: [id], onDelete: Cascade)
-  shift    KantinShift?          @relation(fields: [shiftId], references: [id], onDelete: SetNull)
-  account  WalletAccount?        @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  item     KantinTransaksiItem[]
-  refund   KantinRefund[]
+  outlet  KantinOutlet          @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  shift   KantinShift?          @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  account WalletAccount?        @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  item    KantinTransaksiItem[]
+  refund  KantinRefund[]
 
   @@index([outletId, createdAt])
   @@index([accountId, createdAt])
@@ -2947,14 +2958,14 @@ model KantinTransaksi {
 }
 
 model KantinTransaksiItem {
-  id          String   @id @default(uuid()) @db.Uuid
-  transaksiId String   @db.Uuid
-  produkId    String   @db.Uuid
-  namaSnapshot String // nama saat pembelian (invarian thd perubahan master)
+  id            String @id @default(uuid()) @db.Uuid
+  transaksiId   String @db.Uuid
+  produkId      String @db.Uuid
+  namaSnapshot  String // nama saat pembelian (invarian thd perubahan master)
   hargaSnapshot Int // harga jual saat pembelian
   modalSnapshot Int // harga modal saat pembelian (utk HPP)
-  qty         Int
-  subtotal    Int // hargaSnapshot * qty
+  qty           Int
+  subtotal      Int // hargaSnapshot * qty
 
   transaksi KantinTransaksi @relation(fields: [transaksiId], references: [id], onDelete: Cascade)
   produk    KantinProduk    @relation(fields: [produkId], references: [id], onDelete: Cascade)
@@ -2980,15 +2991,15 @@ model KantinRefund {
 }
 
 model JenisTagihan {
-  id          String   @id @default(uuid()) @db.Uuid
-  kode        String   @unique // SPP, ASRAMA, MAKAN, KEGIATAN, DAFTAR_ULANG, PONDOK, LAIN
-  nama        String
-  deskripsi   String?
-  unit        String? // SEKOLAH | PONDOK | null=keduanya
+  id             String   @id @default(uuid()) @db.Uuid
+  kode           String   @unique // SPP, ASRAMA, MAKAN, KEGIATAN, DAFTAR_ULANG, PONDOK, LAIN
+  nama           String
+  deskripsi      String?
+  unit           String? // SEKOLAH | PONDOK | null=keduanya
   nominalDefault Int? // nominal bawaan (bisa dioverride per invoice)
-  aktif       Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  aktif          Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   invoice InvoiceTagihan[]
 
@@ -2996,26 +3007,26 @@ model JenisTagihan {
 }
 
 model InvoiceTagihan {
-  id           String         @id @default(uuid()) @db.Uuid
-  kode         String         @unique // INV-YYYYMM-XXXX
-  userId       String         @db.Uuid // pemilik tagihan (siswa/santri user)
-  jenisId      String         @db.Uuid
-  periode      String // bulan/tahun, mis. "2026-10"
-  nominal      Int
-  diskon       Int            @default(0)
-  denda        Int            @default(0) // akumulasi keterlambatan
-  total        Int // nominal - diskon + denda
-  terbayar     Int            @default(0)
-  sisa         Int // total - terbayar
-  jatuhTempo   DateTime?
-  status       StatusInvoice  @default(BELUM_DIBAYAR)
-  keterangan   String? @db.Text
-  createdBy    String?        @db.Uuid
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id         String        @id @default(uuid()) @db.Uuid
+  kode       String        @unique // INV-YYYYMM-XXXX
+  userId     String        @db.Uuid // pemilik tagihan (siswa/santri user)
+  jenisId    String        @db.Uuid
+  periode    String // bulan/tahun, mis. "2026-10"
+  nominal    Int
+  diskon     Int           @default(0)
+  denda      Int           @default(0) // akumulasi keterlambatan
+  total      Int // nominal - diskon + denda
+  terbayar   Int           @default(0)
+  sisa       Int // total - terbayar
+  jatuhTempo DateTime?
+  status     StatusInvoice @default(BELUM_DIBAYAR)
+  keterangan String?       @db.Text
+  createdBy  String?       @db.Uuid
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
-  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  jenis JenisTagihan   @relation(fields: [jenisId], references: [id], onDelete: Restrict)
+  user  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jenis JenisTagihan        @relation(fields: [jenisId], references: [id], onDelete: Restrict)
   bayar PembayaranTagihan[]
 
   @@index([userId, status])
@@ -3024,21 +3035,21 @@ model InvoiceTagihan {
 }
 
 model PembayaranTagihan {
-  id             String                 @id @default(uuid()) @db.Uuid
-  invoiceId      String                 @db.Uuid
+  id             String                  @id @default(uuid()) @db.Uuid
+  invoiceId      String                  @db.Uuid
   jumlah         Int // > 0
-  metode         MetodePembayaran       @default(EWALLET)
+  metode         MetodePembayaran        @default(EWALLET)
   status         StatusPembayaranTagihan @default(PENDING)
-  accountId      String?                @db.Uuid // dompet yg didebit (bila EWALLET)
-  ledgerId       String?                @db.Uuid
+  accountId      String?                 @db.Uuid // dompet yg didebit (bila EWALLET)
+  ledgerId       String?                 @db.Uuid
   buktiUrl       String?
-  idempotencyKey String                 @unique
-  actorUserId    String?                @db.Uuid
-  verifiedBy     String?                @db.Uuid
+  idempotencyKey String                  @unique
+  actorUserId    String?                 @db.Uuid
+  verifiedBy     String?                 @db.Uuid
   verifiedAt     DateTime?
-  catatan        String? @db.Text
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  catatan        String?                 @db.Text
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
 
   invoice InvoiceTagihan @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
@@ -3047,14 +3058,14 @@ model PembayaranTagihan {
 }
 
 model AkunLaporan {
-  id     String         @id @default(uuid()) @db.Uuid
-  kode   String         @unique // KAS, BANK, KEWAJIBAN_DOMPET, PIUTANG, PERSEDIAAN, PENDAPATAN, HPP
-  nama   String
-  tipe   TipeAkunLaporan
-  saldo  Int            @default(0) // materialisasi saldo akun (mutasi via jurnal)
-  aktif  Boolean        @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id        String          @id @default(uuid()) @db.Uuid
+  kode      String          @unique // KAS, BANK, KEWAJIBAN_DOMPET, PIUTANG, PERSEDIAAN, PENDAPATAN, HPP
+  nama      String
+  tipe      TipeAkunLaporan
+  saldo     Int             @default(0) // materialisasi saldo akun (mutasi via jurnal)
+  aktif     Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 
   item JurnalItem[]
 
@@ -3062,16 +3073,16 @@ model AkunLaporan {
 }
 
 model JurnalUmum {
-  id        String        @id @default(uuid()) @db.Uuid
-  nomor     String        @unique // JRN-YYYYMM-XXXX
-  tanggal   DateTime      @default(now())
+  id         String       @id @default(uuid()) @db.Uuid
+  nomor      String       @unique // JRN-YYYYMM-XXXX
+  tanggal    DateTime     @default(now())
   keterangan String
-  refType   String // TopupRequest | KantinTransaksi | PembayaranTagihan | manual
-  refId     String?       @db.Uuid
-  status    StatusJurnal  @default(POSTING)
-  createdBy String?       @db.Uuid
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  refType    String // TopupRequest | KantinTransaksi | PembayaranTagihan | manual
+  refId      String?      @db.Uuid
+  status     StatusJurnal @default(POSTING)
+  createdBy  String?      @db.Uuid
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
   item JurnalItem[]
 
@@ -3081,15 +3092,15 @@ model JurnalUmum {
 }
 
 model JurnalItem {
-  id        String   @id @default(uuid()) @db.Uuid
-  jurnalId  String   @db.Uuid
-  akunId    String   @db.Uuid
-  debit     Int      @default(0) // >= 0
-  kredit    Int      @default(0) // >= 0
+  id         String  @id @default(uuid()) @db.Uuid
+  jurnalId   String  @db.Uuid
+  akunId     String  @db.Uuid
+  debit      Int     @default(0) // >= 0
+  kredit     Int     @default(0) // >= 0
   keterangan String?
 
-  jurnal JurnalUmum   @relation(fields: [jurnalId], references: [id], onDelete: Cascade)
-  akun   AkunLaporan  @relation(fields: [akunId], references: [id], onDelete: Restrict)
+  jurnal JurnalUmum  @relation(fields: [jurnalId], references: [id], onDelete: Cascade)
+  akun   AkunLaporan @relation(fields: [akunId], references: [id], onDelete: Restrict)
 
   @@index([jurnalId])
   @@index([akunId])
@@ -3108,46 +3119,179 @@ enum JenisKelamin {
 }
 
 model BiodataOrang {
-  id        String        @id @default(uuid()) @db.Uuid
-  userId    String        @unique @db.Uuid
-  panggilan String?
-  jenisKelamin JenisKelamin?
-  tempatLahir  String?
-  tanggalLahir DateTime?
+  id                    String        @id @default(uuid()) @db.Uuid
+  userId                String        @unique @db.Uuid
+  panggilan             String?
+  jenisKelamin          JenisKelamin?
+  tempatLahir           String?
+  tanggalLahir          DateTime?
   // ── field sensitif (akses terbatas: pemilik + Admin) ──
-  nik       String?
-  nomorKK   String?
-  kewarganegaraan String  @default("WNI")
-  agama     String?
-  alamat    String?
-  provinsi  String?
-  kabupaten String?
-  kecamatan String?
-  desa      String?
-  kodePos   String?
-  noHp      String?
+  nik                   String?
+  nomorKK               String?
+  kewarganegaraan       String        @default("WNI")
+  agama                 String?
+  alamat                String?
+  provinsi              String?
+  kabupaten             String?
+  kecamatan             String?
+  desa                  String?
+  kodePos               String?
+  noHp                  String?
   // ── data keluarga & asal sekolah (diisi siswa/santri atau Admin) ──
-  anakKe         Int?
-  statusKeluarga String? // contoh: Anak Kandung, Anak Angkat, Yatim, Piatu
-  namaAyah       String?
-  namaIbu        String?
-  pekerjaanAyah  String?
-  pekerjaanIbu   String?
-  asalSekolah    String?
-  noTelpWali     String?
+  anakKe                Int?
+  statusKeluarga        String? // contoh: Anak Kandung, Anak Angkat, Yatim, Piatu
+  namaAyah              String?
+  namaIbu               String?
+  pekerjaanAyah         String?
+  pekerjaanIbu          String?
+  asalSekolah           String?
+  noTelpWali            String?
   // ── kontak darurat ──
   kontakDaruratNama     String?
   kontakDaruratHubungan String?
   kontakDaruratTelp     String?
   // ── foto profil (referensi baris Upload; thumb = thumbnail 128px) ──
-  fotoUploadId  String?   @db.Uuid
-  fotoThumbId   String?   @db.Uuid
-  fotoUpdatedAt DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  fotoUploadId          String?       @db.Uuid
+  fotoThumbId           String?       @db.Uuid
+  fotoUpdatedAt         DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("biodata_orang")
+}
+
+// ─── PENILAIAN & RAPORT (Kurikulum Merdeka: formatif, sumatif, proyek, praktik) ───
+
+enum JenisKomponenNilai {
+  FORMATIF
+  SUMATIF
+  PROYEK
+  PRAKTIK
+}
+
+enum StatusRaport {
+  DRAFT
+  TERBIT
+}
+
+/// Bobot, KKTP, dan ambang predikat per semester. Satu baris per semester.
+model PengaturanRaport {
+  id                 String   @id @default(uuid()) @db.Uuid
+  semesterId         String   @unique @db.Uuid
+  bobotFormatif      Int      @default(30)
+  bobotSumatif       Int      @default(50)
+  bobotProyek        Int      @default(10)
+  bobotPraktik       Int      @default(10)
+  kktp               Int      @default(70)
+  ambangA            Int      @default(90)
+  ambangB            Int      @default(80)
+  ambangC            Int      @default(70)
+  tampilkanPeringkat Boolean  @default(true)
+  namaKepalaSekolah  String?
+  nipKepalaSekolah   String?
+  catatanKepala      String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  semester Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+
+  @@map("pengaturan_raport")
+}
+
+/// Satu komponen penilaian berlaku untuk seluruh siswa di kelas.
+model KomponenNilai {
+  id         String             @id @default(uuid()) @db.Uuid
+  nama       String
+  jenis      JenisKomponenNilai
+  bobot      Int                @default(1)
+  tanggal    DateTime           @default(now())
+  mapelId    String             @db.Uuid
+  kelasId    String             @db.Uuid
+  semesterId String             @db.Uuid
+  guruId     String             @db.Uuid
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  deletedAt  DateTime?
+
+  mapel    MataPelajaran   @relation(fields: [mapelId], references: [id], onDelete: Cascade)
+  kelas    Kelas           @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+  semester Semester        @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  guru     Guru            @relation(fields: [guruId], references: [id], onDelete: Cascade)
+  nilais   NilaiKomponen[]
+
+  @@unique([mapelId, kelasId, semesterId, nama])
+  @@index([kelasId, semesterId])
+  @@index([guruId])
+  @@index([deletedAt])
+  @@map("komponen_nilai")
+}
+
+model NilaiKomponen {
+  id         String   @id @default(uuid()) @db.Uuid
+  komponenId String   @db.Uuid
+  siswaId    String   @db.Uuid
+  nilai      Float?
+  catatan    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  komponen KomponenNilai @relation(fields: [komponenId], references: [id], onDelete: Cascade)
+  siswa    Siswa         @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@unique([komponenId, siswaId])
+  @@index([siswaId])
+  @@map("nilai_komponen")
+}
+
+/// Raport siswa per semester. Hanya wali kelas/admin yang boleh mengubah dan menerbitkan.
+model Raport {
+  id             String       @id @default(uuid()) @db.Uuid
+  siswaId        String       @db.Uuid
+  kelasId        String       @db.Uuid
+  semesterId     String       @db.Uuid
+  waliKelasId    String?      @db.Uuid
+  status         StatusRaport @default(DRAFT)
+  rataRata       Float?
+  peringkat      Int?
+  catatanWali    String?      @db.Text
+  sikapPredikat  String?
+  sikapDeskripsi String?      @db.Text
+  prestasi       String?      @db.Text
+  sakit          Int          @default(0)
+  izin           Int          @default(0)
+  alpa           Int          @default(0)
+  terbitAt       DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  siswa     Siswa         @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  kelas     Kelas         @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+  semester  Semester      @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  waliKelas Guru?         @relation(fields: [waliKelasId], references: [id], onDelete: SetNull)
+  nilais    RaportNilai[]
+
+  @@unique([siswaId, semesterId])
+  @@index([kelasId, semesterId])
+  @@index([status])
+  @@map("raport")
+}
+
+model RaportNilai {
+  id         String   @id @default(uuid()) @db.Uuid
+  raportId   String   @db.Uuid
+  mapelId    String   @db.Uuid
+  nilaiAkhir Float
+  predikat   String
+  deskripsi  String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  raport Raport        @relation(fields: [raportId], references: [id], onDelete: Cascade)
+  mapel  MataPelajaran @relation(fields: [mapelId], references: [id], onDelete: Cascade)
+
+  @@unique([raportId, mapelId])
+  @@map("raport_nilai")
 }
