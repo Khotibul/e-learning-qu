@@ -1,6 +1,5 @@
 import { Suspense } from "react"
-import { getUjian, getGuruMapelRefs, getGuruKelasRefs, getGuruWaliKelasRefs, getBankSoalRefs } from "../../actions"
-import { getSemesterRefs, getTahunAjaranRefs } from "../../../admin/actions"
+import { getUjian, getGuruMapelRefs, getGuruKelasRefs, getGuruWaliKelasRefs, getBankSoalRefs, getGuruSemesterRefs, getGuruTahunAjaranRefs } from "../../actions"
 import { UjianFormClient } from "./_components/ujian-form"
 import { Skeleton } from "@/components/ui/skeleton"
 import { notFound } from "next/navigation"
@@ -16,8 +15,8 @@ async function UjianFormContent({ params }: { params: Promise<{ id: string }> })
     getGuruMapelRefs(),
     getGuruKelasRefs(),
     getGuruWaliKelasRefs(),
-    getSemesterRefs(),
-    getTahunAjaranRefs(),
+    getGuruSemesterRefs(),
+    getGuruTahunAjaranRefs(),
     getBankSoalRefs(),
   ])
 

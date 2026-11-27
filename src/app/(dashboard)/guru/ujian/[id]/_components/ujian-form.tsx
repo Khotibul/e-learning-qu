@@ -17,6 +17,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
 import { createUjian, updateUjian } from "../../../actions"
+import { JENIS_KOMPONEN, type JenisKomponen } from "@/lib/raport"
 
 interface MapelRef {
   id: string
@@ -80,6 +81,7 @@ interface UjianData {
   jamSelesai: Date
   mode: string
   isLatihan: boolean
+  komponenRaport: JenisKomponen | null
   status: string
   randomSoal: boolean
   randomJawaban: boolean
@@ -135,6 +137,7 @@ export function UjianFormClient({
   const [jamSelesai, setJamSelesai] = useState(ujian ? formatTimeInput(ujian.jamSelesai) : "")
   const [mode, setMode] = useState(ujian?.mode ?? "manual")
   const [isLatihan, setIsLatihan] = useState(ujian?.isLatihan ?? false)
+  const [komponenRaport, setKomponenRaport] = useState(ujian?.komponenRaport ?? "NONE")
   const [randomSoal, setRandomSoal] = useState(ujian?.randomSoal ?? true)
   const [randomJawaban, setRandomJawaban] = useState(ujian?.randomJawaban ?? true)
   const [fullscreen, setFullscreen] = useState(ujian?.fullscreen ?? true)
@@ -250,6 +253,7 @@ export function UjianFormClient({
         jamSelesai,
         mode,
         isLatihan,
+        komponenRaport: komponenRaport === "NONE" ? null : (komponenRaport as JenisKomponen),
         randomSoal,
         randomJawaban,
         fullscreen,
@@ -336,6 +340,21 @@ export function UjianFormClient({
                     <span className="text-sm">{isLatihan ? "Latihan" : "Ujian"}</span>
                   </div>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="komponenRaport">Komponen Raport</Label>
+                <Select value={komponenRaport} onValueChange={setKomponenRaport}>
+                  <SelectTrigger id="komponenRaport"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">Tidak masuk raport</SelectItem>
+                    {JENIS_KOMPONEN.map((j) => (
+                      <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Nilai {isLatihan ? "latihan" : "ujian"} ini akan dihitung sebagai komponen yang dipilih saat menyusun raport.
+                </p>
               </div>
             </CardContent>
           </Card>

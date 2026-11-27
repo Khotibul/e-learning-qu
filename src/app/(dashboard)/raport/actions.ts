@@ -379,7 +379,12 @@ async function susunRekap(kelasId: string, semesterId: string): Promise<BarisRek
     }),
     prisma.nilai.findMany({
       where: { semesterId, deletedAt: null, siswa: { kelasId, deletedAt: null } },
-      select: { siswaId: true, mataPelajaranId: true, nilai: true },
+      select: {
+        siswaId: true,
+        mataPelajaranId: true,
+        nilai: true,
+        ujian: { select: { komponenRaport: true } },
+      },
     }),
     pengaturanSemester(semesterId),
   ])
@@ -403,12 +408,23 @@ async function susunRekap(kelasId: string, semesterId: string): Promise<BarisRek
     arr.push(k)
     komponenByMapel.set(k.mapelId, arr)
   }
+  // Nilai ujian/latihan yang sudah ditandai komponen raport ikut dihitung
+  // sebagai komponen pada jenisnya. Sisanya tetap menjadi cadangan rata-rata
+  // bila mapel belum punya komponen sama sekali.
   const nilaiUjianBySiswaMapel = new Map<string, number[]>()
+  const komponenUjianBySiswaMapel = new Map<string, { jenis: string; bobot: number; nilai: number }[]>()
   for (const n of nilaiUjian) {
     const key = `${n.siswaId}:${n.mataPelajaranId}`
-    const arr = nilaiUjianBySiswaMapel.get(key) ?? []
-    arr.push(n.nilai)
-    nilaiUjianBySiswaMapel.set(key, arr)
+    const jenis = n.ujian?.komponenRaport
+    if (jenis) {
+      const arr = komponenUjianBySiswaMapel.get(key) ?? []
+      arr.push({ jenis, bobot: 1, nilai: n.nilai })
+      komponenUjianBySiswaMapel.set(key, arr)
+    } else {
+      const arr = nilaiUjianBySiswaMapel.get(key) ?? []
+      arr.push(n.nilai)
+      nilaiUjianBySiswaMapel.set(key, arr)
+    }
   }
 
   const nilai: BarisRekap["nilai"] = {}
@@ -418,11 +434,14 @@ async function susunRekap(kelasId: string, semesterId: string): Promise<BarisRek
     sumber[siswa.id] = {}
     for (const mapel of mapels) {
       const komponenMapel = komponenByMapel.get(mapel.id) ?? []
-      const nilaiKomponen = komponenMapel.map((k) => ({
-        jenis: k.jenis,
-        bobot: k.bobot,
-        nilai: k.nilais.find((n) => n.siswaId === siswa.id)?.nilai ?? null,
-      }))
+      const nilaiKomponen = [
+        ...komponenMapel.map((k) => ({
+          jenis: k.jenis,
+          bobot: k.bobot,
+          nilai: k.nilais.find((n) => n.siswaId === siswa.id)?.nilai ?? null,
+        })),
+        ...(komponenUjianBySiswaMapel.get(`${siswa.id}:${mapel.id}`) ?? []),
+      ]
       const dariKomponen = hitungNilaiAkhir(nilaiKomponen, pengaturan)
       const ujian = nilaiUjianBySiswaMapel.get(`${siswa.id}:${mapel.id}`) ?? []
       const dariUjian = rataRata(ujian)

@@ -15,7 +15,8 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
-import { getNilaiUjians, getNilaiLatihans, getNilaiByUjian, gradeEssay } from "../../actions"
+import { getNilaiUjians, getNilaiLatihans, getNilaiByUjian, gradeEssay, aturKomponenRaportUjian } from "../../actions"
+import { JENIS_KOMPONEN, type JenisKomponen } from "@/lib/raport"
 
 const jenisSoalLabels: Record<string, string> = {
   PILIHAN_GANDA: "PG",
@@ -29,6 +30,7 @@ interface UjianRef {
   id: string
   nama: string
   status: string
+  komponenRaport: JenisKomponen | null
 }
 
 interface JawabanItem {
@@ -48,7 +50,7 @@ export function NilaiGradingClient() {
   const [tab, setTab] = useState<TabType>("ujian")
   const [ujians, setUjians] = useState<UjianRef[]>([])
   const [selectedUjianId, setSelectedUjianId] = useState("")
-  const [ujianDetail, setUjianDetail] = useState<{ nama: string; mataPelajaran: { nama: string }; kelas: { nama: string }; nilaiMinimum?: number } | null>(null)
+  const [ujianDetail, setUjianDetail] = useState<{ id: string; nama: string; mataPelajaran: { nama: string }; kelas: { nama: string }; nilaiMinimum?: number; komponenRaport?: JenisKomponen | null } | null>(null)
   const [jawabans, setJawabans] = useState<JawabanItem[]>([])
   const [nilaiMap, setNilaiMap] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
@@ -104,6 +106,19 @@ export function NilaiGradingClient() {
   }, [selectedUjianId])
 
   useEffect(() => { fetchNilai() }, [fetchNilai])
+
+  const handleKomponenRaport = async (value: string) => {
+    if (!ujianDetail) return
+    const komponen = value === "NONE" ? null : (value as JenisKomponen)
+    try {
+      await aturKomponenRaportUjian(ujianDetail.id, komponen)
+      setUjianDetail((prev) => (prev ? { ...prev, komponenRaport: komponen } : prev))
+      setUjians((prev) => prev.map((u) => (u.id === ujianDetail.id ? { ...u, komponenRaport: komponen } : u)))
+      toast.success(komponen ? "Komponen raport diperbarui" : "Nilai tidak masuk raport")
+    } catch {
+      toast.error("Gagal menyimpan komponen raport")
+    }
+  }
 
   const handleGrade = async (jawabanUjianId: string) => {
     const val = essayValues[jawabanUjianId]
@@ -250,6 +265,21 @@ export function NilaiGradingClient() {
               <span>Kelas: <strong>{ujianDetail.kelas.nama}</strong></span>
               <span>Siswa: <strong>{siswaEntries.length}</strong></span>
               <span>Nilai Minimum: <strong>{ujianDetail.nilaiMinimum ?? 0}</strong></span>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="text-sm">Komponen Raport:</span>
+              <Select value={ujianDetail.komponenRaport ?? "NONE"} onValueChange={handleKomponenRaport}>
+                <SelectTrigger className="h-8 w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NONE">Tidak masuk raport</SelectItem>
+                  {JENIS_KOMPONEN.map((j) => (
+                    <SelectItem key={j.value} value={j.value}>{j.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-xs text-muted-foreground">
+                Nilai {tab === "latihan" ? "latihan" : "ujian"} ini dihitung pada komponen tersebut saat raport disusun.
+              </span>
             </div>
           </CardContent>
         </Card>

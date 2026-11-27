@@ -627,6 +627,7 @@ model Ujian {
   status           StatusUjian @default(DRAFT)
   tipe             String      @default("REGULER")
   isLatihan        Boolean     @default(false)
+  komponenRaport   JenisKomponenNilai?
   randomSoal       Boolean     @default(true)
   randomJawaban    Boolean     @default(true)
   fullscreen       Boolean     @default(true)

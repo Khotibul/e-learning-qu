@@ -11,6 +11,7 @@ import { getSubmissionCount as getSubmissionCountGuard } from "@/lib/assessment-
 import { getKehadiranHarianWaliData, simpanAbsensiHarianWaliData, type BarisAbsensiWali } from "@/lib/absensi-harian-wali"
 import { bersihkanNomor, cekIdentitasSiswa, pesanDuplikat } from "@/lib/identitas"
 import { upsertBiodata, type BiodataInput } from "@/lib/biodata"
+import type { JenisKomponen } from "@/lib/raport"
 
 export async function getCurrentGuru() {
   const session = await auth()
@@ -437,6 +438,7 @@ export async function createUjian(data: {
   jamSelesai: string
   mode: string
   isLatihan: boolean
+  komponenRaport?: JenisKomponen | null
   randomSoal: boolean
   randomJawaban: boolean
   fullscreen: boolean
@@ -483,6 +485,7 @@ export async function createUjian(data: {
       jamSelesai: jamSelesaiDate,
       mode: data.mode,
       isLatihan: data.isLatihan,
+      komponenRaport: data.komponenRaport ?? null,
       randomSoal: data.randomSoal,
       randomJawaban: data.randomJawaban,
       fullscreen: data.fullscreen,
@@ -526,6 +529,7 @@ export async function updateUjian(
     jamSelesai?: string
     mode?: string
     isLatihan?: boolean
+    komponenRaport?: JenisKomponen | null
     randomSoal?: boolean
     randomJawaban?: boolean
     fullscreen?: boolean
@@ -577,6 +581,7 @@ export async function updateUjian(
   }
   if (data.mode !== undefined) updateData.mode = data.mode
   if (data.isLatihan !== undefined) updateData.isLatihan = data.isLatihan
+  if (data.komponenRaport !== undefined) updateData.komponenRaport = data.komponenRaport
   if (data.randomSoal !== undefined) updateData.randomSoal = data.randomSoal
   if (data.randomJawaban !== undefined) updateData.randomJawaban = data.randomJawaban
   if (data.fullscreen !== undefined) updateData.fullscreen = data.fullscreen
@@ -629,6 +634,7 @@ export async function duplicateUjian(id: string) {
       jamSelesai: original.jamSelesai,
       mode: original.mode,
       isLatihan: original.isLatihan,
+      komponenRaport: original.komponenRaport,
       randomSoal: original.randomSoal,
       randomJawaban: original.randomJawaban,
       fullscreen: original.fullscreen,
@@ -719,11 +725,29 @@ export async function getUjianSubmissionCount(ujianId: string) {
 
 // ─── NILAI ───────────────────────────────────────────────────
 
+export async function getGuruSemesterRefs() {
+  await getCurrentGuru()
+  return prisma.semester.findMany({
+    where: { deletedAt: null },
+    select: { id: true, nama: true, tahunAjaran: { select: { nama: true } } },
+    orderBy: { createdAt: "desc" },
+  })
+}
+
+export async function getGuruTahunAjaranRefs() {
+  await getCurrentGuru()
+  return prisma.tahunAjaran.findMany({
+    where: { deletedAt: null },
+    select: { id: true, nama: true },
+    orderBy: { createdAt: "desc" },
+  })
+}
+
 export async function getNilaiUjians() {
   const guru = await getCurrentGuru()
   return prisma.ujian.findMany({
     where: { guruId: guru.id, deletedAt: null, isLatihan: false },
-    select: { id: true, nama: true, status: true },
+    select: { id: true, nama: true, status: true, komponenRaport: true },
     orderBy: { createdAt: "desc" },
   })
 }
@@ -732,9 +756,27 @@ export async function getNilaiLatihans() {
   const guru = await getCurrentGuru()
   return prisma.ujian.findMany({
     where: { guruId: guru.id, deletedAt: null, isLatihan: true },
-    select: { id: true, nama: true, status: true },
+    select: { id: true, nama: true, status: true, komponenRaport: true },
     orderBy: { createdAt: "desc" },
   })
+}
+
+export async function aturKomponenRaportUjian(ujianId: string, komponenRaport: JenisKomponen | null) {
+  const guru = await getCurrentGuru()
+  const ujian = await prisma.ujian.findFirst({
+    where: { id: ujianId, guruId: guru.id, deletedAt: null },
+    select: { id: true },
+  })
+  if (!ujian) throw new Error("Ujian tidak ditemukan")
+
+  await prisma.ujian.update({
+    where: { id: ujianId },
+    data: { komponenRaport },
+  })
+  revalidatePath("/guru/nilai")
+  revalidatePath("/guru/ujian")
+  revalidatePath("/admin/raport")
+  revalidatePath("/guru/raport")
 }
 
 export async function getNilaiByUjian(ujianId: string) {
