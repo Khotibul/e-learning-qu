@@ -4,7 +4,7 @@ import { MapelManagement } from "../_components/mapel-management"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface PageProps {
-  searchParams: Promise<{ search?: string; page?: string }>
+  searchParams: Promise<{ search?: string; semester?: string; page?: string }>
 }
 
 function SkeletonPage() {
@@ -21,6 +21,7 @@ async function Content({ searchParams }: PageProps) {
   const sp = await searchParams
   const { data, total, totalPages } = await getMapels({
     search: sp.search || "",
+    semesterId: sp.semester || undefined,
     page: parseInt(sp.page || "1"),
     limit: 10,
   })
@@ -32,6 +33,7 @@ async function Content({ searchParams }: PageProps) {
       initialTotalPages={totalPages}
       initialPage={parseInt(sp.page || "1")}
       initialSearch={sp.search || ""}
+      initialSemesterId={sp.semester || ""}
     />
   )
 }

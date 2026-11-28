@@ -3,9 +3,9 @@
 import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "react-hot-toast"
-import { calculateGrade, formatDate } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -33,64 +33,80 @@ import {
   ChevronLeft,
   ChevronRight,
   GraduationCap,
+  Search,
 } from "lucide-react"
-import { getNilais } from "../actions"
+import { getRekapNilaiAdmin } from "@/app/(dashboard)/raport/actions"
 
-interface Nilai {
+interface RekapNilaiRow {
   id: string
-  siswaId: string
-  ujianId: string | null
-  mataPelajaranId: string
-  semesterId: string
-  nilai: number
-  jenis: string
-  keterangan: string | null
-  createdAt: Date
-  siswa: { nama: string; nis: string | null; kelas: { nama: string } | null }
-  mataPelajaran: { nama: string; kode: string }
-  semester: { nama: string }
+  siswa: { id: string; nama: string; nis: string | null; nisn: string | null }
+  kelas: { id: string; nama: string }
+  mapel: { id: string; nama: string; kode: string }
+  nilai: number | null
+  predikat: string | null
+  sumber: "KOMPONEN" | "UJIAN" | null
+}
+
+interface Summary {
+  terisi: number
+  kosong: number
+  rataRata: number | null
 }
 
 interface Props {
-  initialData: Nilai[]
+  initialData: RekapNilaiRow[]
   initialTotal: number
   initialTotalPages: number
   initialPage: number
+  initialSearch: string
   initialKelasId: string
   initialMapelId: string
   initialSemesterId: string
+  initialSummary: Summary
   kelasRefs: { id: string; nama: string; tingkat: number }[]
-  mapelRefs: { id: string; nama: string; kode: string; kelas: { nama: string } }[]
+  mapelRefs: { id: string; nama: string; kode: string; semesterId: string }[]
   semesterRefs: { id: string; nama: string; tahunAjaran: { nama: string } }[]
+}
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => { const t = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(t) }, [value, delay])
+  return debounced
 }
 
 export function NilaiOverview(props: Props) {
   const router = useRouter()
 
-  const [data, setData] = useState<Nilai[]>(props.initialData)
+  const [data, setData] = useState<RekapNilaiRow[]>(props.initialData)
   const [total, setTotal] = useState(props.initialTotal)
   const [totalPages, setTotalPages] = useState(props.initialTotalPages)
+  const [summary, setSummary] = useState<Summary>(props.initialSummary)
   const [page, setPage] = useState(props.initialPage)
   const [kelasId, setKelasId] = useState(props.initialKelasId)
   const [mapelId, setMapelId] = useState(props.initialMapelId)
   const [semesterId, setSemesterId] = useState(props.initialSemesterId)
+  const [search, setSearch] = useState(props.initialSearch)
+  const debouncedSearch = useDebounce(search, 400)
   const [loading, setLoading] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await getNilais({
+      const result = await getRekapNilaiAdmin({
         kelasId: kelasId || undefined,
         mapelId: mapelId || undefined,
         semesterId: semesterId || undefined,
+        search: debouncedSearch || undefined,
         page,
         limit: 20,
       })
-      setData(result.data as Nilai[])
+      setData(result.data)
       setTotal(result.total)
       setTotalPages(result.totalPages)
+      setSummary(result.summary)
+      if (result.semesterId && result.semesterId !== semesterId) setSemesterId(result.semesterId)
     } catch { toast.error("Gagal memuat data nilai") } finally { setLoading(false) }
-  }, [kelasId, mapelId, semesterId, page])
+  }, [kelasId, mapelId, semesterId, debouncedSearch, page])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -99,64 +115,73 @@ export function NilaiOverview(props: Props) {
     if (kelasId) p.set("kelas", kelasId)
     if (mapelId) p.set("mapel", mapelId)
     if (semesterId) p.set("semester", semesterId)
+    if (search) p.set("search", search)
     if (page > 1) p.set("page", String(page))
     router.replace(`/admin/nilai?${p.toString()}`, { scroll: false })
-  }, [kelasId, mapelId, semesterId, page, router])
+  }, [kelasId, mapelId, semesterId, search, page, router])
 
-  const rataRata = data.length > 0
-    ? (data.reduce((sum, d) => sum + d.nilai, 0) / data.length).toFixed(1)
-    : "0"
-
-  const filteredMapelRefs = kelasId
-    ? props.mapelRefs.filter((m) => m.kelas.nama === props.kelasRefs.find((k) => k.id === kelasId)?.nama)
-    : props.mapelRefs
+  const semesterLabel = props.semesterRefs.find((s) => s.id === semesterId)
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <GraduationCap className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Data Nilai</h1>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Data Nilai</h1>
+          <p className="text-sm text-muted-foreground">
+            Nilai akhir yang sama dengan perhitungan raport{semesterLabel ? ` — ${semesterLabel.nama} (${semesterLabel.tahunAjaran.nama})` : ""}
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Total Nilai</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Total Baris</CardTitle></CardHeader>
           <CardContent><div className="text-2xl font-bold">{total}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Rata-rata</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold">{rataRata}</div></CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Rata-rata Nilai</CardTitle></CardHeader>
+          <CardContent><div className="text-2xl font-bold">{summary.rataRata ?? "-"}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Data Ditampilkan</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold">{data.length}</div></CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Belum Ada Nilai</CardTitle></CardHeader>
+          <CardContent><div className="text-2xl font-bold">{summary.kosong}</div></CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Select value={kelasId || "all"} onValueChange={(v) => { setKelasId(v === "all" ? "" : v); setPage(1); setMapelId("") }}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Semua Kelas" /></SelectTrigger>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Select value={semesterId || "all"} onValueChange={(v) => { setSemesterId(v === "all" ? "" : v); setPage(1) }}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="Semester" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semester Aktif</SelectItem>
+            {props.semesterRefs.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.nama} ({s.tahunAjaran.nama})</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={kelasId || "all"} onValueChange={(v) => { setKelasId(v === "all" ? "" : v); setPage(1) }}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="Semua Kelas" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Semua Kelas</SelectItem>
             {props.kelasRefs.map((k) => <SelectItem key={k.id} value={k.id}>{k.nama}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={mapelId || "all"} onValueChange={(v) => { setMapelId(v === "all" ? "" : v); setPage(1) }}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="Semua Mapel" /></SelectTrigger>
+          <SelectTrigger className="w-full"><SelectValue placeholder="Semua Mapel" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Semua Mapel</SelectItem>
-            {filteredMapelRefs.map((m) => <SelectItem key={m.id} value={m.id}>{m.nama} ({m.kode})</SelectItem>)}
+            {props.mapelRefs.map((m) => <SelectItem key={m.id} value={m.id}>{m.nama} ({m.kode})</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={semesterId || "all"} onValueChange={(v) => { setSemesterId(v === "all" ? "" : v); setPage(1) }}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="Semua Semester" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Semester</SelectItem>
-            {props.semesterRefs.map((s) => (
-              <SelectItem key={s.id} value={s.id}>{s.nama} ({s.tahunAjaran.nama})</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari siswa / mapel..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            className="pl-9"
+          />
+        </div>
       </div>
 
       <div className="rounded-2xl border overflow-x-auto">
@@ -168,20 +193,19 @@ export function NilaiOverview(props: Props) {
               <TableHead>NIS</TableHead>
               <TableHead>Kelas</TableHead>
               <TableHead>Mapel</TableHead>
-              <TableHead>Semester</TableHead>
-              <TableHead>Nilai</TableHead>
-              <TableHead>Grade</TableHead>
-              <TableHead>Tanggal</TableHead>
+              <TableHead className="text-center">Nilai Akhir</TableHead>
+              <TableHead>Predikat</TableHead>
+              <TableHead>Sumber</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>{Array.from({ length: 9 }).map((_, ci) => <TableCell key={ci}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
+                <TableRow key={i}>{Array.from({ length: 8 }).map((_, ci) => <TableCell key={ci}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
               ))
             ) : data.length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                Belum ada data nilai. Pilih filter untuk menampilkan nilai.
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                Belum ada nilai pada semester ini.
               </TableCell></TableRow>
             ) : (
               data.map((item, idx) => (
@@ -189,18 +213,27 @@ export function NilaiOverview(props: Props) {
                   <TableCell>{(page - 1) * 20 + idx + 1}</TableCell>
                   <TableCell className="font-medium">{item.siswa.nama}</TableCell>
                   <TableCell>{item.siswa.nis || "-"}</TableCell>
-                  <TableCell>{item.siswa.kelas?.nama || "-"}</TableCell>
-                  <TableCell>{item.mataPelajaran.nama}</TableCell>
-                  <TableCell>{item.semester.nama}</TableCell>
-                  <TableCell className="font-bold text-lg">{item.nilai}</TableCell>
+                  <TableCell>{item.kelas.nama}</TableCell>
+                  <TableCell>{item.mapel.nama}</TableCell>
+                  <TableCell className="text-center font-bold text-lg">{item.nilai ?? "-"}</TableCell>
                   <TableCell>
-                    <Badge variant={
-                      item.nilai >= 90 ? "success" : item.nilai >= 75 ? "secondary" : item.nilai >= 60 ? "warning" : "destructive"
-                    }>
-                      {calculateGrade(item.nilai)}
-                    </Badge>
+                    {item.predikat ? (
+                      <Badge variant={
+                        item.predikat === "A" ? "success" : item.predikat === "B" ? "secondary" : item.predikat === "C" ? "warning" : "destructive"
+                      }>
+                        {item.predikat}
+                      </Badge>
+                    ) : "-"}
                   </TableCell>
-                  <TableCell className="text-xs">{formatDate(item.createdAt)}</TableCell>
+                  <TableCell>
+                    {item.sumber === "KOMPONEN" ? (
+                      <Badge variant="outline">Komponen</Badge>
+                    ) : item.sumber === "UJIAN" ? (
+                      <Badge variant="secondary">Ujian</Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Belum ada nilai</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -225,4 +258,3 @@ export function NilaiOverview(props: Props) {
     </div>
   )
 }
-

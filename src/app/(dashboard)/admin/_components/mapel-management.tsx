@@ -50,6 +50,7 @@ interface Props {
   initialTotalPages: number
   initialPage: number
   initialSearch: string
+  initialSemesterId: string
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -65,6 +66,7 @@ export function MapelManagement(props: Props) {
   const [totalPages, setTotalPages] = useState(props.initialTotalPages)
   const [page, setPage] = useState(props.initialPage)
   const [search, setSearch] = useState(props.initialSearch)
+  const [semesterId, setSemesterId] = useState(props.initialSemesterId)
   const [guruRefs, setGuruRefs] = useState<{ id: string; nama: string }[]>([])
   const [kelasRefs, setKelasRefs] = useState<{ id: string; nama: string; tingkat: number }[]>([])
   const [semesterRefs, setSemesterRefs] = useState<{ id: string; nama: string; tahunAjaran: { nama: string } }[]>([])
@@ -85,12 +87,12 @@ export function MapelManagement(props: Props) {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await getMapels({ search: debouncedSearch, page, limit: 10 })
+      const result = await getMapels({ search: debouncedSearch, semesterId: semesterId || undefined, page, limit: 10 })
       setData(result.data as Mapel[])
       setTotal(result.total)
       setTotalPages(result.totalPages)
     } catch { toast.error("Gagal memuat data") } finally { setLoading(false) }
-  }, [debouncedSearch, page])
+  }, [debouncedSearch, semesterId, page])
 
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => {
@@ -102,9 +104,10 @@ export function MapelManagement(props: Props) {
   useEffect(() => {
     const p = new URLSearchParams()
     if (debouncedSearch) p.set("search", debouncedSearch)
+    if (semesterId) p.set("semester", semesterId)
     if (page > 1) p.set("page", String(page))
     router.replace(`/admin/mapel?${p.toString()}`, { scroll: false })
-  }, [debouncedSearch, page, router])
+  }, [debouncedSearch, semesterId, page, router])
 
   function toggleKelas(kelasId: string) {
     setFormData((f) => ({
@@ -117,8 +120,11 @@ export function MapelManagement(props: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!formData.kode || !formData.nama || !formData.guruId || formData.kelasIds.length === 0 || !formData.semesterId) {
-      toast.error("Kode, nama, guru, dan minimal 1 kelas wajib diisi"); return
+    if (!formData.kode || !formData.nama || !formData.semesterId) {
+      toast.error("Kode, nama, dan semester wajib diisi"); return
+    }
+    if (!editing && (!formData.guruId || formData.kelasIds.length === 0)) {
+      toast.error("Guru pengampu dan minimal 1 kelas wajib diisi"); return
     }
     setSubmitting(true)
     try {
@@ -165,11 +171,10 @@ export function MapelManagement(props: Props) {
   }
 
   function openEdit(item: Mapel) {
-    if (item.pengajaran.length === 0) return
     setEditing(item)
     setFormData({
       kode: item.kode, nama: item.nama, deskripsi: item.deskripsi || "",
-      guruId: item.pengajaran[0].guru.nama, kelasIds: [],
+      guruId: "", kelasIds: [],
       semesterId: item.semesterId,
     })
     setDialogOpen(true)
@@ -184,9 +189,20 @@ export function MapelManagement(props: Props) {
         </Button>
       </div>
 
-      <div className="relative w-full sm:max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Cari mapel..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9" />
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Cari mapel..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-9" />
+        </div>
+        <Select value={semesterId || "all"} onValueChange={(v) => { setSemesterId(v === "all" ? "" : v); setPage(1) }}>
+          <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder="Semua Semester" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Semester</SelectItem>
+            {semesterRefs.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.nama} ({s.tahunAjaran.nama})</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="rounded-2xl border overflow-x-auto">
@@ -282,15 +298,17 @@ export function MapelManagement(props: Props) {
                 <label className="text-sm font-medium">Nama Mapel *</label>
                 <Input value={formData.nama} onChange={(e) => setFormData((f) => ({ ...f, nama: e.target.value }))} placeholder="Matematika" />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Guru Pengampu *</label>
-                <Select value={formData.guruId || "none"} onValueChange={(v) => setFormData((f) => ({ ...f, guruId: v === "none" ? "" : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Pilih Guru" /></SelectTrigger>
-                  <SelectContent>
-                    {guruRefs.map((g) => <SelectItem key={g.id} value={g.id}>{g.nama}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!editing && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Guru Pengampu *</label>
+                  <Select value={formData.guruId || "none"} onValueChange={(v) => setFormData((f) => ({ ...f, guruId: v === "none" ? "" : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Pilih Guru" /></SelectTrigger>
+                    <SelectContent>
+                      {guruRefs.map((g) => <SelectItem key={g.id} value={g.id}>{g.nama}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Semester *</label>
                 <Select value={formData.semesterId || "none"} onValueChange={(v) => setFormData((f) => ({ ...f, semesterId: v === "none" ? "" : v }))}>
@@ -305,17 +323,24 @@ export function MapelManagement(props: Props) {
                 <Input value={formData.deskripsi} onChange={(e) => setFormData((f) => ({ ...f, deskripsi: e.target.value }))} placeholder="Deskripsi" />
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Kelas yang Diajar *</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto rounded-xl border p-3">
-                {kelasRefs.map((k) => (
-                  <label key={k.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-accent rounded-lg p-1.5">
-                    <Checkbox checked={formData.kelasIds.includes(k.id)} onCheckedChange={() => toggleKelas(k.id)} />
-                    {k.nama}
-                  </label>
-                ))}
+            {!editing && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Kelas yang Diajar *</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto rounded-xl border p-3">
+                  {kelasRefs.map((k) => (
+                    <label key={k.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-accent rounded-lg p-1.5">
+                      <Checkbox checked={formData.kelasIds.includes(k.id)} onCheckedChange={() => toggleKelas(k.id)} />
+                      {k.nama}
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+            {editing && (
+              <p className="text-xs text-muted-foreground">
+                Guru dan kelas diatur lewat tombol Kelas pada daftar mapel agar tetap sama dengan data raport.
+              </p>
+            )}
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => { setDialogOpen(false); resetForm() }}>Batal</Button>
               <Button type="submit" disabled={submitting}>

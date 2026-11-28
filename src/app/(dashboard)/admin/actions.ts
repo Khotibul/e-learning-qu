@@ -356,10 +356,11 @@ export async function deleteKelas(id: string) {
 
 // ─── MAPEL ───────────────────────────────────────────────
 
-export async function getMapels(params: { search?: string; page?: number; limit?: number }) {
+export async function getMapels(params: { search?: string; semesterId?: string; page?: number; limit?: number }) {
   await requireAdmin()
-  const { search, page = 1, limit = 10 } = params
+  const { search, semesterId, page = 1, limit = 10 } = params
   const where: Record<string, unknown> = { deletedAt: null }
+  if (semesterId) where.semesterId = semesterId
   if (search) {
     where.OR = [
       { nama: { contains: search, mode: "insensitive" } },
@@ -647,12 +648,10 @@ export async function getNilais(params: {
   await requireAdmin()
   const { kelasId, mapelId, semesterId, page = 1, limit = 20 } = params
   const where: Record<string, unknown> = { deletedAt: null }
-  if (kelasId) where.kelasId = kelasId
   if (mapelId) where.mataPelajaranId = mapelId
   if (semesterId) where.semesterId = semesterId
-  if (kelasId && !mapelId) {
-    where.siswa = { kelasId }
-  }
+  // Nilai tidak menyimpan kelasId; kelas melekat pada siswa.
+  if (kelasId) where.siswa = { kelasId }
   const [data, total] = await Promise.all([
     prisma.nilai.findMany({
       where: where as any,
@@ -743,7 +742,7 @@ export async function getMapelRefs() {
   await requireAdmin()
   return prisma.mataPelajaran.findMany({
     where: { deletedAt: null },
-    select: { id: true, nama: true, kode: true },
+    select: { id: true, nama: true, kode: true, semesterId: true },
     orderBy: { nama: "asc" },
   })
 }

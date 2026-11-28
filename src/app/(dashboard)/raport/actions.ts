@@ -114,7 +114,15 @@ export async function getRaportRefs() {
     prisma.mataPelajaran.findMany({
       where: {
         deletedAt: null,
-        ...(admin ? {} : { pengajaran: { some: { guruId: guru!.id, deletedAt: null } } }),
+        ...(admin
+          ? {}
+          : {
+              OR: [
+                { pengajaran: { some: { guruId: guru!.id, deletedAt: null } } },
+                { komponenNilai: { some: { guruId: guru!.id, deletedAt: null } } },
+                { ujians: { some: { guruId: guru!.id, deletedAt: null } } },
+              ],
+            }),
       },
       select: { id: true, nama: true, kode: true, semesterId: true },
       orderBy: { nama: "asc" },
@@ -389,9 +397,13 @@ async function susunRekap(kelasId: string, semesterId: string): Promise<BarisRek
     pengaturanSemester(semesterId),
   ])
 
+  // Mapel yang punya nilai pada semester ini ikut dimasukkan, meskipun
+  // data mapelnya tercatat di semester lain. Dengan begitu nilai yang tampil
+  // di menu Nilai selalu ikut terhitung di raport.
   const mapelIds = new Set<string>([
     ...pengajarans.map((p) => p.mataPelajaran.id),
     ...komponens.map((k) => k.mapelId),
+    ...nilaiUjian.map((n) => n.mataPelajaranId),
   ])
   const mapels =
     mapelIds.size === 0
@@ -466,6 +478,105 @@ export async function getRekapKelas(kelasId: string, semesterId: string) {
     if (!boleh) throw new Error("Akses ditolak")
   }
   return susunRekap(kelasId, semesterId)
+}
+
+export async function getRekapNilaiAdmin(params: {
+  kelasId?: string
+  mapelId?: string
+  semesterId?: string
+  search?: string
+  page?: number
+  limit?: number
+}) {
+  const user = await penggunaAktif()
+  if (user.role !== "ADMIN") throw new Error("Akses ditolak")
+
+  const page = Math.max(1, params.page ?? 1)
+  const limit = Math.max(1, params.limit ?? 20)
+  const semesterId =
+    params.semesterId ||
+    (
+      await prisma.semester.findFirst({
+        where: { deletedAt: null },
+        select: { id: true },
+        orderBy: [{ isAktif: "desc" }, { createdAt: "desc" }],
+      })
+    )?.id
+
+  const kosong = { data: [], total: 0, totalPages: 0, page, limit, semesterId: semesterId ?? null, summary: { terisi: 0, kosong: 0, rataRata: null as number | null } }
+  if (!semesterId) return kosong
+
+  const kelasList = await prisma.kelas.findMany({
+    where: { deletedAt: null, ...(params.kelasId ? { id: params.kelasId } : {}) },
+    select: { id: true, nama: true, tingkat: true },
+    orderBy: [{ tingkat: "asc" }, { nama: "asc" }],
+  })
+
+  const rekaps = await Promise.all(
+    kelasList.map(async (kelas) => ({ kelas, rekap: await susunRekap(kelas.id, semesterId) })),
+  )
+
+  const rows: {
+    id: string
+    siswa: { id: string; nama: string; nis: string | null; nisn: string | null }
+    kelas: { id: string; nama: string }
+    mapel: { id: string; nama: string; kode: string }
+    nilai: number | null
+    predikat: string | null
+    sumber: "KOMPONEN" | "UJIAN" | null
+  }[] = []
+
+  for (const { kelas, rekap } of rekaps) {
+    for (const siswa of rekap.siswas) {
+      for (const mapel of rekap.mapels) {
+        if (params.mapelId && mapel.id !== params.mapelId) continue
+        const nilai = rekap.nilai[siswa.id]?.[mapel.id] ?? null
+        rows.push({
+          id: `${siswa.id}:${mapel.id}`,
+          siswa: { id: siswa.id, nama: siswa.nama, nis: siswa.nis, nisn: siswa.nisn },
+          kelas: { id: kelas.id, nama: kelas.nama },
+          mapel: { id: mapel.id, nama: mapel.nama, kode: mapel.kode },
+          nilai,
+          predikat: nilai == null ? null : predikatDari(nilai, rekap.pengaturan),
+          sumber: rekap.sumber[siswa.id]?.[mapel.id] ?? null,
+        })
+      }
+    }
+  }
+
+  const cari = params.search?.trim().toLowerCase()
+  const tersaring = cari
+    ? rows.filter((r) =>
+        [r.siswa.nama, r.siswa.nis ?? "", r.kelas.nama, r.mapel.nama, r.mapel.kode]
+          .join(" ")
+          .toLowerCase()
+          .includes(cari),
+      )
+    : rows
+
+  tersaring.sort(
+    (a, b) =>
+      a.kelas.nama.localeCompare(b.kelas.nama) ||
+      a.siswa.nama.localeCompare(b.siswa.nama) ||
+      a.mapel.nama.localeCompare(b.mapel.nama),
+  )
+
+  const terisi = tersaring.filter((r) => r.nilai != null)
+  const summary = {
+    terisi: terisi.length,
+    kosong: tersaring.length - terisi.length,
+    rataRata: rataRata(terisi.map((r) => r.nilai)),
+  }
+
+  return {
+    data: tersaring.slice((page - 1) * limit, page * limit),
+    total: tersaring.length,
+    totalPages: Math.ceil(tersaring.length / limit),
+    page,
+    limit,
+    semesterId,
+    summary,
+  }
 }
 
 export async function getRaportKelas(kelasId: string, semesterId: string) {

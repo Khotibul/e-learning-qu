@@ -1,10 +1,11 @@
 import { Suspense } from "react"
-import { getNilais, getKelasRefs, getMapelRefs, getSemesterRefs } from "../actions"
+import { getKelasRefs, getMapelRefs, getSemesterRefs } from "../actions"
+import { getRekapNilaiAdmin } from "../../raport/actions"
 import { NilaiOverview } from "../_components/nilai-overview"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface PageProps {
-  searchParams: Promise<{ kelas?: string; mapel?: string; semester?: string; page?: string }>
+  searchParams: Promise<{ kelas?: string; mapel?: string; semester?: string; search?: string; page?: string }>
 }
 
 function SkeletonPage() {
@@ -22,17 +23,18 @@ async function Content({ searchParams }: PageProps) {
   const kelasId = sp.kelas || undefined
   const mapelId = sp.mapel || undefined
   const semesterId = sp.semester || undefined
+  const search = sp.search || ""
   const page = parseInt(sp.page || "1")
 
-  const { data, total, totalPages } = await getNilais({
-    kelasId,
-    mapelId,
-    semesterId,
-    page,
-    limit: 20,
-  })
-
-  const [kelasRefs, mapelRefs, semesterRefs] = await Promise.all([
+  const [rekap, kelasRefs, mapelRefs, semesterRefs] = await Promise.all([
+    getRekapNilaiAdmin({
+      kelasId,
+      mapelId,
+      semesterId,
+      search,
+      page,
+      limit: 20,
+    }),
     getKelasRefs(),
     getMapelRefs(),
     getSemesterRefs(),
@@ -40,16 +42,18 @@ async function Content({ searchParams }: PageProps) {
 
   return (
     <NilaiOverview
-      initialData={data as any}
-      initialTotal={total}
-      initialTotalPages={totalPages}
+      initialData={rekap.data}
+      initialTotal={rekap.total}
+      initialTotalPages={rekap.totalPages}
       initialPage={page}
+      initialSearch={search}
       initialKelasId={kelasId ?? ""}
       initialMapelId={mapelId ?? ""}
-      initialSemesterId={semesterId ?? ""}
-      kelasRefs={kelasRefs as any}
-      mapelRefs={mapelRefs as any}
-      semesterRefs={semesterRefs as any}
+      initialSemesterId={rekap.semesterId ?? ""}
+      initialSummary={rekap.summary}
+      kelasRefs={kelasRefs}
+      mapelRefs={mapelRefs}
+      semesterRefs={semesterRefs}
     />
   )
 }
