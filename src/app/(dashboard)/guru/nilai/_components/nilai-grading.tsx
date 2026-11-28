@@ -31,6 +31,7 @@ interface UjianRef {
   nama: string
   status: string
   komponenRaport: JenisKomponen | null
+  bobotRaport: number
 }
 
 interface JawabanItem {
@@ -50,7 +51,8 @@ export function NilaiGradingClient() {
   const [tab, setTab] = useState<TabType>("ujian")
   const [ujians, setUjians] = useState<UjianRef[]>([])
   const [selectedUjianId, setSelectedUjianId] = useState("")
-  const [ujianDetail, setUjianDetail] = useState<{ id: string; nama: string; mataPelajaran: { nama: string }; kelas: { nama: string }; nilaiMinimum?: number; komponenRaport?: JenisKomponen | null } | null>(null)
+  const [ujianDetail, setUjianDetail] = useState<{ id: string; nama: string; mataPelajaran: { nama: string }; kelas: { nama: string }; nilaiMinimum?: number; komponenRaport?: JenisKomponen | null; bobotRaport?: number } | null>(null)
+  const [bobotDraft, setBobotDraft] = useState("1")
   const [jawabans, setJawabans] = useState<JawabanItem[]>([])
   const [nilaiMap, setNilaiMap] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
@@ -85,6 +87,7 @@ export function NilaiGradingClient() {
     try {
       const result = await getNilaiByUjian(selectedUjianId)
       setUjianDetail({ ...result.ujian, nilaiMinimum: result.nilaiMinimum } as any)
+      setBobotDraft(String((result.ujian as { bobotRaport?: number }).bobotRaport ?? 1))
       setJawabans(result.jawabans as any)
       setNilaiMap(result.nilaiMap ?? {})
 
@@ -117,6 +120,26 @@ export function NilaiGradingClient() {
       toast.success(komponen ? "Komponen raport diperbarui" : "Nilai tidak masuk raport")
     } catch {
       toast.error("Gagal menyimpan komponen raport")
+    }
+  }
+
+  const simpanBobotRaport = async () => {
+    if (!ujianDetail?.komponenRaport) return
+    const bobot = Number(bobotDraft)
+    if (!Number.isFinite(bobot) || bobot < 1 || bobot > 100) {
+      toast.error("Bobot harus 1–100")
+      setBobotDraft(String(ujianDetail.bobotRaport ?? 1))
+      return
+    }
+    if (bobot === ujianDetail.bobotRaport) return
+    try {
+      await aturKomponenRaportUjian(ujianDetail.id, ujianDetail.komponenRaport, bobot)
+      setUjianDetail((prev) => (prev ? { ...prev, bobotRaport: bobot } : prev))
+      setUjians((prev) => prev.map((u) => (u.id === ujianDetail.id ? { ...u, bobotRaport: bobot } : u)))
+      toast.success("Bobot komponen raport diperbarui")
+    } catch {
+      toast.error("Gagal menyimpan bobot komponen raport")
+      setBobotDraft(String(ujianDetail.bobotRaport ?? 1))
     }
   }
 
@@ -277,6 +300,21 @@ export function NilaiGradingClient() {
                   ))}
                 </SelectContent>
               </Select>
+              {ujianDetail.komponenRaport && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm">Bobot:</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={bobotDraft}
+                    onChange={(e) => setBobotDraft(e.target.value)}
+                    onBlur={simpanBobotRaport}
+                    className="h-8 w-20"
+                    aria-label="Bobot komponen raport"
+                  />
+                </div>
+              )}
               <span className="text-xs text-muted-foreground">
                 Nilai {tab === "latihan" ? "latihan" : "ujian"} ini dihitung pada komponen tersebut saat raport disusun.
               </span>

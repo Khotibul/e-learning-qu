@@ -36,6 +36,7 @@ export interface KomponenRow {
   bobot: number
   tanggal: string | Date
   _count: { nilais: number }
+  otomatis?: boolean
 }
 
 export interface RaportBaris {

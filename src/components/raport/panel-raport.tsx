@@ -292,7 +292,9 @@ export function PanelRaport({ refs, mode }: { refs: RaportRefs; mode: "admin" | 
                       const isi = data.mapels.filter((m) => data.nilai[s.id]?.[m.id] != null).length
                       const nilaiList = data.mapels.map((m) => data.nilai[s.id]?.[m.id] ?? null)
                       const isiAngka = nilaiList.filter((n): n is number => n != null)
-                      const rata = raport?.rataRata ?? (isiAngka.length ? Math.round((isiAngka.reduce((a, b) => a + b, 0) / isiAngka.length) * 100) / 100 : null)
+                      const rataLive = isiAngka.length ? Math.round((isiAngka.reduce((a, b) => a + b, 0) / isiAngka.length) * 100) / 100 : null
+                      // Draft selalu ikut nilai terbaru (termasuk komponen otomatis dari ujian).
+                      const rata = raport?.status === "TERBIT" ? raport.rataRata ?? rataLive : rataLive
                       return (
                         <TableRow key={s.id}>
                           <TableCell className="text-muted-foreground">{i + 1}</TableCell>
@@ -355,7 +357,9 @@ export function PanelRaport({ refs, mode }: { refs: RaportRefs; mode: "admin" | 
                   </TableHeader>
                   <TableBody>
                     {data.mapels.map((m) => {
-                      const tersimpan = selected.raport?.nilais.find((n) => n.mapelId === m.id)
+                      const tersimpan = selected.raport?.status === "TERBIT"
+                        ? selected.raport.nilais.find((n) => n.mapelId === m.id)
+                        : undefined
                       const nilai = tersimpan?.nilaiAkhir ?? data.nilai[selected.siswa.id]?.[m.id] ?? null
                       const predikat = tersimpan?.predikat ?? (nilai != null ? predikatDari(nilai, data.pengaturan) : "-")
                       return (
@@ -368,7 +372,11 @@ export function PanelRaport({ refs, mode }: { refs: RaportRefs; mode: "admin" | 
                             )}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            {tersimpan?.deskripsi ?? (data.sumber[selected.siswa.id]?.[m.id] === "UJIAN" ? "Dari rata-rata nilai ujian." : "Belum ada nilai.")}
+                            {tersimpan?.deskripsi ?? (nilai == null
+                              ? "Belum ada nilai."
+                              : data.sumber[selected.siswa.id]?.[m.id] === "UJIAN"
+                                ? "Dari rata-rata nilai ujian."
+                                : "Dari komponen nilai raport.")}
                           </TableCell>
                         </TableRow>
                       )

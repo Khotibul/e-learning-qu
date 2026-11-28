@@ -82,6 +82,7 @@ interface UjianData {
   mode: string
   isLatihan: boolean
   komponenRaport: JenisKomponen | null
+  bobotRaport: number
   status: string
   randomSoal: boolean
   randomJawaban: boolean
@@ -138,6 +139,7 @@ export function UjianFormClient({
   const [mode, setMode] = useState(ujian?.mode ?? "manual")
   const [isLatihan, setIsLatihan] = useState(ujian?.isLatihan ?? false)
   const [komponenRaport, setKomponenRaport] = useState(ujian?.komponenRaport ?? "NONE")
+  const [bobotRaport, setBobotRaport] = useState(String(ujian?.bobotRaport ?? 1))
   const [randomSoal, setRandomSoal] = useState(ujian?.randomSoal ?? true)
   const [randomJawaban, setRandomJawaban] = useState(ujian?.randomJawaban ?? true)
   const [fullscreen, setFullscreen] = useState(ujian?.fullscreen ?? true)
@@ -254,6 +256,7 @@ export function UjianFormClient({
         mode,
         isLatihan,
         komponenRaport: komponenRaport === "NONE" ? null : (komponenRaport as JenisKomponen),
+        bobotRaport: Number(bobotRaport) || 1,
         randomSoal,
         randomJawaban,
         fullscreen,
@@ -355,6 +358,22 @@ export function UjianFormClient({
                 <p className="text-xs text-muted-foreground">
                   Nilai {isLatihan ? "latihan" : "ujian"} ini akan dihitung sebagai komponen yang dipilih saat menyusun raport.
                 </p>
+                {komponenRaport !== "NONE" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="bobotRaport">Bobot komponen raport</Label>
+                    <Input
+                      id="bobotRaport"
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={bobotRaport}
+                      onChange={(e) => setBobotRaport(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Bobot ini dipakai saat nilai ujian dihitung bersama komponen lain di raport.
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

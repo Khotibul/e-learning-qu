@@ -282,6 +282,7 @@ model Siswa {
   santri              Santri?
   konflikIzin         IzinKonflikAbsensi[]
   komponenNilai       NilaiKomponen[]
+  nilaiUjianRaport    NilaiUjianRaport[]
   raports             Raport[]
 
   @@index([kelasId])
@@ -628,6 +629,7 @@ model Ujian {
   tipe             String      @default("REGULER")
   isLatihan        Boolean     @default(false)
   komponenRaport   JenisKomponenNilai?
+  bobotRaport      Int                 @default(1)
   randomSoal       Boolean     @default(true)
   randomJawaban    Boolean     @default(true)
   fullscreen       Boolean     @default(true)
@@ -648,6 +650,7 @@ model Ujian {
   ujianSoal       UjianSoal[]
   jawabanUjian    JawabanUjian[]
   nilai           Nilai[]
+  nilaiUjianRaport NilaiUjianRaport[]
   pretestPosttest PretestPosttest[]
   examSessions    ExamSession[]
   examAuditLogs   ExamAuditLog[]
@@ -3295,4 +3298,24 @@ model RaportNilai {
 
   @@unique([raportId, mapelId])
   @@map("raport_nilai")
+}
+
+/// Nilai komponen raport yang berasal dari ujian, diedit manual di raport.
+/// Baris di sini tidak mengubah nilai ujian asli (tabel nilai).
+model NilaiUjianRaport {
+  id        String   @id @default(uuid()) @db.Uuid
+  ujianId   String   @db.Uuid
+  siswaId   String   @db.Uuid
+  nilai     Float?
+  catatan   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ujian Ujian @relation(fields: [ujianId], references: [id], onDelete: Cascade)
+  siswa Siswa @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@unique([ujianId, siswaId])
+  @@index([ujianId])
+  @@index([siswaId])
+  @@map("nilai_ujian_raport")
 }

@@ -25,7 +25,7 @@ import {
 import type { KomponenRow, RaportRefs } from "./types"
 
 interface GridState {
-  komponen: { id: string; nama: string; jenis: string; bobot: number; mapel: { nama: string }; kelas: { nama: string } }
+  komponen: { id: string; nama: string; jenis: string; bobot: number; mapel: { nama: string }; kelas: { nama: string }; otomatis?: boolean }
   siswas: { id: string; nama: string; nis: string | null; nilai: number | null; catatan: string }[]
 }
 
@@ -262,7 +262,12 @@ export function PanelNilai({ refs }: { refs: RaportRefs }) {
                 <TableBody>
                   {komponens.map((k) => (
                     <TableRow key={k.id}>
-                      <TableCell className="font-medium">{k.nama}</TableCell>
+                      <TableCell className="font-medium">
+                        {k.nama}
+                        {k.otomatis && (
+                          <Badge variant="secondary" className="ml-2 text-[10px]">Dari ujian</Badge>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px]">{k.jenis}</Badge>
                       </TableCell>
@@ -274,11 +279,13 @@ export function PanelNilai({ refs }: { refs: RaportRefs }) {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button size="sm" variant="outline" onClick={() => bukaGrid(k.id)}>
-                            <ClipboardList className="h-3.5 w-3.5 mr-1" /> Input
+                            <ClipboardList className="h-3.5 w-3.5 mr-1" /> {k.otomatis ? "Edit" : "Input"}
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => hapus(k.id)} aria-label="Hapus komponen">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          {!k.otomatis && (
+                            <Button size="icon" variant="ghost" onClick={() => hapus(k.id)} aria-label="Hapus komponen">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -294,10 +301,18 @@ export function PanelNilai({ refs }: { refs: RaportRefs }) {
         <Card>
           <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
             <div>
-              <CardTitle className="text-base">Input nilai — {grid.komponen.nama}</CardTitle>
+              <CardTitle className="text-base">
+                {grid.komponen.otomatis ? "Nilai ujian" : "Input nilai"} — {grid.komponen.nama}
+              </CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
                 {grid.komponen.mapel.nama} • {grid.komponen.kelas.nama} • bobot komponen {grid.komponen.bobot}
               </p>
+              {grid.komponen.otomatis && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Nilai ini berasal dari ujian. Perubahan di sini hanya tersimpan di raport dan tidak
+                  mengubah nilai ujian asli.
+                </p>
+              )}
             </div>
             <Button size="sm" onClick={simpanGrid} disabled={menyimpan}>
               <Save className="h-4 w-4 mr-1.5" /> {menyimpan ? "Menyimpan..." : "Simpan nilai"}
@@ -310,7 +325,7 @@ export function PanelNilai({ refs }: { refs: RaportRefs }) {
                   <TableHead className="w-10">No</TableHead>
                   <TableHead>Nama siswa</TableHead>
                   <TableHead>NIS</TableHead>
-                  <TableHead className="w-28 text-center">Nilai (0–100)</TableHead>
+                  <TableHead className="w-32 text-center whitespace-nowrap">Nilai (0–100)</TableHead>
                   <TableHead className="w-56">Catatan</TableHead>
                 </TableRow>
               </TableHeader>

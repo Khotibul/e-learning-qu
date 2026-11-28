@@ -439,6 +439,7 @@ export async function createUjian(data: {
   mode: string
   isLatihan: boolean
   komponenRaport?: JenisKomponen | null
+  bobotRaport?: number
   randomSoal: boolean
   randomJawaban: boolean
   fullscreen: boolean
@@ -486,6 +487,7 @@ export async function createUjian(data: {
       mode: data.mode,
       isLatihan: data.isLatihan,
       komponenRaport: data.komponenRaport ?? null,
+      bobotRaport: Math.min(100, Math.max(1, Math.round(data.bobotRaport ?? 1))),
       randomSoal: data.randomSoal,
       randomJawaban: data.randomJawaban,
       fullscreen: data.fullscreen,
@@ -530,6 +532,7 @@ export async function updateUjian(
     mode?: string
     isLatihan?: boolean
     komponenRaport?: JenisKomponen | null
+    bobotRaport?: number
     randomSoal?: boolean
     randomJawaban?: boolean
     fullscreen?: boolean
@@ -582,6 +585,7 @@ export async function updateUjian(
   if (data.mode !== undefined) updateData.mode = data.mode
   if (data.isLatihan !== undefined) updateData.isLatihan = data.isLatihan
   if (data.komponenRaport !== undefined) updateData.komponenRaport = data.komponenRaport
+  if (data.bobotRaport !== undefined) updateData.bobotRaport = Math.min(100, Math.max(1, Math.round(data.bobotRaport)))
   if (data.randomSoal !== undefined) updateData.randomSoal = data.randomSoal
   if (data.randomJawaban !== undefined) updateData.randomJawaban = data.randomJawaban
   if (data.fullscreen !== undefined) updateData.fullscreen = data.fullscreen
@@ -635,6 +639,7 @@ export async function duplicateUjian(id: string) {
       mode: original.mode,
       isLatihan: original.isLatihan,
       komponenRaport: original.komponenRaport,
+      bobotRaport: original.bobotRaport,
       randomSoal: original.randomSoal,
       randomJawaban: original.randomJawaban,
       fullscreen: original.fullscreen,
@@ -747,7 +752,7 @@ export async function getNilaiUjians() {
   const guru = await getCurrentGuru()
   return prisma.ujian.findMany({
     where: { guruId: guru.id, deletedAt: null, isLatihan: false },
-    select: { id: true, nama: true, status: true, komponenRaport: true },
+    select: { id: true, nama: true, status: true, komponenRaport: true, bobotRaport: true },
     orderBy: { createdAt: "desc" },
   })
 }
@@ -756,12 +761,12 @@ export async function getNilaiLatihans() {
   const guru = await getCurrentGuru()
   return prisma.ujian.findMany({
     where: { guruId: guru.id, deletedAt: null, isLatihan: true },
-    select: { id: true, nama: true, status: true, komponenRaport: true },
+    select: { id: true, nama: true, status: true, komponenRaport: true, bobotRaport: true },
     orderBy: { createdAt: "desc" },
   })
 }
 
-export async function aturKomponenRaportUjian(ujianId: string, komponenRaport: JenisKomponen | null) {
+export async function aturKomponenRaportUjian(ujianId: string, komponenRaport: JenisKomponen | null, bobotRaport?: number) {
   const guru = await getCurrentGuru()
   const ujian = await prisma.ujian.findFirst({
     where: { id: ujianId, guruId: guru.id, deletedAt: null },
@@ -771,7 +776,10 @@ export async function aturKomponenRaportUjian(ujianId: string, komponenRaport: J
 
   await prisma.ujian.update({
     where: { id: ujianId },
-    data: { komponenRaport },
+    data: {
+      komponenRaport,
+      ...(bobotRaport !== undefined ? { bobotRaport: Math.min(100, Math.max(1, Math.round(bobotRaport))) } : {}),
+    },
   })
   revalidatePath("/guru/nilai")
   revalidatePath("/guru/ujian")

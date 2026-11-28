@@ -99,7 +99,7 @@ async function susunRekap(
   semesterId: string,
   pengaturan: Pengaturan,
 ): Promise<Rekap> {
-  const [siswas, pengajarans, komponens, nilaiUjian] = await Promise.all([
+  const [siswas, pengajarans, komponens, nilaiUjian, nilaiUjianRaport] = await Promise.all([
     db.siswa.findMany({
       where: { kelasId, deletedAt: null },
       select: { id: true, nama: true },
@@ -122,9 +122,19 @@ async function susunRekap(
       where: { semesterId, deletedAt: null, siswa: { kelasId, deletedAt: null } },
       select: {
         siswaId: true,
+        ujianId: true,
         mataPelajaranId: true,
         nilai: true,
-        ujian: { select: { komponenRaport: true } },
+        ujian: { select: { komponenRaport: true, bobotRaport: true } },
+      },
+    }),
+    db.nilaiUjianRaport.findMany({
+      where: { siswa: { kelasId, deletedAt: null }, ujian: { semesterId, deletedAt: null } },
+      select: {
+        ujianId: true,
+        siswaId: true,
+        nilai: true,
+        ujian: { select: { mataPelajaranId: true, komponenRaport: true, bobotRaport: true } },
       },
     }),
   ])
@@ -133,6 +143,7 @@ async function susunRekap(
     ...pengajarans.map((p) => p.mataPelajaran.id),
     ...komponens.map((k) => k.mapelId),
     ...nilaiUjian.map((n) => n.mataPelajaranId),
+    ...nilaiUjianRaport.filter((o) => o.ujian.komponenRaport).map((o) => o.ujian.mataPelajaranId),
   ])
   const mapels =
     mapelIds.size === 0
@@ -150,19 +161,35 @@ async function susunRekap(
     komponenByMapel.set(k.mapelId, arr)
   }
 
+  const overrideMap = new Map<string, number | null>()
+  for (const o of nilaiUjianRaport) overrideMap.set(`${o.ujianId}:${o.siswaId}`, o.nilai)
+
   const nilaiUjianBySiswaMapel = new Map<string, number[]>()
   const komponenUjianBySiswaMapel = new Map<string, { jenis: string; bobot: number; nilai: number }[]>()
+  const diproses = new Set<string>()
   for (const n of nilaiUjian) {
     const key = `${n.siswaId}:${n.mataPelajaranId}`
     if (n.ujian?.komponenRaport) {
+      const kunciOverride = `${n.ujianId}:${n.siswaId}`
+      diproses.add(kunciOverride)
+      const nilai = overrideMap.has(kunciOverride) ? overrideMap.get(kunciOverride) : n.nilai
+      if (nilai == null) continue
       const arr = komponenUjianBySiswaMapel.get(key) ?? []
-      arr.push({ jenis: n.ujian.komponenRaport, bobot: 1, nilai: n.nilai })
+      arr.push({ jenis: n.ujian.komponenRaport, bobot: n.ujian.bobotRaport ?? 1, nilai })
       komponenUjianBySiswaMapel.set(key, arr)
     } else {
       const arr = nilaiUjianBySiswaMapel.get(key) ?? []
       arr.push(n.nilai)
       nilaiUjianBySiswaMapel.set(key, arr)
     }
+  }
+  for (const o of nilaiUjianRaport) {
+    if (!o.ujian.komponenRaport || o.nilai == null) continue
+    if (diproses.has(`${o.ujianId}:${o.siswaId}`)) continue
+    const key = `${o.siswaId}:${o.ujian.mataPelajaranId}`
+    const arr = komponenUjianBySiswaMapel.get(key) ?? []
+    arr.push({ jenis: o.ujian.komponenRaport, bobot: o.ujian.bobotRaport ?? 1, nilai: o.nilai })
+    komponenUjianBySiswaMapel.set(key, arr)
   }
 
   const nilai: Record<string, Record<string, number | null>> = {}

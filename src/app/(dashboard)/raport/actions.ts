@@ -201,22 +201,127 @@ export async function simpanPengaturanRaport(input: {
 export async function getKomponens(mapelId: string, kelasId: string, semesterId: string) {
   const user = await penggunaAktif()
   await pastikanGuruMapel(mapelId, kelasId, user)
-  return prisma.komponenNilai.findMany({
-    where: { mapelId, kelasId, semesterId, deletedAt: null },
-    select: {
-      id: true,
-      nama: true,
-      jenis: true,
-      bobot: true,
-      tanggal: true,
-      _count: { select: { nilais: { where: { nilai: { not: null } } } } },
-    },
-    orderBy: [{ tanggal: "asc" }, { createdAt: "asc" }],
-  })
+  const [komponens, ujians] = await Promise.all([
+    prisma.komponenNilai.findMany({
+      where: { mapelId, kelasId, semesterId, deletedAt: null },
+      select: {
+        id: true,
+        nama: true,
+        jenis: true,
+        bobot: true,
+        tanggal: true,
+        _count: { select: { nilais: { where: { nilai: { not: null } } } } },
+      },
+      orderBy: [{ tanggal: "asc" }, { createdAt: "asc" }],
+    }),
+    // Ujian/latihan yang sudah ditandai komponen raport otomatis ikut tampil
+    // sebagai komponen (read-only) agar nilainya terlihat di raport.
+    prisma.ujian.findMany({
+      where: {
+        mataPelajaranId: mapelId,
+        kelasId,
+        semesterId,
+        komponenRaport: { not: null },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        nama: true,
+        komponenRaport: true,
+        bobotRaport: true,
+        tanggal: true,
+        nilai: { where: { deletedAt: null }, select: { siswaId: true, nilai: true } },
+        nilaiUjianRaport: { select: { siswaId: true, nilai: true } },
+      },
+      orderBy: [{ tanggal: "asc" }, { createdAt: "asc" }],
+    }),
+  ])
+  return [
+    ...komponens.map((k) => ({ ...k, otomatis: false })),
+    ...ujians.map((u) => {
+      const nilaiUjian = new Map(u.nilai.map((n) => [n.siswaId, n.nilai]))
+      const override = new Map(u.nilaiUjianRaport.map((o) => [o.siswaId, o.nilai]))
+      let terisi = 0
+      for (const siswaId of new Set([...nilaiUjian.keys(), ...override.keys()])) {
+        const nilai = override.has(siswaId) ? override.get(siswaId) : nilaiUjian.get(siswaId)
+        if (nilai != null) terisi++
+      }
+      return {
+        id: `ujian:${u.id}`,
+        nama: u.nama,
+        jenis: u.komponenRaport as string,
+        bobot: u.bobotRaport,
+        tanggal: u.tanggal,
+        _count: { nilais: terisi },
+        otomatis: true,
+      }
+    }),
+  ].sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime())
 }
 
 export async function getNilaiGrid(komponenId: string) {
   const user = await penggunaAktif()
+
+  if (komponenId.startsWith("ujian:")) {
+    const ujianId = komponenId.slice("ujian:".length)
+    const ujian = await prisma.ujian.findFirst({
+      where: { id: ujianId, deletedAt: null },
+      select: {
+        id: true,
+        nama: true,
+        komponenRaport: true,
+        bobotRaport: true,
+        mataPelajaranId: true,
+        kelasId: true,
+        semesterId: true,
+        mataPelajaran: { select: { nama: true } },
+        kelas: { select: { nama: true } },
+      },
+    })
+    if (!ujian || !ujian.komponenRaport) throw new Error("Komponen nilai dari ujian tidak ditemukan")
+    await pastikanGuruMapel(ujian.mataPelajaranId, ujian.kelasId, user)
+
+    const [siswas, nilais, overrides] = await Promise.all([
+      prisma.siswa.findMany({
+        where: { kelasId: ujian.kelasId, deletedAt: null },
+        select: { id: true, nama: true, nis: true },
+        orderBy: { nama: "asc" },
+      }),
+      prisma.nilai.findMany({
+        where: { ujianId, deletedAt: null },
+        select: { siswaId: true, nilai: true },
+      }),
+      prisma.nilaiUjianRaport.findMany({
+        where: { ujianId },
+        select: { siswaId: true, nilai: true, catatan: true },
+      }),
+    ])
+    const nilaiUjian = new Map(nilais.map((n) => [n.siswaId, n.nilai]))
+    const overrideBySiswa = new Map(overrides.map((o) => [o.siswaId, o]))
+    return {
+      komponen: {
+        id: komponenId,
+        nama: ujian.nama,
+        jenis: ujian.komponenRaport,
+        bobot: ujian.bobotRaport,
+        mapelId: ujian.mataPelajaranId,
+        kelasId: ujian.kelasId,
+        semesterId: ujian.semesterId,
+        mapel: ujian.mataPelajaran,
+        kelas: ujian.kelas,
+        otomatis: true,
+      },
+      siswas: siswas.map((s) => {
+        const override = overrideBySiswa.get(s.id)
+        return {
+          ...s,
+          nilai: override ? override.nilai : nilaiUjian.get(s.id) ?? null,
+          catatan: override?.catatan ?? "",
+        }
+      }),
+    }
+  }
+
   const komponen = await prisma.komponenNilai.findFirst({
     where: { id: komponenId, deletedAt: null },
     select: {
@@ -329,6 +434,44 @@ export async function hapusKomponen(id: string) {
 
 export async function simpanNilaiKomponen(komponenId: string, rows: { siswaId: string; nilai: number | null; catatan?: string }[]) {
   const user = await penggunaAktif()
+
+  if (komponenId.startsWith("ujian:")) {
+    const ujianId = komponenId.slice("ujian:".length)
+    const ujian = await prisma.ujian.findFirst({
+      where: { id: ujianId, deletedAt: null },
+      select: { id: true, mataPelajaranId: true, kelasId: true, komponenRaport: true },
+    })
+    if (!ujian || !ujian.komponenRaport) throw new Error("Komponen nilai dari ujian tidak ditemukan")
+    await pastikanGuruMapel(ujian.mataPelajaranId, ujian.kelasId, user)
+
+    for (const row of rows) {
+      if (row.nilai != null && (!Number.isFinite(row.nilai) || row.nilai < 0 || row.nilai > 100)) {
+        throw new Error("Nilai harus berada di antara 0 dan 100")
+      }
+    }
+    const nilaiAsli = await prisma.nilai.findMany({
+      where: { ujianId },
+      select: { siswaId: true, nilai: true },
+    })
+    const asliMap = new Map(nilaiAsli.map((n) => [n.siswaId, n.nilai]))
+    // Baris yang sama dengan nilai ujian asli tidak perlu disimpan sebagai override.
+    await prisma.$transaction(
+      rows.map((row) => {
+        const catatan = row.catatan?.trim() || null
+        if (row.nilai === (asliMap.get(row.siswaId) ?? null) && !catatan) {
+          return prisma.nilaiUjianRaport.deleteMany({ where: { ujianId, siswaId: row.siswaId } })
+        }
+        return prisma.nilaiUjianRaport.upsert({
+          where: { ujianId_siswaId: { ujianId, siswaId: row.siswaId } },
+          create: { ujianId, siswaId: row.siswaId, nilai: row.nilai, catatan },
+          update: { nilai: row.nilai, catatan },
+        })
+      }),
+    )
+    segarkan()
+    return
+  }
+
   const komponen = await prisma.komponenNilai.findFirst({
     where: { id: komponenId, deletedAt: null },
     select: { mapelId: true, kelasId: true },
@@ -367,7 +510,7 @@ type BarisRekap = {
 // Salinan logika rekap ini ada di src/lib/audit-raport.ts (audit mandiri tanpa sesi).
 // Bila aturan rekap berubah, samakan juga fungsi tersebut.
 async function susunRekap(kelasId: string, semesterId: string): Promise<BarisRekap> {
-  const [siswas, pengajarans, komponens, nilaiUjian, pengaturan] = await Promise.all([
+  const [siswas, pengajarans, komponens, nilaiUjian, nilaiUjianRaport, pengaturan] = await Promise.all([
     prisma.siswa.findMany({
       where: { kelasId, deletedAt: null },
       select: { id: true, nama: true, nis: true, nisn: true },
@@ -391,9 +534,19 @@ async function susunRekap(kelasId: string, semesterId: string): Promise<BarisRek
       where: { semesterId, deletedAt: null, siswa: { kelasId, deletedAt: null } },
       select: {
         siswaId: true,
+        ujianId: true,
         mataPelajaranId: true,
         nilai: true,
-        ujian: { select: { komponenRaport: true } },
+        ujian: { select: { komponenRaport: true, bobotRaport: true } },
+      },
+    }),
+    prisma.nilaiUjianRaport.findMany({
+      where: { siswa: { kelasId, deletedAt: null }, ujian: { semesterId, deletedAt: null } },
+      select: {
+        ujianId: true,
+        siswaId: true,
+        nilai: true,
+        ujian: { select: { mataPelajaranId: true, komponenRaport: true, bobotRaport: true } },
       },
     }),
     pengaturanSemester(semesterId),
@@ -406,6 +559,7 @@ async function susunRekap(kelasId: string, semesterId: string): Promise<BarisRek
     ...pengajarans.map((p) => p.mataPelajaran.id),
     ...komponens.map((k) => k.mapelId),
     ...nilaiUjian.map((n) => n.mataPelajaranId),
+    ...nilaiUjianRaport.filter((o) => o.ujian.komponenRaport).map((o) => o.ujian.mataPelajaranId),
   ])
   const mapels =
     mapelIds.size === 0
@@ -425,20 +579,41 @@ async function susunRekap(kelasId: string, semesterId: string): Promise<BarisRek
   // Nilai ujian/latihan yang sudah ditandai komponen raport ikut dihitung
   // sebagai komponen pada jenisnya. Sisanya tetap menjadi cadangan rata-rata
   // bila mapel belum punya komponen sama sekali.
+  // Override yang diedit di raport menang atas nilai ujian asli; nilai ujian
+  // di tabel Nilai tidak diubah. Jika override null, nilai dianggap kosong.
+  const overrideMap = new Map<string, number | null>()
+  for (const o of nilaiUjianRaport) overrideMap.set(`${o.ujianId}:${o.siswaId}`, o.nilai)
+
   const nilaiUjianBySiswaMapel = new Map<string, number[]>()
   const komponenUjianBySiswaMapel = new Map<string, { jenis: string; bobot: number; nilai: number }[]>()
+  const diproses = new Set<string>()
   for (const n of nilaiUjian) {
     const key = `${n.siswaId}:${n.mataPelajaranId}`
     const jenis = n.ujian?.komponenRaport
     if (jenis) {
+      const kunciOverride = `${n.ujianId}:${n.siswaId}`
+      diproses.add(kunciOverride)
+      const nilai = overrideMap.has(kunciOverride) ? overrideMap.get(kunciOverride) : n.nilai
+      if (nilai == null) continue
       const arr = komponenUjianBySiswaMapel.get(key) ?? []
-      arr.push({ jenis, bobot: 1, nilai: n.nilai })
+      arr.push({ jenis, bobot: n.ujian?.bobotRaport ?? 1, nilai })
       komponenUjianBySiswaMapel.set(key, arr)
     } else {
       const arr = nilaiUjianBySiswaMapel.get(key) ?? []
       arr.push(n.nilai)
       nilaiUjianBySiswaMapel.set(key, arr)
     }
+  }
+  // Nilai raport dari ujian bisa diisi untuk siswa yang belum punya baris nilai
+  // ujian (mis. izin/terlambat), tetap tanpa mengubah data ujian.
+  for (const o of nilaiUjianRaport) {
+    const jenis = o.ujian.komponenRaport
+    if (!jenis || o.nilai == null) continue
+    if (diproses.has(`${o.ujianId}:${o.siswaId}`)) continue
+    const key = `${o.siswaId}:${o.ujian.mataPelajaranId}`
+    const arr = komponenUjianBySiswaMapel.get(key) ?? []
+    arr.push({ jenis, bobot: o.ujian.bobotRaport ?? 1, nilai: o.nilai })
+    komponenUjianBySiswaMapel.set(key, arr)
   }
 
   const nilai: BarisRekap["nilai"] = {}
