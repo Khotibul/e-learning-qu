@@ -127,6 +127,19 @@ npm run db:seed
 npm run db:studio
 ```
 
+### Audit Raport
+
+Memeriksa kesesuaian nilai raport (nilai akhir, predikat, rata-rata, peringkat, dan kelengkapan baris mapel) dengan data nilai sumber. Hanya membaca data.
+
+```bash
+npm run audit:raport          # audit semua kelas & semester, detail maksimal 100 baris
+npm run audit:raport -- --all # tampilkan semua detail
+```
+
+Kode keluar: `0` sesuai, `1` ada ketidaksesuaian, `2` audit gagal dijalankan. Hasil juga bisa dilihat di `/admin/audit-raport`.
+
+Audit berjalan otomatis setiap hari lewat Vercel Cron (`vercel.json` → `/api/cron/audit-raport`, 00.00 WIB). Set `CRON_SECRET` di environment Vercel agar endpoint hanya bisa dipanggil cron; cron menandai eksekusi gagal bila ada ketidaksesuaian.
+
 ### Deployment ke Vercel
 
 ```bash

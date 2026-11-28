@@ -55,6 +55,7 @@ export const NAV_ITEMS = {
     { label: "Pengumuman", href: "/admin/pengumuman", icon: "Megaphone" },
     { label: "Nilai", href: "/admin/nilai", icon: "Award" },
     { label: "Raport", href: "/admin/raport", icon: "FileText" },
+    { label: "Audit Raport", href: "/admin/audit-raport", icon: "FileCheck" },
     { label: "Izin Santri", href: "/admin/izin", icon: "ShieldCheck" },
     { label: "Gerbang Pondok", href: "/gerbang", icon: "Fingerprint" },
     { label: "Kepala Pondok", href: "/kepala-pondok", icon: "HeartHandshake" },

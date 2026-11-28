@@ -364,6 +364,8 @@ type BarisRekap = {
   pengaturan: BobotRaport & { kktp: number }
 }
 
+// Salinan logika rekap ini ada di src/lib/audit-raport.ts (audit mandiri tanpa sesi).
+// Bila aturan rekap berubah, samakan juga fungsi tersebut.
 async function susunRekap(kelasId: string, semesterId: string): Promise<BarisRekap> {
   const [siswas, pengajarans, komponens, nilaiUjian, pengaturan] = await Promise.all([
     prisma.siswa.findMany({

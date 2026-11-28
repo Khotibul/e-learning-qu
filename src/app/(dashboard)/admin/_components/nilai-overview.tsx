@@ -32,6 +32,7 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  Download,
   GraduationCap,
   Search,
 } from "lucide-react"
@@ -122,16 +123,31 @@ export function NilaiOverview(props: Props) {
 
   const semesterLabel = props.semesterRefs.find((s) => s.id === semesterId)
 
+  function eksporRekap() {
+    if (!kelasId) {
+      toast.error("Pilih satu kelas terlebih dahulu untuk mengekspor rekap")
+      return
+    }
+    const p = new URLSearchParams({ kelasId })
+    if (semesterId) p.set("semesterId", semesterId)
+    window.open(`/api/admin/nilai/export?${p.toString()}`, "_blank")
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <GraduationCap className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Data Nilai</h1>
-          <p className="text-sm text-muted-foreground">
-            Nilai akhir yang sama dengan perhitungan raport{semesterLabel ? ` — ${semesterLabel.nama} (${semesterLabel.tahunAjaran.nama})` : ""}
-          </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <GraduationCap className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Data Nilai</h1>
+            <p className="text-sm text-muted-foreground">
+              Nilai akhir yang sama dengan perhitungan raport{semesterLabel ? ` — ${semesterLabel.nama} (${semesterLabel.tahunAjaran.nama})` : ""}
+            </p>
+          </div>
         </div>
+        <Button variant="outline" onClick={eksporRekap} disabled={loading}>
+          <Download className="h-4 w-4" /> Ekspor Rekap Kelas
+        </Button>
       </div>
 
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">

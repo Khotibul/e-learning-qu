@@ -17,6 +17,7 @@
     "postinstall": "prisma generate",
     "test": "echo 'Tests configured'",
     "test:identitas": "tsx --test scripts/uji-identitas.test.ts",
+    "audit:raport": "tsx scripts/audit-raport.ts",
     "format": "prettier --write ."
   },
   "dependencies": {

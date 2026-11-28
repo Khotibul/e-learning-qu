@@ -1,5 +1,8 @@
 {
   "regions": ["sin1"],
+  "crons": [
+    { "path": "/api/cron/audit-raport", "schedule": "0 17 * * *" }
+  ],
   "functions": {
     "src/app/api/**": {
       "maxDuration": 30
